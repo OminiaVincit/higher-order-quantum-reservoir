@@ -5,6 +5,14 @@ from scipy import linalg
 import tqdm
 import time
 
+class QRCParams():
+    def __init__(self, hidden_unit_count, max_coupling_energy, trotter_step, beta):
+        self.hidden_unit_count = hidden_unit_count
+        self.max_coupling_energy = max_coupling_energy
+        self.trotter_step = trotter_step
+        self.beta = beta
+        self.model = QuantumReservoirComputing()
+
 class QuantumReservoirComputing(object):
     def __feed_forward(self, input_sequence_list):
         sequence_count, sequence_length = input_sequence_list.shape
@@ -78,6 +86,7 @@ class QuantumReservoirComputing(object):
                 self.P1op = np.kron(self.P1op, I)
 
         self.hamiltonian = np.zeros( (self.dim,self.dim) )
+
         for qubit_index in range(self.qubit_count):
             coef = (np.random.rand()-0.5) * 2 * max_coupling_energy
             self.hamiltonian += coef * self.Zop[qubit_index]
@@ -85,6 +94,7 @@ class QuantumReservoirComputing(object):
             for qubit_index2 in range(qubit_index1+1, self.qubit_count):
                 coef = (np.random.rand()-0.5) * 2 * max_coupling_energy
                 self.hamiltonian += coef * self.Xop[qubit_index1] @ self.Xop[qubit_index2]
+        
         self.Uop = sp.linalg.expm(1.j * self.hamiltonian)
 
         _, state_list = self.__feed_forward(input_sequence_list)

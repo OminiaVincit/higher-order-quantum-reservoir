@@ -24,7 +24,7 @@ beta = 1e-14
 model = qrc.QuantumReservoirComputing()
 model.train(input_sequence_list, output_sequence_list, hidden_unit_count, max_coupling_energy, trotter_step, beta)
 
-prediction_sequence_list, loss = model.predict(input_sequence_list,output_sequence_list)
+prediction_sequence_list, loss = model.predict(input_sequence_list, output_sequence_list)
 print("loss=%f"%loss)
 utils.plot(input_sequence_list, output_sequence_list, prediction_sequence_list)
 
