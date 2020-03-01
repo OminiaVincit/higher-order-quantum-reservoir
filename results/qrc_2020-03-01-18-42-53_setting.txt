@@ -1,0 +1,5 @@
+train_len=2000, val_len=2000, buffer=2000, maxD=151, numtrials=100
+hidden_unit_count=5
+max_coupling_energy=1.0
+trotter_step=10
+beta=1e-14
