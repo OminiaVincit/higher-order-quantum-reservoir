@@ -25,7 +25,7 @@ qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy
 
 MFlist = utils.memory_function('results', 'qrc', qparams, \
     train_len=train_len, val_len=val_len, buffer=buffer, \
-    L=2, N=2)
+    L=200, N=100)
 
 #data, target = gen.make_data_for_narma(train_len + val_len, buffer=buffer, order=20)
 
