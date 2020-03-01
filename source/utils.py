@@ -6,10 +6,7 @@ import matplotlib.pyplot as plt
 import os 
 import time
 
-def memory_function(savedir, basename, qparams, train_len, val_len, buffer, L=150, N=2):
-    if os.path.isdir(savedir) == False:
-        os.mkdir(savedir)
-    
+def memory_function(qparams, train_len, val_len, buffer, L=150, N=1):    
     MFlist = []
     dlist = []
     train_list, val_list = [], []
@@ -26,7 +23,7 @@ def memory_function(savedir, basename, qparams, train_len, val_len, buffer, L=15
         
         train_loss_ls, val_loss_ls, mfs = [], [], []
         for n in range(N):
-            print('d={}, trial={}'.format(d, n))
+            #print('d={}, trial={}'.format(d, n))
             model.train(train_input_seq_ls, train_output_seq_ls, qparams.hidden_unit_count, \
                 qparams.max_coupling_energy, qparams.trotter_step, qparams.beta)
 
@@ -52,31 +49,7 @@ def memory_function(savedir, basename, qparams, train_len, val_len, buffer, L=15
         val_list.append(avg_val)
         dlist.append(d)
 
-    # save txt and figure file
-    timestamp = int(time.time() * 1000.0)
-    outbase = os.path.join(savedir, '{}_{}'.format(basename, timestamp))
-    np.savetxt('{}_mem.txt'.format(outbase), np.array([dlist, MFlist, train_list, val_list]).T, delimiter='\t')
-    
-    # save experiments setting
-    with open('{}_setting.txt'.format(outbase), 'w') as sfile:
-        sfile.write('train_len={}, val_len={}, buffer={}, L={}, N={}\n'.format(train_len, val_len, buffer, L, N))
-        sfile.write('hidden_unit_count={}\n'.format(qparams.hidden_unit_count))
-        sfile.write('max_coupling_energy={}\n'.format(qparams.max_coupling_energy))
-        sfile.write('trotter_step={}\n'.format(qparams.trotter_step))
-        sfile.write('beta={}\n'.format(qparams.beta))
-    
-    # save MF plot
-    plt.style.use('seaborn-colorblind')
-    plt.rc('font', family='serif')
-    plt.rc('mathtext', fontset='cm')
-
-    fig, ax = plt.subplots()
-    ax.set_xlabel(r'Delay $d$', fontsize=16)
-    ax.set_ylabel(r'$MF_d$', fontsize=16)
-    ax.scatter(dlist, MFlist, label='MF_d')
-    for ftype in ['png', 'pdf', 'svg']:
-        plt.savefig('{}_mem.{}'.format(outbase, ftype), bbox_inches='tight')
-    return MFlist
+    return np.array([dlist, MFlist, train_list, val_list]).T
 
 
 def plot_predict(input_sequence_list, output_sequence_list, prediction_sequence_list):
