@@ -12,6 +12,7 @@ def memory_function(savedir, basename, qparams, train_len, val_len, buffer, L=15
     
     MFlist = []
     dlist = []
+    train_list, val_list = [], []
     # generate data
     data = np.random.rand(train_len + buffer + val_len)
     model = qparams.model
@@ -47,12 +48,14 @@ def memory_function(savedir, basename, qparams, train_len, val_len, buffer, L=15
         avg_train, avg_val, avg_MFd = np.mean(train_loss_ls), np.mean(val_loss_ls), np.mean(mfs)
         print("d={}, train_loss={}, val_loss={}, MF={}".format(d, avg_train, avg_val, avg_MFd))
         MFlist.append(avg_MFd)
+        train_list.append(avg_train)
+        val_list.append(avg_val)
         dlist.append(d)
 
     # save txt and figure file
     timestamp = int(time.time() * 1000.0)
     outbase = os.path.join(savedir, '{}_{}'.format(basename, timestamp))
-    np.savetxt('{}_mem.txt'.format(outbase), np.array([dlist, MFlist]).T, delimiter='\t')
+    np.savetxt('{}_mem.txt'.format(outbase), np.array([dlist, MFlist, train_list, val_list]).T, delimiter='\t')
     
     # save experiments setting
     with open('{}_setting.txt'.format(outbase), 'w') as sfile:
