@@ -108,6 +108,6 @@ class QuantumReservoirComputing(object):
 
     def predict(self, input_sequence_list,output_sequence_list):
         prediction_sequence_list, _ = self.__feed_forward(input_sequence_list)
-        loss = np.sum((prediction_sequence_list-output_sequence_list)**2)/2
+        loss = np.sum((prediction_sequence_list-output_sequence_list)**2)/np.sum(prediction_sequence_list**2)
         loss /= prediction_sequence_list.shape[0]
         return prediction_sequence_list, loss

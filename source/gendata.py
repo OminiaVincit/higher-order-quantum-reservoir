@@ -1,16 +1,20 @@
 import sys
 import numpy as np
 
-def make_data_for_narma(length, buffer, order):
-    x = np.random.rand(length + buffer) * 0.5
+def make_data_for_narma(length, order):
+    x = np.random.rand(length) * 0.2
     y = np.zeros(length)
-    for i in range(length):
-        if i < order:
-            y[i] = 0.3 * y[i - 1] + 0.05 * y[i - 1] * np.sum(np.hstack((y[i - order:], y[:i]))) + 1.5 * x[i - order + buffer] * \
-                   x[i + buffer] + 0.
-        else:
-            y[i] = 0.2 * y[i - 1] + 0.004 * y[i - 1] * np.sum(np.hstack((y[i - order:i]))) + 1.5 * x[i - order + buffer] * x[
-                i + buffer] + 0.001
+    if order == 2:
+        for i in range(length):
+            y[i] = 0.4 * y[i-1] + 0.4 * y[i-1]*y[i-2] + 0.6 * (x[i]**3) + 0.1
+    else:
+        for i in range(length):
+            if i < order:
+                y[i] = 0.3 * y[i - 1] + 0.05 * y[i - 1] * np.sum(np.hstack((y[i - order:], y[:i]))) + \
+                    1.5 * x[i - order] * x[i] + 0.1
+            else:
+                y[i] = 0.3 * y[i - 1] + 0.05 * y[i - 1] * np.sum(np.hstack((y[i - order:i]))) + \
+                    1.5 * x[i - order] * x[i] + 0.1
     return x, y
 
 def generate_data(sequence_count, sequence_length, delay):

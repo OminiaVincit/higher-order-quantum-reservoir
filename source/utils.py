@@ -59,8 +59,8 @@ def plot_predict(input_sequence_list, output_sequence_list, prediction_sequence_
     
     for index in range(N):
         plt.subplot(N,1,index+1)
-        plt.plot(input_sequence_list[index],color=cmap(index),linestyle="--",label="input")
-        plt.plot(output_sequence_list[index],color=cmap(index),linestyle=":",label="label")
-        plt.plot(prediction_sequence_list[index],color=cmap(index),label="prediction")
+        #plt.plot(input_sequence_list[index][1000:1100],color=cmap(index),linestyle="--",label="input")
+        plt.plot(output_sequence_list[index][1000:1200],color=cmap(index),linestyle=":",label="label")
+        plt.plot(prediction_sequence_list[index][1000:1200],color=cmap(index),label="prediction")
         plt.legend()
     plt.show()
