@@ -29,33 +29,38 @@ class QuantumReservoirComputing(object):
                 # (1 + u Z)/2 = (1+u)/2 |0><0| + (1-u)/2 |1><1|
                 value = input_sequence_list[sequence_index, time_step]
                 rho = (1+value)/2 * rho + (1-value)/2 *self.Xop[0] @ rho @ self.Xop[0]
-                rho = self.Uop @ rho @ self.Uop.T.conj()
-
+                
+                # virtual nodes
                 current_state = []
-                for qubit_index in range(1,self.qubit_count):
-                    expectation_value = np.real(np.trace(self.Zop[qubit_index] @ rho))
-                    current_state.append(expectation_value)
+                for v in range(self.virtual_nodes):
+                    rho = self.Uop @ rho @ self.Uop.T.conj()
+                    for qubit_index in range(1,self.qubit_count):
+                        expectation_value = np.real(np.trace(self.Zop[qubit_index] @ rho))
+                        current_state.append(expectation_value)
                 state.append(current_state)
             state = np.array(state)
             state_list.append(state)
 
-            stacked_state = np.hstack( [state, np.ones([sequence_length,1])])
+            stacked_state = np.hstack( [state, np.ones([sequence_length, 1])])
             predict_sequence = stacked_state @ self.W_out
-            predict_sequence = np.squeeze(predict_sequence, axis=1)
+            if predict_sequence.shape[1] == 1:
+                predict_sequence = np.squeeze(predict_sequence, axis=1)
             predict_sequence_list.append(predict_sequence)
         predict_sequence_list = np.array(predict_sequence_list)
         state_list = np.array(state_list)
         return predict_sequence_list, state_list
 
-    def train(self, input_sequence_list, output_sequence_list, hidden_unit_count, max_coupling_energy, trotter_step, beta):
-        assert(input_sequence_list.shape == output_sequence_list.shape)
+    def train(self, input_sequence_list, output_sequence_list, hidden_unit_count, \
+        max_coupling_energy, trotter_step, beta, virtual_nodes):
+        assert(input_sequence_list.shape[0] == output_sequence_list.shape[0])
+        assert(input_sequence_list.shape[1] == output_sequence_list.shape[1])
         self.hidden_unit_count = hidden_unit_count
         self.trotter_step = trotter_step
-
+        self.virtual_nodes = virtual_nodes
         self.sequence_count, self.sequence_length = input_sequence_list.shape
         self.hidden_unit_count = hidden_unit_count
-
-        self.W_out = np.random.rand(self.hidden_unit_count+1,1)
+        Nout = output_sequence_list[0].shape[1]
+        self.W_out = np.random.rand(self.hidden_unit_count * self.virtual_nodes + 1, Nout)
 
         I = [[1,0],[0,1]]
         Z = [[1,0],[0,-1]]
@@ -95,16 +100,22 @@ class QuantumReservoirComputing(object):
                 coef = (np.random.rand()-0.5) * 2 * max_coupling_energy
                 self.hamiltonian += coef * self.Xop[qubit_index1] @ self.Xop[qubit_index2]
         
-        self.Uop = sp.linalg.expm(1.j * self.hamiltonian)
+        self.Uop = sp.linalg.expm(1.j * self.hamiltonian / self.virtual_nodes)
 
         _, state_list = self.__feed_forward(input_sequence_list)
 
         state_list = np.array(state_list)
-        V = np.reshape(state_list, [-1, hidden_unit_count])
+        V = np.reshape(state_list, [-1, hidden_unit_count * self.virtual_nodes])
         V = np.hstack( [V, np.ones([V.shape[0], 1]) ] )
-        S = np.reshape(output_sequence_list, [-1])
+        print('output seq list', output_sequence_list.shape)
+        #S = np.reshape(output_sequence_list, [-1])
+        (nx, ny, nz) = output_sequence_list.shape
+        S = np.reshape(output_sequence_list, [nx*ny, nz])
+        print('V S', V.shape, S.shape)
         self.W_out = np.linalg.pinv(V, rcond = beta) @ S
-        self.W_out = np.expand_dims(self.W_out,axis=1)
+        print('bf Wout', self.W_out.shape)
+        #self.W_out = np.expand_dims(self.W_out,axis=1)
+        #print('af Wout', self.W_out.shape)
 
     def predict(self, input_sequence_list,output_sequence_list):
         prediction_sequence_list, _ = self.__feed_forward(input_sequence_list)

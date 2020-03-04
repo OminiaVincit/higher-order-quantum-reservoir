@@ -35,6 +35,7 @@ if __name__  == '__main__':
     parser.add_argument('--buffer', type=int, default=2000)
     
     parser.add_argument('--nproc', type=int, default=50)
+    parser.add_argument('--virtuals', type=int, default=10)
 
     parser.add_argument('--basename', type=str, default='qrc_narma')
     parser.add_argument('--savedir', type=str, default='results')
@@ -44,7 +45,7 @@ if __name__  == '__main__':
     hidden_unit_count, max_coupling_energy, trotter_step, beta =\
         args.units, args.coupling, args.trotter, args.beta
     train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
-    nproc = args.nproc
+    nproc, virtual_nodes = args.nproc, args.virtuals
 
     basename, savedir = args.basename, args.savedir
     model = qrc.QuantumReservoirComputing()
@@ -52,24 +53,25 @@ if __name__  == '__main__':
     train_input_seq_ls, train_output_seq_ls = [], []
     val_input_seq_ls, val_output_seq_ls = [], []
     
-    for order in [2, 5, 10, 15, 20]:
-        data, target = gen.make_data_for_narma(train_len + val_len + buffer, order)
+    data, target = gen.make_data_for_narma(train_len + val_len + buffer, orders=[2, 5, 10, 15, 20])
 
-        train_input_seq_ls.append(  data[buffer  : buffer + train_len] )
-        train_output_seq_ls.append( target[buffer  : buffer + train_len] )
+    train_input_seq_ls.append(  data[buffer  : buffer + train_len] )
+    train_output_seq_ls.append( target[buffer  : buffer + train_len] )
 
-        val_input_seq_ls.append(  data[buffer + train_len : buffer + train_len + val_len] )
-        val_output_seq_ls.append( target[buffer + train_len : buffer + train_len + val_len] )
+    val_input_seq_ls.append(  data[buffer + train_len : buffer + train_len + val_len] )
+    val_output_seq_ls.append( target[buffer + train_len : buffer + train_len + val_len] )
 
     train_input_seq_ls = np.array(train_input_seq_ls)
     train_output_seq_ls = np.array(train_output_seq_ls)
 
     model.train(train_input_seq_ls, train_output_seq_ls, hidden_unit_count, \
-        max_coupling_energy, trotter_step, beta)
+        max_coupling_energy, trotter_step, beta, virtual_nodes)
     
     train_pred_seq_ls, train_loss = model.predict(train_input_seq_ls, train_output_seq_ls)
     print("train_loss={}".format(train_loss))
-    utils.plot_predict(train_input_seq_ls, train_output_seq_ls, train_pred_seq_ls)
+    print(train_pred_seq_ls.shape)
+    #utils.plot_predict(train_input_seq_ls, train_output_seq_ls, train_pred_seq_ls)
+    utils.plot_predict_multi(train_input_seq_ls[0], train_output_seq_ls[0].T, train_pred_seq_ls[0].T)
 
     # Test phase
     #val_input_seq_ls = np.array(val_input_seq_ls)

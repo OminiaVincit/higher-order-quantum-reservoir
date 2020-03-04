@@ -1,21 +1,26 @@
 import sys
 import numpy as np
 
-def make_data_for_narma(length, order):
+def make_data_for_narma(length, orders):
     x = np.random.rand(length) * 0.2
-    y = np.zeros(length)
-    if order == 2:
-        for i in range(length):
-            y[i] = 0.4 * y[i-1] + 0.4 * y[i-1]*y[i-2] + 0.6 * (x[i]**3) + 0.1
-    else:
-        for i in range(length):
-            if i < order:
-                y[i] = 0.3 * y[i - 1] + 0.05 * y[i - 1] * np.sum(np.hstack((y[i - order:], y[:i]))) + \
-                    1.5 * x[i - order] * x[i] + 0.1
-            else:
-                y[i] = 0.3 * y[i - 1] + 0.05 * y[i - 1] * np.sum(np.hstack((y[i - order:i]))) + \
-                    1.5 * x[i - order] * x[i] + 0.1
-    return x, y
+    N = len(orders)
+    Y = np.zeros((length, N))
+    for j in range(N):
+        order = orders[j]
+        y = np.zeros(length)
+        if order == 2:
+            for i in range(length):
+                y[i] = 0.4 * y[i-1] + 0.4 * y[i-1]*y[i-2] + 0.6 * (x[i]**3) + 0.1
+        else:
+            for i in range(length):
+                if i < order:
+                    y[i] = 0.3 * y[i - 1] + 0.05 * y[i - 1] * np.sum(np.hstack((y[i - order:], y[:i]))) + \
+                        1.5 * x[i - order + 1] * x[i] + 0.1
+                else:
+                    y[i] = 0.3 * y[i - 1] + 0.05 * y[i - 1] * np.sum(np.hstack((y[i - order:i]))) + \
+                        1.5 * x[i - order + 1] * x[i] + 0.1
+        Y[:,j] = y
+    return x, Y
 
 def generate_data(sequence_count, sequence_length, delay):
     input_sequence_list = []
