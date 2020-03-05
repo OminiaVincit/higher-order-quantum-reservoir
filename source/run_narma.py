@@ -75,6 +75,9 @@ if __name__  == '__main__':
     utils.plot_predict_multi(train_input_seq_ls[0], train_output_seq_ls[0].T, train_pred_seq_ls[0].T)
 
     # Test phase
-    #val_input_seq_ls = np.array(val_input_seq_ls)
-    #val_output_seq_ls = np.array(val_output_seq_ls)
-    #val_pred_seq_ls, val_loss = model.predict(val_input_seq_ls, val_output_seq_ls)
+    val_input_seq_ls = np.array(val_input_seq_ls)
+    val_output_seq_ls = np.array(val_output_seq_ls)
+    val_pred_seq_ls, val_loss = model.predict(val_input_seq_ls, val_output_seq_ls)
+    print("val_loss={}".format(val_loss))
+    print(val_pred_seq_ls.shape)
+    utils.plot_predict_multi(val_input_seq_ls[0], val_output_seq_ls[0].T, val_pred_seq_ls[0].T)
