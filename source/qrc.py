@@ -20,11 +20,12 @@ class QuantumReservoirComputing(object):
         state_list = []
         dim = 2**self.qubit_count
         sequence_range = tqdm.trange(sequence_count)
+        tau_delta = self.tau_delta
         for sequence_index in sequence_range:
             rho = np.zeros( [dim,dim] )
             rho[0,0]=1
             state = []
-            for time_step in range(sequence_length):
+            for time_step in range(0, sequence_length):
                 rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
                 # (1 + u Z)/2 = (1+u)/2 |0><0| + (1-u)/2 |1><1|
                 value = input_sequence_list[sequence_index, time_step]
@@ -51,7 +52,7 @@ class QuantumReservoirComputing(object):
         return predict_sequence_list, state_list
 
     def train(self, input_sequence_list, output_sequence_list, hidden_unit_count, \
-        max_coupling_energy, trotter_step, beta, virtual_nodes):
+        max_coupling_energy, trotter_step, beta, virtual_nodes, tau_delta):
         assert(input_sequence_list.shape[0] == output_sequence_list.shape[0])
         assert(input_sequence_list.shape[1] == output_sequence_list.shape[1])
         self.hidden_unit_count = hidden_unit_count
@@ -59,6 +60,7 @@ class QuantumReservoirComputing(object):
         self.virtual_nodes = virtual_nodes
         self.sequence_count, self.sequence_length = input_sequence_list.shape
         self.hidden_unit_count = hidden_unit_count
+        self.tau_delta = tau_delta
         Nout = output_sequence_list[0].shape[1]
         self.W_out = np.random.rand(self.hidden_unit_count * self.virtual_nodes + 1, Nout)
 
@@ -99,8 +101,8 @@ class QuantumReservoirComputing(object):
             for qubit_index2 in range(qubit_index1+1, self.qubit_count):
                 coef = (np.random.rand()-0.5) * 2 * max_coupling_energy
                 self.hamiltonian += coef * self.Xop[qubit_index1] @ self.Xop[qubit_index2]
-        
-        self.Uop = sp.linalg.expm(1.j * self.hamiltonian / self.virtual_nodes)
+        ratio = float(self.tau_delta) / float(self.virtual_nodes)
+        self.Uop = sp.linalg.expm(1.j * self.hamiltonian * ratio)
 
         _, state_list = self.__feed_forward(input_sequence_list)
 

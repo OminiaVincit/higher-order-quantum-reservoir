@@ -36,6 +36,7 @@ if __name__  == '__main__':
     
     parser.add_argument('--nproc', type=int, default=50)
     parser.add_argument('--virtuals', type=int, default=10)
+    parser.add_argument('--taudelta', type=float, default=1.0)
 
     parser.add_argument('--basename', type=str, default='qrc_narma')
     parser.add_argument('--savedir', type=str, default='results')
@@ -45,7 +46,7 @@ if __name__  == '__main__':
     hidden_unit_count, max_coupling_energy, trotter_step, beta =\
         args.units, args.coupling, args.trotter, args.beta
     train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
-    nproc, virtual_nodes = args.nproc, args.virtuals
+    nproc, virtual_nodes, tau_delta = args.nproc, args.virtuals, args.taudelta
 
     basename, savedir = args.basename, args.savedir
     model = qrc.QuantumReservoirComputing()
@@ -65,7 +66,7 @@ if __name__  == '__main__':
     train_output_seq_ls = np.array(train_output_seq_ls)
 
     model.train(train_input_seq_ls, train_output_seq_ls, hidden_unit_count, \
-        max_coupling_energy, trotter_step, beta, virtual_nodes)
+        max_coupling_energy, trotter_step, beta, virtual_nodes, tau_delta)
     
     train_pred_seq_ls, train_loss = model.predict(train_input_seq_ls, train_output_seq_ls)
     print("train_loss={}".format(train_loss))
