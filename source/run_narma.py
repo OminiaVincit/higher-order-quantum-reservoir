@@ -13,21 +13,60 @@ import qrc
 import gendata as gen
 import utils
 
-train_len = 2000
-val_len = 2000
-buffer = 2000
+def evaluation(outbase, qrcparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls):
+    
+    model = qrc.QuantumReservoirComputing()
+    
+    model.train_to_predict(train_input_seq_ls, train_output_seq_ls, qrcparams)
 
-hidden_unit_count = 5
-max_coupling_energy = 1.0
-trotter_step = 10
-beta = 1e-14
+    train_pred_seq_ls, train_loss = model.predict(train_input_seq_ls, train_output_seq_ls)
+    print("train_loss={}".format(train_loss))
+    print(train_pred_seq_ls.shape)
+    
+    
+    # Test phase
+    val_input_seq_ls = np.array(val_input_seq_ls)
+    val_output_seq_ls = np.array(val_output_seq_ls)
+    val_pred_seq_ls, val_loss = model.predict(val_input_seq_ls, val_output_seq_ls)
+    print("val_loss={}".format(val_loss))
+    print(val_pred_seq_ls.shape)
 
+    # save experiments setting
+    with open('{}_results.txt'.format(outbase), 'w') as sfile:
+        sfile.write('train_loss={}\n'.format(train_loss))
+        sfile.write('val_loss={}\n'.format(val_loss))
+        sfile.write('hidden_unit_count={}\n'.format(qrcparams.hidden_unit_count))
+        sfile.write('max_coupling_energy={}\n'.format(qrcparams.max_coupling_energy))
+        sfile.write('trotter_step={}\n'.format(qrcparams.trotter_step))
+        sfile.write('beta={}\n'.format(qparams.beta))
+        sfile.write('virtual nodes={}\n'.format(qparams.virtual_nodes))
+        sfile.write('tau_delta={}\n'.format(qparams.tau_delta))
+        sfile.write('init_rho={}\n'.format(qparams.init_rho))
+    
+    rstrls = []
+    rstrls.append('train_loss={}'.format(train_loss))
+    rstrls.append('val_loss={}'.format(val_loss))
+    rstrls.append('hidden_unit={},virtual={}'.format(qrcparams.hidden_unit_count, qparams.virtual_nodes))
+    rstrls.append('Jdelta={},tau_delta={}'.format(qrcparams.max_coupling_energy, qparams.tau_delta))
+    #rstrls.append('trotter_step={}'.format(qrcparams.trotter_step))
+    #rstrls.append('beta={}'.format(qparams.beta))
+    #rstrls.append('init_rho={}'.format(qparams.init_rho))
+
+    rstr = '\n'.join(rstrls)
+    utils.plot_predict_multi('{}_train'.format(outbase), rstr, train_input_seq_ls[0], \
+        train_output_seq_ls[0].T, train_pred_seq_ls[0].T)
+
+    utils.plot_predict_multi('{}_val'.format(outbase), rstr, val_input_seq_ls[0], \
+        val_output_seq_ls[0].T, val_pred_seq_ls[0].T)
+    
+    
 if __name__  == '__main__':
     # Check for command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--units', type=int, default=5)
     parser.add_argument('--coupling', type=float, default=1.0)
     parser.add_argument('--trotter', type=int, default=10)
+    parser.add_argument('--rho', type=int, default=0)
     parser.add_argument('--beta', type=float, default=1e-14)
 
     parser.add_argument('--trainlen', type=int, default=2000)
@@ -47,9 +86,9 @@ if __name__  == '__main__':
         args.units, args.coupling, args.trotter, args.beta
     train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
     nproc, virtual_nodes, tau_delta = args.nproc, args.virtuals, args.taudelta
+    init_rho = args.rho
 
     basename, savedir = args.basename, args.savedir
-    model = qrc.QuantumReservoirComputing()
     
     train_input_seq_ls, train_output_seq_ls = [], []
     val_input_seq_ls, val_output_seq_ls = [], []
@@ -65,19 +104,12 @@ if __name__  == '__main__':
     train_input_seq_ls = np.array(train_input_seq_ls)
     train_output_seq_ls = np.array(train_output_seq_ls)
 
-    model.train(train_input_seq_ls, train_output_seq_ls, hidden_unit_count, \
-        max_coupling_energy, trotter_step, beta, virtual_nodes, tau_delta)
-    
-    train_pred_seq_ls, train_loss = model.predict(train_input_seq_ls, train_output_seq_ls)
-    print("train_loss={}".format(train_loss))
-    print(train_pred_seq_ls.shape)
-    #utils.plot_predict(train_input_seq_ls, train_output_seq_ls, train_pred_seq_ls)
-    utils.plot_predict_multi(train_input_seq_ls[0], train_output_seq_ls[0].T, train_pred_seq_ls[0].T)
+    # Evaluation
+    timestamp = int(time.time() * 1000.0)
+    now = datetime.datetime.now()
+    datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
+    outbase = os.path.join(savedir, '{}_{}'.format(basename, datestr))
 
-    # Test phase
-    val_input_seq_ls = np.array(val_input_seq_ls)
-    val_output_seq_ls = np.array(val_output_seq_ls)
-    val_pred_seq_ls, val_loss = model.predict(val_input_seq_ls, val_output_seq_ls)
-    print("val_loss={}".format(val_loss))
-    print(val_pred_seq_ls.shape)
-    utils.plot_predict_multi(val_input_seq_ls[0], val_output_seq_ls[0].T, val_pred_seq_ls[0].T)
+    qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
+            trotter_step=trotter_step, beta=beta, virtual_nodes=virtual_nodes, tau_delta=tau_delta, init_rho=init_rho)
+    evaluation(outbase, qparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)

@@ -4,65 +4,45 @@ import scipy as sp
 from scipy import linalg
 import tqdm
 import time
+import gen_random
 
 class QRCParams():
-    def __init__(self, hidden_unit_count, max_coupling_energy, trotter_step, beta):
+    def __init__(self, hidden_unit_count, max_coupling_energy, trotter_step, beta, virtual_nodes, tau_delta, init_rho):
         self.hidden_unit_count = hidden_unit_count
         self.max_coupling_energy = max_coupling_energy
         self.trotter_step = trotter_step
         self.beta = beta
-        self.model = QuantumReservoirComputing()
+        self.virtual_nodes = virtual_nodes
+        self.tau_delta = tau_delta
+        self.init_rho = init_rho
 
 class QuantumReservoirComputing(object):
-    def __feed_forward(self, input_sequence_list):
-        sequence_count, sequence_length = input_sequence_list.shape
-        predict_sequence_list = []
-        state_list = []
-        dim = 2**self.qubit_count
-        sequence_range = tqdm.trange(sequence_count)
-        tau_delta = self.tau_delta
-        for sequence_index in sequence_range:
-            rho = np.zeros( [dim,dim] )
-            rho[0,0]=1
-            state = []
-            for time_step in range(0, sequence_length):
-                rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
-                # (1 + u Z)/2 = (1+u)/2 |0><0| + (1-u)/2 |1><1|
-                value = input_sequence_list[sequence_index, time_step]
-                rho = (1+value)/2 * rho + (1-value)/2 *self.Xop[0] @ rho @ self.Xop[0]
-                
-                # virtual nodes
-                current_state = []
-                for v in range(self.virtual_nodes):
-                    rho = self.Uop @ rho @ self.Uop.T.conj()
-                    for qubit_index in range(1,self.qubit_count):
-                        expectation_value = np.real(np.trace(self.Zop[qubit_index] @ rho))
-                        current_state.append(expectation_value)
-                state.append(current_state)
-            state = np.array(state)
-            state_list.append(state)
-
-            stacked_state = np.hstack( [state, np.ones([sequence_length, 1])])
-            predict_sequence = stacked_state @ self.W_out
-            if predict_sequence.shape[1] == 1:
-                predict_sequence = np.squeeze(predict_sequence, axis=1)
-            predict_sequence_list.append(predict_sequence)
-        predict_sequence_list = np.array(predict_sequence_list)
-        state_list = np.array(state_list)
-        return predict_sequence_list, state_list
-
-    def __init_reservoir(self, hidden_unit_count, max_coupling_energy, ratio):
+    def __init_reservoir(self, qparams):
         I = [[1,0],[0,1]]
         Z = [[1,0],[0,-1]]
         X = [[0,1],[1,0]]
         P0 = [[1,0],[0,0]]
         P1 = [[0,0],[0,1]]
+        self.hidden_unit_count = qparams.hidden_unit_count
+        self.trotter_step = qparams.trotter_step
+        self.virtual_nodes = qparams.virtual_nodes
+        self.tau_delta = qparams.tau_delta
+        
         self.qubit_count = self.hidden_unit_count+1
         self.dim = 2**self.qubit_count
         self.Zop = [1]*self.qubit_count
         self.Xop = [1]*self.qubit_count
         self.P0op = [1]
         self.P1op = [1]
+            
+        # initialize density matrix
+        rho = np.zeros( [self.dim, self.dim] )
+        rho[0,0]=1
+        if qparams.init_rho != 0:
+            # initialize random density matrix
+            rho = gen_random.random_density_matrix(self.dim)
+        #print(rho)
+        self.init_rho = rho
 
         for cursor_index in range(self.qubit_count):
             for qubit_index in range(self.qubit_count):
@@ -83,34 +63,65 @@ class QuantumReservoirComputing(object):
         self.hamiltonian = np.zeros( (self.dim,self.dim) )
 
         for qubit_index in range(self.qubit_count):
-            coef = (np.random.rand()-0.5) * 2 * max_coupling_energy
+            coef = (np.random.rand()-0.5) * 2 * qparams.max_coupling_energy
             self.hamiltonian += coef * self.Zop[qubit_index]
         for qubit_index1 in range(self.qubit_count):
             for qubit_index2 in range(qubit_index1+1, self.qubit_count):
-                coef = (np.random.rand()-0.5) * 2 * max_coupling_energy
+                coef = (np.random.rand()-0.5) * 2 * qparams.max_coupling_energy
                 self.hamiltonian += coef * self.Xop[qubit_index1] @ self.Xop[qubit_index2]
+                
+        ratio = float(self.tau_delta) / float(self.virtual_nodes)        
         self.Uop = sp.linalg.expm(1.j * self.hamiltonian * ratio)
 
-    def train(self, input_sequence_list, output_sequence_list, hidden_unit_count, \
-        max_coupling_energy, trotter_step, beta, virtual_nodes, tau_delta):
+    def __feed_forward(self, input_sequence_list, predict=True):
+        sequence_count, sequence_length = input_sequence_list.shape
+        predict_sequence_list = []
+        state_list = []
+        dim = 2**self.qubit_count
+        sequence_range = tqdm.trange(sequence_count)
+        tau_delta = self.tau_delta
+        for sequence_index in sequence_range:
+            rho = self.init_rho
+            state = []
+            for time_step in range(0, sequence_length):
+                rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
+                # (1 + u Z)/2 = (1+u)/2 |0><0| + (1-u)/2 |1><1|
+                value = input_sequence_list[sequence_index, time_step]
+                rho = (1+value)/2 * rho + (1-value)/2 *self.Xop[0] @ rho @ self.Xop[0]
+                
+                # virtual nodes
+                current_state = []
+                for v in range(self.virtual_nodes):
+                    rho = self.Uop @ rho @ self.Uop.T.conj()
+                    for qubit_index in range(1,self.qubit_count):
+                        expectation_value = np.real(np.trace(self.Zop[qubit_index] @ rho))
+                        current_state.append(expectation_value)
+                state.append(current_state)
+            state = np.array(state)
+            state_list.append(state)
+
+            if predict:
+                stacked_state = np.hstack( [state, np.ones([sequence_length, 1])])
+                predict_sequence = stacked_state @ self.W_out
+                if predict_sequence.shape[1] == 1:
+                    predict_sequence = np.squeeze(predict_sequence, axis=1)
+                predict_sequence_list.append(predict_sequence)
+        predict_sequence_list = np.array(predict_sequence_list)
+        state_list = np.array(state_list)
+        return predict_sequence_list, state_list
+
+
+    def __train(self, input_sequence_list, output_sequence_list, beta):
         assert(input_sequence_list.shape[0] == output_sequence_list.shape[0])
         assert(input_sequence_list.shape[1] == output_sequence_list.shape[1])
-        self.hidden_unit_count = hidden_unit_count
-        self.trotter_step = trotter_step
-        self.virtual_nodes = virtual_nodes
         self.sequence_count, self.sequence_length = input_sequence_list.shape
-        self.hidden_unit_count = hidden_unit_count
-        self.tau_delta = tau_delta
         Nout = output_sequence_list[0].shape[1]
         self.W_out = np.random.rand(self.hidden_unit_count * self.virtual_nodes + 1, Nout)
-
-        ratio = float(self.tau_delta) / float(self.virtual_nodes)
-        self.__init_reservoir(hidden_unit_count, max_coupling_energy, ratio)
 
         _, state_list = self.__feed_forward(input_sequence_list)
 
         state_list = np.array(state_list)
-        V = np.reshape(state_list, [-1, hidden_unit_count * self.virtual_nodes])
+        V = np.reshape(state_list, [-1, self.hidden_unit_count * self.virtual_nodes])
         V = np.hstack( [V, np.ones([V.shape[0], 1]) ] )
         print('output seq list', output_sequence_list.shape)
         #S = np.reshape(output_sequence_list, [-1])
@@ -121,6 +132,10 @@ class QuantumReservoirComputing(object):
         print('bf Wout', self.W_out.shape)
         #self.W_out = np.expand_dims(self.W_out,axis=1)
         #print('af Wout', self.W_out.shape)
+
+    def train_to_predict(self, input_sequence_list, output_sequence_list, qparams):
+        self.__init_reservoir(qparams)
+        self.__train(input_sequence_list, output_sequence_list, qparams.beta)
 
     def predict(self, input_sequence_list,output_sequence_list):
         prediction_sequence_list, _ = self.__feed_forward(input_sequence_list)
