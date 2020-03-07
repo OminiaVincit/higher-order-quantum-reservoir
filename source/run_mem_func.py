@@ -125,7 +125,8 @@ if __name__  == '__main__':
             sfile.write('beta={}\n'.format(qparams.beta))
             sfile.write('virtual nodes={}\n'.format(' '.join([str(v) for v in Vs])))
             sfile.write('tau_delta={}\n'.format(qparams.tau_delta))
-            sfile.write('init_rho={}\n'.format(qparams.init_rho))
+            sfile.write('maxD={}\n'.format(maxD))
+            sfile.write('Ntrials={}\n'.format(N))
         figbase = '{}_mem'.format(outbase)
 
     # save MF plot
