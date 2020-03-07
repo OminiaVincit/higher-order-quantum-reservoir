@@ -123,13 +123,13 @@ class QuantumReservoirComputing(object):
         state_list = np.array(state_list)
         V = np.reshape(state_list, [-1, self.hidden_unit_count * self.virtual_nodes])
         V = np.hstack( [V, np.ones([V.shape[0], 1]) ] )
-        print('output seq list', output_sequence_list.shape)
+        #print('output seq list', output_sequence_list.shape)
         #S = np.reshape(output_sequence_list, [-1])
         (nx, ny, nz) = output_sequence_list.shape
         S = np.reshape(output_sequence_list, [nx*ny, nz])
-        print('V S', V.shape, S.shape)
+        #print('V S', V.shape, S.shape)
         self.W_out = np.linalg.pinv(V, rcond = beta) @ S
-        print('bf Wout', self.W_out.shape)
+        #print('bf Wout', self.W_out.shape)
         #self.W_out = np.expand_dims(self.W_out,axis=1)
         #print('af Wout', self.W_out.shape)
 
@@ -142,3 +142,55 @@ class QuantumReservoirComputing(object):
         loss = np.sum((prediction_sequence_list-output_sequence_list)**2)/np.sum(prediction_sequence_list**2)
         loss /= prediction_sequence_list.shape[0]
         return prediction_sequence_list, loss
+
+def get_loss(qrcparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls):
+    model = QuantumReservoirComputing()
+    
+    train_input_seq_ls = np.array(train_input_seq_ls)
+    train_output_seq_ls = np.array(train_output_seq_ls)
+    model.train_to_predict(train_input_seq_ls, train_output_seq_ls, qrcparams)
+
+    train_pred_seq_ls, train_loss = model.predict(train_input_seq_ls, train_output_seq_ls)
+    #print("train_loss={}".format(train_loss))
+    #print(train_pred_seq_ls.shape)
+    
+    
+    # Test phase
+    val_input_seq_ls = np.array(val_input_seq_ls)
+    val_output_seq_ls = np.array(val_output_seq_ls)
+    val_pred_seq_ls, val_loss = model.predict(val_input_seq_ls, val_output_seq_ls)
+    #print("val_loss={}".format(val_loss))
+    #print(val_pred_seq_ls.shape)
+
+    return train_pred_seq_ls, train_loss, val_pred_seq_ls, val_loss
+
+def evaluation(outbase, qrcparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls):
+    train_pred_seq_ls, train_loss, val_pred_seq_ls, val_loss = \
+        get_loss(qrcparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
+    # save experiments setting
+    with open('{}_results.txt'.format(outbase), 'w') as sfile:
+        sfile.write('train_loss={}\n'.format(train_loss))
+        sfile.write('val_loss={}\n'.format(val_loss))
+        sfile.write('hidden_unit_count={}\n'.format(qrcparams.hidden_unit_count))
+        sfile.write('max_coupling_energy={}\n'.format(qrcparams.max_coupling_energy))
+        sfile.write('trotter_step={}\n'.format(qrcparams.trotter_step))
+        sfile.write('beta={}\n'.format(qparams.beta))
+        sfile.write('virtual nodes={}\n'.format(qparams.virtual_nodes))
+        sfile.write('tau_delta={}\n'.format(qparams.tau_delta))
+        sfile.write('init_rho={}\n'.format(qparams.init_rho))
+    
+    rstrls = []
+    rstrls.append('train_loss={}'.format(train_loss))
+    rstrls.append('val_loss={}'.format(val_loss))
+    rstrls.append('hidden_unit={},virtual={}'.format(qrcparams.hidden_unit_count, qparams.virtual_nodes))
+    rstrls.append('Jdelta={},tau_delta={}'.format(qrcparams.max_coupling_energy, qparams.tau_delta))
+    #rstrls.append('trotter_step={}'.format(qrcparams.trotter_step))
+    #rstrls.append('beta={}'.format(qparams.beta))
+    #rstrls.append('init_rho={}'.format(qparams.init_rho))
+
+    rstr = '\n'.join(rstrls)
+    utils.plot_predict_multi('{}_train'.format(outbase), rstr, train_input_seq_ls[0], \
+        train_output_seq_ls[0].T, train_pred_seq_ls[0].T)
+
+    utils.plot_predict_multi('{}_val'.format(outbase), rstr, val_input_seq_ls[0], \
+        val_output_seq_ls[0].T, val_pred_seq_ls[0].T)

@@ -3,7 +3,7 @@ import numpy as np
 import os
 import scipy
 import argparse
-from multiprocessing import Process
+import multiprocessing
 import matplotlib
 import matplotlib.pyplot as plt
 import tqdm
@@ -13,53 +13,26 @@ import qrc
 import gendata as gen
 import utils
 
-def evaluation(outbase, qrcparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls):
-    
-    model = qrc.QuantumReservoirComputing()
-    
-    model.train_to_predict(train_input_seq_ls, train_output_seq_ls, qrcparams)
+N = 2
+tdeltas = [2**n for n in range(N)]
+virtuals = [2*n for n in range(1, N+1)]
 
-    train_pred_seq_ls, train_loss = model.predict(train_input_seq_ls, train_output_seq_ls)
-    print("train_loss={}".format(train_loss))
-    print(train_pred_seq_ls.shape)
-    
-    
-    # Test phase
-    val_input_seq_ls = np.array(val_input_seq_ls)
-    val_output_seq_ls = np.array(val_output_seq_ls)
-    val_pred_seq_ls, val_loss = model.predict(val_input_seq_ls, val_output_seq_ls)
-    print("val_loss={}".format(val_loss))
-    print(val_pred_seq_ls.shape)
+def nmse_job(qparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls, Ntrials, send_end):
+    train_loss_ls, val_loss_ls = [], []
+    print('Start process taudelta={}, virtual={}, Jdelta={}'.format(qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy))
+    # for n in range(Ntrials):
+    #     _, train_loss, _, val_loss = qrc.get_loss(qparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
+    #     train_loss_ls.append(train_loss)
+    #     val_loss_ls.append(val_loss)
 
-    # save experiments setting
-    with open('{}_results.txt'.format(outbase), 'w') as sfile:
-        sfile.write('train_loss={}\n'.format(train_loss))
-        sfile.write('val_loss={}\n'.format(val_loss))
-        sfile.write('hidden_unit_count={}\n'.format(qrcparams.hidden_unit_count))
-        sfile.write('max_coupling_energy={}\n'.format(qrcparams.max_coupling_energy))
-        sfile.write('trotter_step={}\n'.format(qrcparams.trotter_step))
-        sfile.write('beta={}\n'.format(qparams.beta))
-        sfile.write('virtual nodes={}\n'.format(qparams.virtual_nodes))
-        sfile.write('tau_delta={}\n'.format(qparams.tau_delta))
-        sfile.write('init_rho={}\n'.format(qparams.init_rho))
-    
-    rstrls = []
-    rstrls.append('train_loss={}'.format(train_loss))
-    rstrls.append('val_loss={}'.format(val_loss))
-    rstrls.append('hidden_unit={},virtual={}'.format(qrcparams.hidden_unit_count, qparams.virtual_nodes))
-    rstrls.append('Jdelta={},tau_delta={}'.format(qrcparams.max_coupling_energy, qparams.tau_delta))
-    #rstrls.append('trotter_step={}'.format(qrcparams.trotter_step))
-    #rstrls.append('beta={}'.format(qparams.beta))
-    #rstrls.append('init_rho={}'.format(qparams.init_rho))
+    #mean_train, mean_val = np.mean(train_loss_ls), np.mean(val_loss_ls)
+    mean_train, mean_val = np.random.rand(), np.random.rand()
 
-    rstr = '\n'.join(rstrls)
-    utils.plot_predict_multi('{}_train'.format(outbase), rstr, train_input_seq_ls[0], \
-        train_output_seq_ls[0].T, train_pred_seq_ls[0].T)
+    rstr = '{} {} {} {} {}'.format(\
+        qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy, mean_train, mean_val)
+    print('Finish process {}'.format(rstr))
+    send_end.send(rstr)
 
-    utils.plot_predict_multi('{}_val'.format(outbase), rstr, val_input_seq_ls[0], \
-        val_output_seq_ls[0].T, val_pred_seq_ls[0].T)
-    
-    
 if __name__  == '__main__':
     # Check for command line arguments
     parser = argparse.ArgumentParser()
@@ -79,6 +52,7 @@ if __name__  == '__main__':
 
     parser.add_argument('--basename', type=str, default='qrc_narma')
     parser.add_argument('--savedir', type=str, default='results')
+    parser.add_argument('--eval', type=int, default=1)
     args = parser.parse_args()
     print(args)
 
@@ -89,7 +63,9 @@ if __name__  == '__main__':
     init_rho = args.rho
 
     basename, savedir = args.basename, args.savedir
-    
+    if os.path.isdir(savedir) == False:
+        os.mkdir(savedir)
+
     train_input_seq_ls, train_output_seq_ls = [], []
     val_input_seq_ls, val_output_seq_ls = [], []
     
@@ -101,15 +77,73 @@ if __name__  == '__main__':
     val_input_seq_ls.append(  data[buffer + train_len : buffer + train_len + val_len] )
     val_output_seq_ls.append( target[buffer + train_len : buffer + train_len + val_len] )
 
-    train_input_seq_ls = np.array(train_input_seq_ls)
-    train_output_seq_ls = np.array(train_output_seq_ls)
-
     # Evaluation
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
     outbase = os.path.join(savedir, '{}_{}'.format(basename, datestr))
 
-    qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
-            trotter_step=trotter_step, beta=beta, virtual_nodes=virtual_nodes, tau_delta=tau_delta, init_rho=init_rho)
-    evaluation(outbase, qparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
+    if args.eval == 0:
+        qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
+                trotter_step=trotter_step, beta=beta, virtual_nodes=virtual_nodes, tau_delta=tau_delta, init_rho=init_rho)
+        qrc.evaluation(outbase, qparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
+    
+    if args.eval == 1:
+        Ntrials = 1
+        jobs, pipels = [], []
+
+        for tdelta in tdeltas:
+            for V in virtuals:
+                recv_end, send_end = multiprocessing.Pipe(False)
+                qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
+                    trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tdelta, init_rho=init_rho)
+                p = multiprocessing.Process(target=nmse_job, args=(qparams, train_input_seq_ls, train_output_seq_ls, \
+                    val_input_seq_ls, val_output_seq_ls, Ntrials, send_end))
+                jobs.append(p)
+                pipels.append(recv_end)
+
+        # Start the process
+        for p in jobs:
+            p.start()
+    
+        # Ensure all processes have finished execution
+        for p in jobs:
+            p.join()
+
+        # Sleep 5s
+        time.sleep(5)
+
+        result_list = [np.array( [float(y) for y in x.recv().split(' ')]  ) for x in pipels]
+        rsarr = np.array(result_list)
+        print(rsarr)
+        print(rsarr.shape)
+
+        # save result
+        xs, ys = tdeltas, virtuals
+        zs = dict()
+        zs[0] = rsarr[:, 3].reshape(len(xs), len(ys))
+        zs[1] = rsarr[:, 4].reshape(len(xs), len(ys))
+        # zs = np.random.rand(len(xs), len(ys))
+        # print(zs.shape)
+
+        cmap = plt.get_cmap("tab10")
+        labels = ['train_NMSE', 'val_NMSE']
+        plt.figure(figsize=(22,8))
+        plt.style.use('seaborn-colorblind')
+        plt.rc('font', family='serif')
+        plt.rc('mathtext', fontset='cm')
+        plt.rcParams['font.size']=20
+
+        for i in range(2):
+            plt.subplot(1, 2, i+1)
+            #zs[i] = np.random.rand(len(xs), len(ys))
+            plt.contourf(xs, ys, zs[i], 30, cmap=cmap)
+            plt.xlabel('$\\tau\Delta$', fontsize=32)
+            plt.ylabel('$V$', fontsize=32)
+            cb = plt.colorbar()
+            cb.set_label(labels[i])
+        for ftype in ['png']:
+            plt.savefig('{}_NMSE.{}'.format(outbase, ftype), bbox_inches='tight')
+        
+        # save the result
+        np.savetxt('{}_NMSE.txt'.format(outbase), rsarr, delimiter=' ')
