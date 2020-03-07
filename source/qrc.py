@@ -112,6 +112,7 @@ class QuantumReservoirComputing(object):
 
 
     def __train(self, input_sequence_list, output_sequence_list, beta):
+        #print('shape', input_sequence_list.shape, output_sequence_list.shape)
         assert(input_sequence_list.shape[0] == output_sequence_list.shape[0])
         assert(input_sequence_list.shape[1] == output_sequence_list.shape[1])
         self.sequence_count, self.sequence_length = input_sequence_list.shape
@@ -194,3 +195,58 @@ def evaluation(outbase, qrcparams, train_input_seq_ls, train_output_seq_ls, val_
 
     utils.plot_predict_multi('{}_val'.format(outbase), rstr, val_input_seq_ls[0], \
         val_output_seq_ls[0].T, val_pred_seq_ls[0].T)
+
+def memory_function(taskname, qparams, train_len, val_len, buffer, maxD, Ntrials=1):    
+    MFlist = []
+    dlist = []
+    train_list, val_list = [], []
+    length = buffer + train_len + val_len
+    # generate data
+    if 'stm' not in taskname and 'pc' not in taskname:
+        raise ValueError('Not found taskname ={} to generate data'.format(taskname))
+
+    data = np.random.randint(0, 2, train_len + buffer + val_len)
+    for d in range(maxD+1):
+        train_input_seq_ls = np.array([ data[buffer  : buffer + train_len] ] )
+        val_input_seq_ls = np.array([ data[buffer + train_len : length] ] )
+        
+        train_out, val_out = [], []
+        if 'pc' in taskname:
+            for k in range(buffer, length):
+                yk = np.sum(data[k-d : k+1]) % 2
+                if k >= buffer + train_len:
+                    val_out.append(yk)
+                else:
+                    train_out.append(yk)
+        else:
+            train_out = data[buffer - d : buffer - d + train_len]
+            val_out = data[buffer - d + train_len : length - d ] 
+        
+        train_output_seq_ls = np.array([ train_out ]).reshape(1, len(train_out), 1)
+        val_output_seq_ls = np.array([ val_out ]).reshape(1, len(val_out), 1)
+        
+        train_loss_ls, val_loss_ls, mfs = [], [], []
+        for n in range(Ntrials):
+            #print('d={}, trial={}'.format(d, n))
+            train_pred_seq_ls, train_loss, val_pred_seq_ls, val_loss = \
+                get_loss(qparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
+
+            # Compute memory function
+            val_output_seq, val_pred_seq = val_output_seq_ls[0].ravel(), val_pred_seq_ls[0].ravel()
+            #print('cov', val_output_seq.shape, val_pred_seq.shape)
+            cov_matrix = np.cov(np.array([val_output_seq, val_pred_seq]))
+            MF_d = cov_matrix[0][1] ** 2
+            MF_d = MF_d / (np.var(val_output_seq) * np.var(val_pred_seq))
+
+            train_loss_ls.append(train_loss)
+            val_loss_ls.append(val_loss)
+            mfs.append(MF_d)
+
+        avg_train, avg_val, avg_MFd = np.mean(train_loss_ls), np.mean(val_loss_ls), np.mean(mfs)
+        #print("d={}, train_loss={}, val_loss={}, MF={}".format(d, avg_train, avg_val, avg_MFd))
+        MFlist.append(avg_MFd)
+        train_list.append(avg_train)
+        val_list.append(avg_val)
+        dlist.append(d)
+
+    return np.array([dlist, MFlist, train_list, val_list]).T
