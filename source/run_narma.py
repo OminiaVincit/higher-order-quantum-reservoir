@@ -13,20 +13,23 @@ import qrc
 import gendata as gen
 import utils
 
-N = 2
+N = 10 
 tdeltas = [2**n for n in range(N)]
-virtuals = [2*n for n in range(1, N+1)]
+tdeltas.insert(0, 0.5)
+
+virtuals = [5*n for n in range(1, N+1)]
+virtuals.insert(0, 1)
 
 def nmse_job(qparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls, Ntrials, send_end):
     train_loss_ls, val_loss_ls = [], []
     print('Start process taudelta={}, virtual={}, Jdelta={}'.format(qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy))
-    # for n in range(Ntrials):
-    #     _, train_loss, _, val_loss = qrc.get_loss(qparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
-    #     train_loss_ls.append(train_loss)
-    #     val_loss_ls.append(val_loss)
+    for n in range(Ntrials):
+         _, train_loss, _, val_loss = qrc.get_loss(qparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
+         train_loss_ls.append(train_loss)
+         val_loss_ls.append(val_loss)
 
-    #mean_train, mean_val = np.mean(train_loss_ls), np.mean(val_loss_ls)
-    mean_train, mean_val = np.random.rand(), np.random.rand()
+    mean_train, mean_val = np.mean(train_loss_ls), np.mean(val_loss_ls)
+    #mean_train, mean_val = np.random.rand(), np.random.rand()
 
     rstr = '{} {} {} {} {}'.format(\
         qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy, mean_train, mean_val)
@@ -89,7 +92,7 @@ if __name__  == '__main__':
         qrc.evaluation(outbase, qparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
     
     if args.eval == 1:
-        Ntrials = 1
+        Ntrials = 10
         jobs, pipels = [], []
 
         for tdelta in tdeltas:
@@ -118,6 +121,9 @@ if __name__  == '__main__':
         print(rsarr)
         print(rsarr.shape)
 
+        # plot the result
+        np.savetxt('{}_NMSE.txt'.format(outbase), rsarr, delimiter=' ')
+        
         # save result
         xs, ys = tdeltas, virtuals
         zs = dict()
@@ -126,7 +132,7 @@ if __name__  == '__main__':
         # zs = np.random.rand(len(xs), len(ys))
         # print(zs.shape)
 
-        cmap = plt.get_cmap("tab10")
+        cmap = plt.get_cmap("viridis")
         labels = ['train_NMSE', 'val_NMSE']
         plt.figure(figsize=(22,8))
         plt.style.use('seaborn-colorblind')
@@ -140,10 +146,9 @@ if __name__  == '__main__':
             plt.contourf(xs, ys, zs[i], 30, cmap=cmap)
             plt.xlabel('$\\tau\Delta$', fontsize=32)
             plt.ylabel('$V$', fontsize=32)
+            plt.xscale('log')
             cb = plt.colorbar()
             cb.set_label(labels[i])
         for ftype in ['png']:
             plt.savefig('{}_NMSE.{}'.format(outbase, ftype), bbox_inches='tight')
         
-        # save the result
-        np.savetxt('{}_NMSE.txt'.format(outbase), rsarr, delimiter=' ')
