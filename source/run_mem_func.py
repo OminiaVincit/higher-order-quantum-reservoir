@@ -53,13 +53,14 @@ if __name__  == '__main__':
     basename = args.basename
     savedir = args.savedir
     Vs = [1, 2, 5, 10, 25, 50]
+    #Vs = [1]
     Varrs = []
     
     if os.path.isfile(savedir):
         # Load setting file
-        figbase = savedir.replace('_settings.txt', '')
+        figbase = savedir.replace('_setting.txt', '')
         for V in Vs:
-            rsarr = np.loadtxt('{}_V_{}_mem.txt', figbase, V)
+            rsarr = np.loadtxt('{}_V_{}_mem.txt'.format(figbase, V))
             Varrs.append(rsarr)
     else:
         if os.path.isdir(savedir) == False:
@@ -143,7 +144,7 @@ if __name__  == '__main__':
         dlist, MFlist = rsarr[:, 0], rsarr[:, 1]
 
         #ax.set_yscale('log')
-        ax.scatter(dlist, MFlist, label='V={}'.format(Vs[i]))
+        ax.plot(dlist, MFlist, 'o--', label='V={}'.format(Vs[i]))
     plt.legend()
     # plt.show()
     for ftype in ['png', 'pdf', 'svg']:
