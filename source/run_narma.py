@@ -13,7 +13,7 @@ import qrc
 import gendata as gen
 import utils
 
-N = 10 
+N = 1 
 tdeltas = [2**n for n in range(N)]
 tdeltas.insert(0, 0.5)
 
@@ -50,6 +50,7 @@ if __name__  == '__main__':
     parser.add_argument('--buffer', type=int, default=2000)
     
     parser.add_argument('--nproc', type=int, default=50)
+    parser.add_argument('--ntrials', type=int, default=1)
     parser.add_argument('--virtuals', type=int, default=10)
     parser.add_argument('--taudelta', type=float, default=1.0)
 
@@ -64,6 +65,7 @@ if __name__  == '__main__':
     train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
     nproc, virtual_nodes, tau_delta = args.nproc, args.virtuals, args.taudelta
     init_rho = args.rho
+    Ntrials = args.ntrials
 
     basename, savedir = args.basename, args.savedir
     if os.path.isdir(savedir) == False:
@@ -72,7 +74,7 @@ if __name__  == '__main__':
     train_input_seq_ls, train_output_seq_ls = [], []
     val_input_seq_ls, val_output_seq_ls = [], []
     
-    data, target = gen.make_data_for_narma(train_len + val_len + buffer, orders=[2, 5, 10, 15, 20])
+    data, target = gen.make_data_for_narma(train_len + val_len + buffer, orders=[5, 10])
 
     train_input_seq_ls.append(  data[buffer  : buffer + train_len] )
     train_output_seq_ls.append( target[buffer  : buffer + train_len] )
@@ -92,7 +94,6 @@ if __name__  == '__main__':
         qrc.evaluation(outbase, qparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
     
     if args.eval == 1:
-        Ntrials = 10
         jobs, pipels = [], []
 
         for tdelta in tdeltas:
@@ -149,6 +150,7 @@ if __name__  == '__main__':
             plt.xscale('log')
             cb = plt.colorbar()
             cb.set_label(labels[i])
-        for ftype in ['png']:
+        plt.show()
+        for ftype in ['png', 'pdf']:
             plt.savefig('{}_NMSE.{}'.format(outbase, ftype), bbox_inches='tight')
         

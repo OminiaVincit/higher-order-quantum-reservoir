@@ -28,7 +28,7 @@ def plot_predict_multi(savefile, rstr, input_sequence, output_sequence_multi, pr
     plt.subplot(N, 1, 1)
     plt.plot(input_sequence[bg:ed], color=cmap(0),linestyle="--",label=rstr)
     plt.legend()
-
+    print('output multi', output_sequence_multi.shape)
     for index in range(N-1):
         plt.subplot(N,1,index+2)
         cl = cmap(index+1)

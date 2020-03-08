@@ -2,7 +2,8 @@ import sys
 import numpy as np
 
 def make_data_for_narma(length, orders):
-    x = np.random.rand(length) * 0.2
+    xs = np.random.rand(length)
+    x = xs * 0.2
     N = len(orders)
     Y = np.zeros((length, N))
     for j in range(N):
@@ -20,7 +21,7 @@ def make_data_for_narma(length, orders):
                     y[i] = 0.3 * y[i - 1] + 0.05 * y[i - 1] * np.sum(np.hstack((y[i - order:i]))) + \
                         1.5 * x[i - order + 1] * x[i] + 0.1
         Y[:,j] = y
-    return x, Y
+    return xs, Y
 
 def generate_data(sequence_count, sequence_length, delay):
     input_sequence_list = []
