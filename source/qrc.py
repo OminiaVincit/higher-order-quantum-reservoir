@@ -5,6 +5,7 @@ from scipy import linalg
 import tqdm
 import time
 import gen_random
+import utils
 
 class QRCParams():
     def __init__(self, hidden_unit_count, max_coupling_energy, trotter_step, beta, virtual_nodes, tau_delta, init_rho):
@@ -103,8 +104,8 @@ class QuantumReservoirComputing(object):
             if predict:
                 stacked_state = np.hstack( [state, np.ones([sequence_length, 1])])
                 predict_sequence = stacked_state @ self.W_out
-                if predict_sequence.shape[1] == 1:
-                    predict_sequence = np.squeeze(predict_sequence, axis=1)
+                # if predict_sequence.shape[1] == 1:
+                #     predict_sequence = np.squeeze(predict_sequence, axis=1)
                 predict_sequence_list.append(predict_sequence)
         predict_sequence_list = np.array(predict_sequence_list)
         state_list = np.array(state_list)
@@ -140,8 +141,11 @@ class QuantumReservoirComputing(object):
 
     def predict(self, input_sequence_list,output_sequence_list):
         prediction_sequence_list, _ = self.__feed_forward(input_sequence_list)
-        loss = np.sum((prediction_sequence_list-output_sequence_list)**2)/np.sum(prediction_sequence_list**2)
-        loss /= prediction_sequence_list.shape[0]
+        N = prediction_sequence_list.shape[0]
+        loss = 0
+        for i in range(N):
+            loss += np.sum((prediction_sequence_list[i] - output_sequence_list[i])**2)/np.sum(prediction_sequence_list[i]**2)
+        loss /= N
         return prediction_sequence_list, loss
 
 def get_loss(qrcparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls):
@@ -152,20 +156,26 @@ def get_loss(qrcparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_l
     model.train_to_predict(train_input_seq_ls, train_output_seq_ls, qrcparams)
 
     train_pred_seq_ls, train_loss = model.predict(train_input_seq_ls, train_output_seq_ls)
-    #print("train_loss={}".format(train_loss))
-    #print(train_pred_seq_ls.shape)
+    print("train_loss={}, shape".format(train_loss, train_pred_seq_ls.shape))
     
     
     # Test phase
     val_input_seq_ls = np.array(val_input_seq_ls)
     val_output_seq_ls = np.array(val_output_seq_ls)
     val_pred_seq_ls, val_loss = model.predict(val_input_seq_ls, val_output_seq_ls)
-    #print("val_loss={}".format(val_loss))
-    #print(val_pred_seq_ls.shape)
+
+    print("val_loss={}, shape".format(val_loss), val_pred_seq_ls.shape)
 
     return train_pred_seq_ls, train_loss, val_pred_seq_ls, val_loss
 
 def evaluation(outbase, qrcparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls):
+    
+    train_input_seq_ls = np.array(train_input_seq_ls)
+    train_output_seq_ls = np.array(train_output_seq_ls)
+
+    val_input_seq_ls = np.array(val_input_seq_ls)
+    val_output_seq_ls = np.array(val_output_seq_ls)
+
     train_pred_seq_ls, train_loss, val_pred_seq_ls, val_loss = \
         get_loss(qrcparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
     # save experiments setting
@@ -175,21 +185,21 @@ def evaluation(outbase, qrcparams, train_input_seq_ls, train_output_seq_ls, val_
         sfile.write('hidden_unit_count={}\n'.format(qrcparams.hidden_unit_count))
         sfile.write('max_coupling_energy={}\n'.format(qrcparams.max_coupling_energy))
         sfile.write('trotter_step={}\n'.format(qrcparams.trotter_step))
-        sfile.write('beta={}\n'.format(qparams.beta))
-        sfile.write('virtual nodes={}\n'.format(qparams.virtual_nodes))
-        sfile.write('tau_delta={}\n'.format(qparams.tau_delta))
-        sfile.write('init_rho={}\n'.format(qparams.init_rho))
+        sfile.write('beta={}\n'.format(qrcparams.beta))
+        sfile.write('virtual nodes={}\n'.format(qrcparams.virtual_nodes))
+        sfile.write('tau_delta={}\n'.format(qrcparams.tau_delta))
+        sfile.write('init_rho={}\n'.format(qrcparams.init_rho))
     
     rstrls = []
     rstrls.append('train_loss={}'.format(train_loss))
     rstrls.append('val_loss={}'.format(val_loss))
-    rstrls.append('hidden_unit={},virtual={}'.format(qrcparams.hidden_unit_count, qparams.virtual_nodes))
-    rstrls.append('Jdelta={},tau_delta={}'.format(qrcparams.max_coupling_energy, qparams.tau_delta))
+    rstrls.append('hidden_unit={},virtual={}'.format(qrcparams.hidden_unit_count, qrcparams.virtual_nodes))
+    rstrls.append('Jdelta={},tau_delta={}'.format(qrcparams.max_coupling_energy, qrcparams.tau_delta))
     #rstrls.append('trotter_step={}'.format(qrcparams.trotter_step))
     #rstrls.append('beta={}'.format(qparams.beta))
     #rstrls.append('init_rho={}'.format(qparams.init_rho))
-
     rstr = '\n'.join(rstrls)
+    print('shape val out and predict', val_output_seq_ls.shape, val_pred_seq_ls.shape)
     utils.plot_predict_multi('{}_train'.format(outbase), rstr, train_input_seq_ls[0], \
         train_output_seq_ls[0].T, train_pred_seq_ls[0].T)
 
@@ -205,13 +215,15 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, maxD, Ntrials
     if 'stm' not in taskname and 'pc' not in taskname:
         raise ValueError('Not found taskname ={} to generate data'.format(taskname))
 
-    data = np.random.randint(0, 2, train_len + buffer + val_len)
+    #data = np.random.randint(0, 2, length )
+    data = np.random.rand(length)
     for d in range(maxD+1):
         train_input_seq_ls = np.array([ data[buffer  : buffer + train_len] ] )
         val_input_seq_ls = np.array([ data[buffer + train_len : length] ] )
         
         train_out, val_out = [], []
         if 'pc' in taskname:
+            print('Generate parity check data')
             for k in range(buffer, length):
                 yk = np.sum(data[k-d : k+1]) % 2
                 if k >= buffer + train_len:
@@ -219,6 +231,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, maxD, Ntrials
                 else:
                     train_out.append(yk)
         else:
+            print('Generate STM task data')
             train_out = data[buffer - d : buffer - d + train_len]
             val_out = data[buffer - d + train_len : length - d ] 
         

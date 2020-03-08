@@ -29,11 +29,11 @@ if __name__  == '__main__':
     parser.add_argument('--rho', type=int, default=0)
     parser.add_argument('--beta', type=float, default=1e-14)
 
-    parser.add_argument('--trainlen', type=int, default=3000)
-    parser.add_argument('--vallen', type=int, default=1000)
-    parser.add_argument('--buffer', type=int, default=1000)
+    parser.add_argument('--trainlen', type=int, default=2000)
+    parser.add_argument('--vallen', type=int, default=2000)
+    parser.add_argument('--buffer', type=int, default=2000)
     
-    parser.add_argument('--maxD', type=int, default=50)
+    parser.add_argument('--maxD', type=int, default=10)
     parser.add_argument('--ntrials', type=int, default=20)
     parser.add_argument('--nproc', type=int, default=50)
     parser.add_argument('--taudelta', type=float, default=1.0)
