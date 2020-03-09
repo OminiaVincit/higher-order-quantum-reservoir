@@ -206,7 +206,7 @@ def evaluation(outbase, qrcparams, train_input_seq_ls, train_output_seq_ls, val_
     utils.plot_predict_multi('{}_val'.format(outbase), rstr, val_input_seq_ls[0], \
         val_output_seq_ls[0].T, val_pred_seq_ls[0].T)
 
-def memory_function(taskname, qparams, train_len, val_len, buffer, maxD, Ntrials=1):    
+def memory_function(taskname, qparams, train_len, val_len, buffer, maxD, ranseed=-1, Ntrials=1):    
     MFlist = []
     dlist = []
     train_list, val_list = [], []
@@ -215,8 +215,11 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, maxD, Ntrials
     if 'stm' not in taskname and 'pc' not in taskname:
         raise ValueError('Not found taskname ={} to generate data'.format(taskname))
 
-    #data = np.random.randint(0, 2, length )
-    data = np.random.rand(length)
+    if ranseed >= 0:
+        np.random.seed(seed=ranseed)
+    data = np.random.randint(0, 2, length )
+
+    #data = np.random.rand(length)
     for d in range(maxD+1):
         train_input_seq_ls = np.array([ data[buffer  : buffer + train_len] ] )
         val_input_seq_ls = np.array([ data[buffer + train_len : length] ] )
