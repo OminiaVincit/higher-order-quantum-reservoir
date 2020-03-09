@@ -206,9 +206,9 @@ def evaluation(outbase, qrcparams, train_input_seq_ls, train_output_seq_ls, val_
     utils.plot_predict_multi('{}_val'.format(outbase), rstr, val_input_seq_ls[0], \
         val_output_seq_ls[0].T, val_pred_seq_ls[0].T)
 
-def memory_function(taskname, qparams, train_len, val_len, buffer, maxD, ranseed=-1, Ntrials=1):    
+def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, ranseed=-1, Ntrials=1):    
     MFlist = []
-    dlist = []
+    MFstds = []
     train_list, val_list = [], []
     length = buffer + train_len + val_len
     # generate data
@@ -220,7 +220,9 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, maxD, ranseed
     data = np.random.randint(0, 2, length )
 
     #data = np.random.rand(length)
-    for d in range(maxD+1):
+    for d in dlist:
+        if 'pc' in taskname and d == 0:
+            continue
         train_input_seq_ls = np.array([ data[buffer  : buffer + train_len] ] )
         val_input_seq_ls = np.array([ data[buffer + train_len : length] ] )
         
@@ -258,11 +260,11 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, maxD, ranseed
             val_loss_ls.append(val_loss)
             mfs.append(MF_d)
 
-        avg_train, avg_val, avg_MFd = np.mean(train_loss_ls), np.mean(val_loss_ls), np.mean(mfs)
+        avg_train, avg_val, avg_MFd, std_MFd = np.mean(train_loss_ls), np.mean(val_loss_ls), np.mean(mfs), np.std(mfs)
         #print("d={}, train_loss={}, val_loss={}, MF={}".format(d, avg_train, avg_val, avg_MFd))
         MFlist.append(avg_MFd)
+        MFstds.append(std_MFd)
         train_list.append(avg_train)
         val_list.append(avg_val)
-        dlist.append(d)
 
-    return np.array([dlist, MFlist, train_list, val_list]).T
+    return np.array([dlist, MFlist, MFstds, train_list, val_list]).T

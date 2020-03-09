@@ -13,9 +13,9 @@ import qrc
 import gendata as gen
 import utils
 
-def memory_compute(taskname, outlist, tmpdir, qparams, train_len, val_len, buffer, maxD, pid):
+def memory_compute(taskname, outlist, tmpdir, qparams, train_len, val_len, buffer, dlist, ranseed, pid):
     for idx in outlist:
-        rsarr = qrc.memory_function(taskname, qparams, train_len=train_len, val_len=val_len, buffer=buffer, maxD=maxD, ranseed=0)
+        rsarr = qrc.memory_function(taskname, qparams, train_len=train_len, val_len=val_len, buffer=buffer, dlist=dlist, ranseed=ranseed)
         np.savetxt(os.path.join(tmpdir, 'mem_idx_{}.txt'.format(idx)), rsarr, delimiter='\t')
 
     print('Finished process {} with bg={}, ed={}'.format(pid, outlist[0], outlist[-1]))
@@ -29,17 +29,22 @@ if __name__  == '__main__':
     parser.add_argument('--rho', type=int, default=0)
     parser.add_argument('--beta', type=float, default=1e-14)
 
-    parser.add_argument('--trainlen', type=int, default=2000)
-    parser.add_argument('--vallen', type=int, default=2000)
-    parser.add_argument('--buffer', type=int, default=2000)
+    parser.add_argument('--trainlen', type=int, default=3000)
+    parser.add_argument('--vallen', type=int, default=1000)
+    parser.add_argument('--buffer', type=int, default=1000)
     
-    parser.add_argument('--maxD', type=int, default=10)
+    parser.add_argument('--mind', type=int, default=0)
+    parser.add_argument('--maxd', type=int, default=10)
+    parser.add_argument('--interval', type=int, default=1)
+    parser.add_argument('--seed', type=int, default=-1)
+
     parser.add_argument('--ntrials', type=int, default=20)
     parser.add_argument('--nproc', type=int, default=50)
     parser.add_argument('--taudelta', type=float, default=1.0)
 
     parser.add_argument('--basename', type=str, default='qrc_stm')
-    parser.add_argument('--savedir', type=str, default='results')
+    parser.add_argument('--savedir', type=str, default='results2')
+    parser.add_argument('--virtuals', type=str, default='1,2,5,10,25')
     args = parser.parse_args()
     print(args)
 
@@ -48,19 +53,20 @@ if __name__  == '__main__':
     train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
     nproc, tau_delta = args.nproc, args.taudelta
     init_rho = args.rho
-    maxD, N = args.maxD, args.ntrials
-
+    minD, maxD, interval, N = args.mind, args.maxd, args.interval, args.ntrials
+    dlist = list(range(minD, maxD + 1, interval))
     basename = args.basename
     savedir = args.savedir
-    Vs = [1, 2, 5, 10, 25]
-    #Vs = [1]
+    ranseed = args.seed
+
+    Vs = [int(v) for v in args.virtuals.split(',')]
     Varrs = []
     
     if os.path.isfile(savedir):
         # Load setting file
         figbase = savedir.replace('_setting.txt', '')
         for V in Vs:
-            rsarr = np.loadtxt('{}_V_{}_mem.txt'.format(figbase, V))
+            rsarr = np.loadtxt('{}_V_{}_mem_avg.txt'.format(figbase, V))
             Varrs.append(rsarr)
     else:
         if os.path.isdir(savedir) == False:
@@ -84,7 +90,7 @@ if __name__  == '__main__':
                 if outlist.size == 0:
                     continue
                 print(outlist)
-                p = Process(target=memory_compute, args=(basename, outlist, tmpdir, qparams, train_len, val_len, buffer, maxD, proc_id))
+                p = Process(target=memory_compute, args=(basename, outlist, tmpdir, qparams, train_len, val_len, buffer, dlist, ranseed, proc_id))
                 processes.append(p)
         
             # Start the process
@@ -105,8 +111,9 @@ if __name__  == '__main__':
                 if os.path.isfile(filename):
                     arr = np.loadtxt(filename)
                     rsarr.append(arr)
-            rsarr = np.mean(rsarr, axis=0)
-            Varrs.append(rsarr)
+            avg_rsarr = np.mean(rsarr, axis=0)
+            std_rsarr = np.std(rsarr, axis=0)
+            Varrs.append(avg_rsarr)
 
             # remove tmpdir
             import shutil
@@ -114,20 +121,21 @@ if __name__  == '__main__':
             
             # Save results
             outbase = os.path.join(savedir, '{}_{}_V_{}'.format(basename, datestr, V))
-            np.savetxt('{}_mem.txt'.format(outbase), rsarr, delimiter='\t')
+            np.savetxt('{}_mem_avg.txt'.format(outbase), avg_rsarr, delimiter='\t')
+            np.savetxt('{}_mem_std.txt'.format(outbase), std_rsarr, delimiter='\t')
     
         # save experiments setting
-        outbase = os.path.join(savedir, '{}_{}'.format(basename, datestr, V))
+        outbase = os.path.join(savedir, '{}_{}'.format(basename, datestr, '_'.join([str(v) for v in Vs])))
         with open('{}_setting.txt'.format(outbase), 'w') as sfile:
-            sfile.write('train_len={}, val_len={}, buffer={}, maxD={}, numtrials={}\n'.format(train_len, val_len, buffer, maxD, N))
+            sfile.write('train_len={}, val_len={}, buffer={}\n'.format(train_len, val_len, buffer))
             sfile.write('hidden_unit_count={}\n'.format(qparams.hidden_unit_count))
             sfile.write('max_coupling_energy={}\n'.format(qparams.max_coupling_energy))
             sfile.write('trotter_step={}\n'.format(qparams.trotter_step))
             sfile.write('beta={}\n'.format(qparams.beta))
             sfile.write('virtual nodes={}\n'.format(' '.join([str(v) for v in Vs])))
             sfile.write('tau_delta={}\n'.format(qparams.tau_delta))
-            sfile.write('maxD={}\n'.format(maxD))
-            sfile.write('Ntrials={}\n'.format(N))
+            sfile.write('minD={}, maxD={}, interval={}\n'.format(minD, maxD, interval))
+            sfile.write('Ntrials={}, seed={}\n'.format(N, ranseed))
         figbase = '{}_mem'.format(outbase)
 
     # save MF plot
