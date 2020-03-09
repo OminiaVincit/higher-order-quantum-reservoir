@@ -16,6 +16,7 @@ import utils
 def memory_compute(taskname, outlist, tmpdir, qparams, train_len, val_len, buffer, dlist, ranseed, pid):
     for idx in outlist:
         rsarr = qrc.memory_function(taskname, qparams, train_len=train_len, val_len=val_len, buffer=buffer, dlist=dlist, ranseed=ranseed)
+        #print(rsarr)
         np.savetxt(os.path.join(tmpdir, 'mem_idx_{}.txt'.format(idx)), rsarr, delimiter='\t')
 
     print('Finished process {} with bg={}, ed={}'.format(pid, outlist[0], outlist[-1]))

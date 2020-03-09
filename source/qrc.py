@@ -232,8 +232,6 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, ransee
 
     #data = np.random.rand(length)
     for d in dlist:
-        if 'pc' in taskname and d == 0:
-            continue
         train_input_seq_ls = np.array([ data[  : buffer + train_len] ] )
         val_input_seq_ls = np.array([ data[buffer + train_len : length] ] )
         
@@ -285,8 +283,8 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, ransee
         MFstds.append(std_MFd)
         train_list.append(avg_train)
         val_list.append(avg_val)
-
-    return np.array([dlist, MFlist, MFstds, train_list, val_list]).T
+    
+    return np.array(list(zip(dlist, MFlist, MFstds, train_list, val_list)))
 
 # def esp_index(qparams, P, T, input_seq_ls):
 #     input_seq_ls = np.array(input_seq_ls)
