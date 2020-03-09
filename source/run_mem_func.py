@@ -43,7 +43,7 @@ if __name__  == '__main__':
     parser.add_argument('--taudelta', type=float, default=1.0)
 
     parser.add_argument('--basename', type=str, default='qrc_stm')
-    parser.add_argument('--savedir', type=str, default='results2')
+    parser.add_argument('--savedir', type=str, default='resmem')
     parser.add_argument('--virtuals', type=str, default='1,2,5,10,25')
     args = parser.parse_args()
     print(args)

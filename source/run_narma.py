@@ -57,7 +57,7 @@ if __name__  == '__main__':
 
     parser.add_argument('--orders', type=str, default='2,5,10,15,20')
     parser.add_argument('--basename', type=str, default='qrc_narma')
-    parser.add_argument('--savedir', type=str, default='results')
+    parser.add_argument('--savedir', type=str, default='resnarma')
     parser.add_argument('--eval', type=int, default=1)
     args = parser.parse_args()
     print(args)
