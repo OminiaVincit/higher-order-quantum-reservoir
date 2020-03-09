@@ -18,7 +18,7 @@ class QRCParams():
         self.init_rho = init_rho
 
 class QuantumReservoirComputing(object):
-    def __init_reservoir(self, qparams):
+    def __init_reservoir(self, qparams, ranseed):
         I = [[1,0],[0,1]]
         Z = [[1,0],[0,-1]]
         X = [[0,1],[1,0]]
@@ -35,7 +35,7 @@ class QuantumReservoirComputing(object):
         self.Xop = [1]*self.qubit_count
         self.P0op = [1]
         self.P1op = [1]
-            
+    
         # initialize density matrix
         rho = np.zeros( [self.dim, self.dim] )
         rho[0,0]=1
@@ -44,6 +44,7 @@ class QuantumReservoirComputing(object):
             rho = gen_random.random_density_matrix(self.dim)
         #print(rho)
         self.init_rho = rho
+        self.last_rhos = [rho]
 
         for cursor_index in range(self.qubit_count):
             for qubit_index in range(self.qubit_count):
@@ -61,6 +62,10 @@ class QuantumReservoirComputing(object):
                 self.P0op = np.kron(self.P0op, I)
                 self.P1op = np.kron(self.P1op, I)
 
+        # generate hamiltonian
+        if ranseed >= 0:
+            print('Init reserveoir with ranseed={}'.format(ranseed))
+            np.random.seed(seed=ranseed)
         self.hamiltonian = np.zeros( (self.dim,self.dim) )
 
         for qubit_index in range(self.qubit_count):
@@ -74,15 +79,21 @@ class QuantumReservoirComputing(object):
         ratio = float(self.tau_delta) / float(self.virtual_nodes)        
         self.Uop = sp.linalg.expm(1.j * self.hamiltonian * ratio)
 
-    def __feed_forward(self, input_sequence_list, predict=True):
+    def __feed_forward(self, input_sequence_list, predict=True, use_lastrho=False):
         sequence_count, sequence_length = input_sequence_list.shape
         predict_sequence_list = []
         state_list = []
         dim = 2**self.qubit_count
         sequence_range = tqdm.trange(sequence_count)
         tau_delta = self.tau_delta
+        last_rhos = []
+
         for sequence_index in sequence_range:
-            rho = self.init_rho
+            if use_lastrho == True and len(self.last_rhos) > sequence_index:
+                print('Use last density matrix')
+                rho = self.last_rhos[sequence_index]
+            else:
+                rho = self.init_rho
             state = []
             for time_step in range(0, sequence_length):
                 rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
@@ -100,6 +111,7 @@ class QuantumReservoirComputing(object):
                 state.append(current_state)
             state = np.array(state)
             state_list.append(state)
+            last_rhos.append(rho)
 
             if predict:
                 stacked_state = np.hstack( [state, np.ones([sequence_length, 1])])
@@ -109,6 +121,8 @@ class QuantumReservoirComputing(object):
                 predict_sequence_list.append(predict_sequence)
         predict_sequence_list = np.array(predict_sequence_list)
         state_list = np.array(state_list)
+        self.last_rhos = last_rhos
+
         return predict_sequence_list, state_list
 
 
@@ -135,6 +149,7 @@ class QuantumReservoirComputing(object):
 
         print('output seq list', output_sequence_list.shape)
         discard_output_sequence_list = output_sequence_list[:, buffer:, :]
+        print('discard output seq list', discard_output_sequence_list.shape)
         #S = np.reshape(output_sequence_list, [-1])
         (nx, ny, nz) = discard_output_sequence_list.shape
         S = np.reshape(discard_output_sequence_list, [nx*ny, nz])
@@ -144,36 +159,36 @@ class QuantumReservoirComputing(object):
         #self.W_out = np.expand_dims(self.W_out,axis=1)
         #print('af Wout', self.W_out.shape)
 
-    def train_to_predict(self, input_sequence_list, output_sequence_list, buffer, qparams):
-        self.__init_reservoir(qparams)
+    def train_to_predict(self, input_sequence_list, output_sequence_list, buffer, qparams, ranseed):
+        self.__init_reservoir(qparams, ranseed)
         self.__train(input_sequence_list, output_sequence_list, buffer, qparams.beta)
 
-    def predict(self, input_sequence_list, output_sequence_list, buffer):
-        prediction_sequence_list, _ = self.__feed_forward(input_sequence_list)
+    def predict(self, input_sequence_list, output_sequence_list, buffer, use_lastrho):
+        prediction_sequence_list, _ = self.__feed_forward(input_sequence_list, predict=True, use_lastrho=use_lastrho)
         N = prediction_sequence_list.shape[0]
         loss = 0
         for i in range(N):
-            pred = prediction_sequence_list[i][buffer:, :]
-            out  = output_sequence_list[i][buffer:, :]
+            pred = prediction_sequence_list[i, buffer:, :]
+            out  = output_sequence_list[i, buffer:, :]
             loss += np.sum((pred - out)**2)/np.sum(pred**2)
         loss /= N
         return prediction_sequence_list, loss
 
-def get_loss(qrcparams, buffer, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls):
+def get_loss(qrcparams, buffer, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls, ranseed=-1):
     model = QuantumReservoirComputing()
-    
+
     train_input_seq_ls = np.array(train_input_seq_ls)
     train_output_seq_ls = np.array(train_output_seq_ls)
-    model.train_to_predict(train_input_seq_ls, train_output_seq_ls, buffer, qrcparams)
+    model.train_to_predict(train_input_seq_ls, train_output_seq_ls, buffer, qrcparams, ranseed)
 
-    train_pred_seq_ls, train_loss = model.predict(train_input_seq_ls, train_output_seq_ls, buffer=buffer)
+    train_pred_seq_ls, train_loss = model.predict(train_input_seq_ls, train_output_seq_ls, buffer=buffer, use_lastrho=False)
     print("train_loss={}, shape".format(train_loss, train_pred_seq_ls.shape))
     
     
     # Test phase
     val_input_seq_ls = np.array(val_input_seq_ls)
     val_output_seq_ls = np.array(val_output_seq_ls)
-    val_pred_seq_ls, val_loss = model.predict(val_input_seq_ls, val_output_seq_ls, buffer=0)
+    val_pred_seq_ls, val_loss = model.predict(val_input_seq_ls, val_output_seq_ls, buffer=0, use_lastrho=True)
     print("val_loss={}, shape".format(val_loss), val_pred_seq_ls.shape)
 
     return train_pred_seq_ls, train_loss, val_pred_seq_ls, val_loss
@@ -263,8 +278,9 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, ransee
         train_loss_ls, val_loss_ls, mfs = [], [], []
         for n in range(Ntrials):
             #print('d={}, trial={}'.format(d, n))
+            # Use the same ranseed the same trial
             train_pred_seq_ls, train_loss, val_pred_seq_ls, val_loss = \
-                get_loss(qparams, buffer, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
+                get_loss(qparams, buffer, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls, ranseed=ranseed)
 
             # Compute memory function
             val_output_seq, val_pred_seq = val_output_seq_ls[0].ravel(), val_pred_seq_ls[0].ravel()
@@ -272,7 +288,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, ransee
             cov_matrix = np.cov(np.array([val_output_seq, val_pred_seq]))
             MF_d = cov_matrix[0][1] ** 2
             MF_d = MF_d / (np.var(val_output_seq) * np.var(val_pred_seq))
-
+            print('d={}, n={}, MF={}'.format(d, n, MF_d))
             train_loss_ls.append(train_loss)
             val_loss_ls.append(val_loss)
             mfs.append(MF_d)

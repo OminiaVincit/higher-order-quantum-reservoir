@@ -45,7 +45,7 @@ if __name__  == '__main__':
 
     parser.add_argument('--basename', type=str, default='qrc_stm')
     parser.add_argument('--savedir', type=str, default='resmem')
-    parser.add_argument('--virtuals', type=str, default='1,2,5,10,25')
+    parser.add_argument('--virtuals', type=str, default='1,2')
     args = parser.parse_args()
     print(args)
 
@@ -91,7 +91,8 @@ if __name__  == '__main__':
                 if outlist.size == 0:
                     continue
                 print(outlist)
-                p = Process(target=memory_compute, args=(basename, outlist, tmpdir, qparams, train_len, val_len, buffer, dlist, ranseed, proc_id))
+                p = Process(target=memory_compute, \
+                    args=(basename, outlist, tmpdir, qparams, train_len, val_len, buffer, dlist, proc_id, proc_id))
                 processes.append(p)
         
             # Start the process
