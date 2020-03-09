@@ -52,7 +52,7 @@ if __name__  == '__main__':
 
     basename = args.basename
     savedir = args.savedir
-    Vs = [1, 2, 5, 10, 25, 50]
+    Vs = [1, 2, 5, 10, 25]
     #Vs = [1]
     Varrs = []
     
