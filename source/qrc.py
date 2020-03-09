@@ -112,63 +112,73 @@ class QuantumReservoirComputing(object):
         return predict_sequence_list, state_list
 
 
-    def __train(self, input_sequence_list, output_sequence_list, beta):
+    def __train(self, input_sequence_list, output_sequence_list, buffer, beta):
         #print('shape', input_sequence_list.shape, output_sequence_list.shape)
         assert(input_sequence_list.shape[0] == output_sequence_list.shape[0])
         assert(input_sequence_list.shape[1] == output_sequence_list.shape[1])
-        self.sequence_count, self.sequence_length = input_sequence_list.shape
+        sequence_count, sequence_length = input_sequence_list.shape
         Nout = output_sequence_list[0].shape[1]
         self.W_out = np.random.rand(self.hidden_unit_count * self.virtual_nodes + 1, Nout)
 
-        _, state_list = self.__feed_forward(input_sequence_list)
+        _, state_list = self.__feed_forward(input_sequence_list, predict=False)
 
         state_list = np.array(state_list)
+        print('before washingout state list shape', state_list.shape)
+        
+        state_list = state_list[:, buffer:, :]
+        print('aster washingout state list shape', state_list.shape)
+
+        # discard the transitient state for training
+
         V = np.reshape(state_list, [-1, self.hidden_unit_count * self.virtual_nodes])
         V = np.hstack( [V, np.ones([V.shape[0], 1]) ] )
-        #print('output seq list', output_sequence_list.shape)
+
+        print('output seq list', output_sequence_list.shape)
+        discard_output_sequence_list = output_sequence_list[:, buffer:, :]
         #S = np.reshape(output_sequence_list, [-1])
-        (nx, ny, nz) = output_sequence_list.shape
-        S = np.reshape(output_sequence_list, [nx*ny, nz])
+        (nx, ny, nz) = discard_output_sequence_list.shape
+        S = np.reshape(discard_output_sequence_list, [nx*ny, nz])
         #print('V S', V.shape, S.shape)
         self.W_out = np.linalg.pinv(V, rcond = beta) @ S
         #print('bf Wout', self.W_out.shape)
         #self.W_out = np.expand_dims(self.W_out,axis=1)
         #print('af Wout', self.W_out.shape)
 
-    def train_to_predict(self, input_sequence_list, output_sequence_list, qparams):
+    def train_to_predict(self, input_sequence_list, output_sequence_list, buffer, qparams):
         self.__init_reservoir(qparams)
-        self.__train(input_sequence_list, output_sequence_list, qparams.beta)
+        self.__train(input_sequence_list, output_sequence_list, buffer, qparams.beta)
 
-    def predict(self, input_sequence_list,output_sequence_list):
+    def predict(self, input_sequence_list, output_sequence_list, buffer):
         prediction_sequence_list, _ = self.__feed_forward(input_sequence_list)
         N = prediction_sequence_list.shape[0]
         loss = 0
         for i in range(N):
-            loss += np.sum((prediction_sequence_list[i] - output_sequence_list[i])**2)/np.sum(prediction_sequence_list[i]**2)
+            pred = prediction_sequence_list[i][buffer:, :]
+            out  = output_sequence_list[i][buffer:, :]
+            loss += np.sum((pred - out)**2)/np.sum(pred**2)
         loss /= N
         return prediction_sequence_list, loss
 
-def get_loss(qrcparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls):
+def get_loss(qrcparams, buffer, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls):
     model = QuantumReservoirComputing()
     
     train_input_seq_ls = np.array(train_input_seq_ls)
     train_output_seq_ls = np.array(train_output_seq_ls)
-    model.train_to_predict(train_input_seq_ls, train_output_seq_ls, qrcparams)
+    model.train_to_predict(train_input_seq_ls, train_output_seq_ls, buffer, qrcparams)
 
-    train_pred_seq_ls, train_loss = model.predict(train_input_seq_ls, train_output_seq_ls)
+    train_pred_seq_ls, train_loss = model.predict(train_input_seq_ls, train_output_seq_ls, buffer=buffer)
     print("train_loss={}, shape".format(train_loss, train_pred_seq_ls.shape))
     
     
     # Test phase
     val_input_seq_ls = np.array(val_input_seq_ls)
     val_output_seq_ls = np.array(val_output_seq_ls)
-    val_pred_seq_ls, val_loss = model.predict(val_input_seq_ls, val_output_seq_ls)
-
+    val_pred_seq_ls, val_loss = model.predict(val_input_seq_ls, val_output_seq_ls, buffer=0)
     print("val_loss={}, shape".format(val_loss), val_pred_seq_ls.shape)
 
     return train_pred_seq_ls, train_loss, val_pred_seq_ls, val_loss
 
-def evaluation(outbase, qrcparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls):
+def evaluation(outbase, qrcparams, buffer, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls):
     
     train_input_seq_ls = np.array(train_input_seq_ls)
     train_output_seq_ls = np.array(train_output_seq_ls)
@@ -177,7 +187,7 @@ def evaluation(outbase, qrcparams, train_input_seq_ls, train_output_seq_ls, val_
     val_output_seq_ls = np.array(val_output_seq_ls)
 
     train_pred_seq_ls, train_loss, val_pred_seq_ls, val_loss = \
-        get_loss(qrcparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
+        get_loss(qrcparams, buffer, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
     # save experiments setting
     with open('{}_results.txt'.format(outbase), 'w') as sfile:
         sfile.write('train_loss={}\n'.format(train_loss))
@@ -189,6 +199,7 @@ def evaluation(outbase, qrcparams, train_input_seq_ls, train_output_seq_ls, val_
         sfile.write('virtual nodes={}\n'.format(qrcparams.virtual_nodes))
         sfile.write('tau_delta={}\n'.format(qrcparams.tau_delta))
         sfile.write('init_rho={}\n'.format(qrcparams.init_rho))
+        sfile.write('transitient={}\n'.format(buffer))
     
     rstrls = []
     rstrls.append('train_loss={}'.format(train_loss))
@@ -223,22 +234,30 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, ransee
     for d in dlist:
         if 'pc' in taskname and d == 0:
             continue
-        train_input_seq_ls = np.array([ data[buffer  : buffer + train_len] ] )
+        train_input_seq_ls = np.array([ data[  : buffer + train_len] ] )
         val_input_seq_ls = np.array([ data[buffer + train_len : length] ] )
         
         train_out, val_out = [], []
         if 'pc' in taskname:
             print('Generate parity check data')
-            for k in range(buffer, length):
-                yk = np.sum(data[k-d : k+1]) % 2
+            for k in range(length):
+                yk = 0
+                if k >= d:
+                    yk = np.sum(data[k-d : k+1]) % 2
                 if k >= buffer + train_len:
                     val_out.append(yk)
                 else:
                     train_out.append(yk)
         else:
             print('Generate STM task data')
-            train_out = data[buffer - d : buffer - d + train_len]
-            val_out = data[buffer - d + train_len : length - d ] 
+            for k in range(length):
+                yk = 0
+                if k >= d:
+                    yk = data[k-d]
+                if k >= buffer + train_len:
+                    val_out.append(yk)
+                else:
+                    train_out.append(yk)
         
         train_output_seq_ls = np.array([ train_out ]).reshape(1, len(train_out), 1)
         val_output_seq_ls = np.array([ val_out ]).reshape(1, len(val_out), 1)
@@ -247,7 +266,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, ransee
         for n in range(Ntrials):
             #print('d={}, trial={}'.format(d, n))
             train_pred_seq_ls, train_loss, val_pred_seq_ls, val_loss = \
-                get_loss(qparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
+                get_loss(qparams, buffer, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
 
             # Compute memory function
             val_output_seq, val_pred_seq = val_output_seq_ls[0].ravel(), val_pred_seq_ls[0].ravel()
@@ -268,3 +287,18 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, ransee
         val_list.append(avg_val)
 
     return np.array([dlist, MFlist, MFstds, train_list, val_list]).T
+
+# def esp_index(qparams, P, T, input_seq_ls):
+#     input_seq_ls = np.array(input_seq_ls)
+    
+#     # Initialzie the reservoir to zero state - density matrix
+#     model = QuantumReservoirComputing()
+#     qparams.init_rho = 0
+#     model.__init_reservoir(qparams)
+#     _, zero_state_list = model.__feed_forward(input_seq_ls, predict=False)
+
+#     # Compute esp index
+#     for i in range(P):
+#         # Initialzie the reservoir to a random initial state
+#         qparams.init_rho = 1
+#         model.__

@@ -21,11 +21,11 @@ tdeltas.insert(0, 0.5)
 virtuals = [5*n for n in range(1, N+1)]
 virtuals.insert(0, 1)
 
-def nmse_job(qparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls, Ntrials, send_end):
+def nmse_job(qparams, buffer, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls, Ntrials, send_end):
     train_loss_ls, val_loss_ls = [], []
     print('Start process taudelta={}, virtual={}, Jdelta={}'.format(qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy))
     for n in range(Ntrials):
-         _, train_loss, _, val_loss = qrc.get_loss(qparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
+         _, train_loss, _, val_loss = qrc.get_loss(qparams, buffer, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
          train_loss_ls.append(train_loss)
          val_loss_ls.append(val_loss)
 
@@ -79,8 +79,8 @@ if __name__  == '__main__':
     orders = [int(x) for x in args.orders.split(',')]
     data, target = gen.make_data_for_narma(train_len + val_len + buffer, orders=orders)
 
-    train_input_seq_ls.append(  data[buffer  : buffer + train_len] )
-    train_output_seq_ls.append( target[buffer  : buffer + train_len] )
+    train_input_seq_ls.append(  data[: buffer + train_len] )
+    train_output_seq_ls.append( target[  : buffer + train_len] )
 
     val_input_seq_ls.append(  data[buffer + train_len : buffer + train_len + val_len] )
     val_output_seq_ls.append( target[buffer + train_len : buffer + train_len + val_len] )
@@ -94,7 +94,7 @@ if __name__  == '__main__':
     if args.eval == 0:
         qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
                 trotter_step=trotter_step, beta=beta, virtual_nodes=virtual_nodes, tau_delta=tau_delta, init_rho=init_rho)
-        qrc.evaluation(outbase, qparams, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
+        qrc.evaluation(outbase, qparams, buffer, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
     
     if args.eval == 1:
         if os.path.isfile(savedir) == False:
@@ -105,7 +105,7 @@ if __name__  == '__main__':
                     recv_end, send_end = multiprocessing.Pipe(False)
                     qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
                         trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tdelta, init_rho=init_rho)
-                    p = multiprocessing.Process(target=nmse_job, args=(qparams, train_input_seq_ls, train_output_seq_ls, \
+                    p = multiprocessing.Process(target=nmse_job, args=(qparams, buffer, train_input_seq_ls, train_output_seq_ls, \
                         val_input_seq_ls, val_output_seq_ls, Ntrials, send_end))
                     jobs.append(p)
                     pipels.append(recv_end)
