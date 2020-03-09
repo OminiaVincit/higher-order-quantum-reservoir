@@ -91,10 +91,10 @@ class QuantumReservoirComputing(object):
         for sequence_index in sequence_range:
             if use_lastrho == True and len(self.last_rhos) > sequence_index:
                 print('Use last density matrix')
-                print(rho)
                 rho = self.last_rhos[sequence_index]
             else:
                 rho = self.init_rho
+            #print(rho)
             state = []
             for time_step in range(0, sequence_length):
                 rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
