@@ -175,6 +175,17 @@ class QuantumReservoirComputing(object):
         loss /= N
         return prediction_sequence_list, loss
 
+    def test(self):
+        x = 0
+        print('Test')
+        return x
+
+    def init_forward(self, qparams, input_seq_ls, ranseed, init_rs):
+        if init_rs == True:
+            self.__init_reservoir(qparams, ranseed = ranseed)
+        _, state_list =  self.__feed_forward(input_seq_ls, predict=False)
+        return state_list
+
 def get_loss(qrcparams, buffer, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls, ranseed=-1):
     model = QuantumReservoirComputing()
 
@@ -239,7 +250,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, ransee
     train_list, val_list = [], []
     length = buffer + train_len + val_len
     # generate data
-    if 'stm' not in taskname and 'pc' not in taskname:
+    if '_stm' not in taskname and '_pc' not in taskname:
         raise ValueError('Not found taskname ={} to generate data'.format(taskname))
 
     if ranseed >= 0:
@@ -252,7 +263,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, ransee
         val_input_seq_ls = np.array([ data[buffer + train_len : length] ] )
         
         train_out, val_out = [], []
-        if 'pc' in taskname:
+        if '_pc' in taskname:
             print('Generate parity check data')
             for k in range(length):
                 yk = 0
@@ -303,17 +314,32 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, ransee
     
     return np.array(list(zip(dlist, MFlist, MFstds, train_list, val_list)))
 
-# def esp_index(qparams, P, T, input_seq_ls):
-#     input_seq_ls = np.array(input_seq_ls)
+def esp_index(qparams, P, T, input_seq_ls, ranseed):
+    input_seq_ls = np.array(input_seq_ls)
     
-#     # Initialzie the reservoir to zero state - density matrix
-#     model = QuantumReservoirComputing()
-#     qparams.init_rho = 0
-#     model.__init_reservoir(qparams)
-#     _, zero_state_list = model.__feed_forward(input_seq_ls, predict=False)
+    # Initialzie the reservoir to zero state - density matrix
+    model = QuantumReservoirComputing()
+    x0_state_list = model.init_forward(qparams, input_seq_ls, ranseed = ranseed, init_rs = True)
 
-#     # Compute esp index
-#     for i in range(P):
-#         # Initialzie the reservoir to a random initial state
-#         qparams.init_rho = 1
-#         model.__
+    
+    # Compute esp index
+    dP = 0
+    for i in range(P):
+        # Initialzie the reservoir to a random initial state
+        model.init_rho = gen_random.random_density_matrix(model.dim)
+        z0_state_list = model.init_forward(qparams, input_seq_ls, ranseed = ranseed, init_rs = False)
+
+        N, L, D = z0_state_list.shape
+        #print('i={}, State shape'.format(i), z0_state_list.shape)
+        local_diff = 0
+        for n in range(N):
+            for t in range(T, L):
+                diff_state = x0_state_list[n, t, :] - z0_state_list[n, t, :]
+                diff = np.sqrt(np.power(diff_state, 2).sum())
+                local_diff += diff
+        local_diff = local_diff / (N * (L-T))
+        #print('i={}, avg Delta={}'.format(i, local_diff))
+        dP += local_diff
+    print('dP={}'.format(dP/P))
+    return dP/P
+    

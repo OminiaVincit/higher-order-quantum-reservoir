@@ -3,9 +3,10 @@ import numpy as np
 import os
 import scipy
 import argparse
-from multiprocessing import Process
+import multiprocessing
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib import ticker
 import tqdm
 import time
 import datetime
@@ -13,21 +14,19 @@ import qrc
 import gendata as gen
 import utils
 
-train_len = 2000
-val_len = 2000
-buffer = 2000
+def esp_job(qparams, P, T, input_seq_ls, Ntrials, send_end):
+    esp_ls = []
+    print('Start process taudelta={}, virtual={}, Jdelta={}'.format(qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy))
+    for n in range(Ntrials):
+         esp_val = qrc.esp_index(qparams, P, T, input_seq_ls, ranseed = n)
+         esp_ls.append(esp_val)
 
-hidden_unit_count = 5
-max_coupling_energy = 1.0
-trotter_step = 10
-beta = 1e-14
+    mean_esp = np.mean(esp_ls)
 
-def memory_compute(outlist, tmpdir, qparams, train_len, val_len, buffer, maxD, pid):
-    for idx in outlist:
-        rsarr = utils.memory_function(qparams, train_len=train_len, val_len=val_len, buffer=buffer, L=maxD)
-        np.savetxt(os.path.join(tmpdir, 'mem_idx_{}.txt'.format(idx)), rsarr, delimiter='\t')
-
-    print('Finished process {} with bg={}, ed={}'.format(pid, outlist[0], outlist[-1]))
+    rstr = '{} {} {} {}'.format(\
+        qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy, mean_esp)
+    print('Finish process {}'.format(rstr))
+    send_end.send(rstr)
 
 if __name__  == '__main__':
     # Check for command line arguments
@@ -37,106 +36,104 @@ if __name__  == '__main__':
     parser.add_argument('--trotter', type=int, default=10)
     parser.add_argument('--beta', type=float, default=1e-14)
 
-    parser.add_argument('--trainlen', type=int, default=2000)
-    parser.add_argument('--vallen', type=int, default=2000)
-    parser.add_argument('--buffer', type=int, default=2000)
-    
-    parser.add_argument('--maxD', type=int, default=200)
-    parser.add_argument('--ntrials', type=int, default=50)
-    parser.add_argument('--virtuals', type=int, default=10)
-    parser.add_argument('--nproc', type=int, default=50)
-    parser.add_argument('--taudelta', type=float, default=1.0)
+    parser.add_argument('--vallen', type=int, default=500)
+    parser.add_argument('--buffer', type=int, default=500)
+    parser.add_argument('--pindex', type=int, default=10)
+    parser.add_argument('--ntrials', type=int, default=1)
+    parser.add_argument('--nums', type=int, default=1)
 
-    parser.add_argument('--basename', type=str, default='echo')
-    parser.add_argument('--savedir', type=str, default='results')
+    parser.add_argument('--orders', type=str, default='10')
+    parser.add_argument('--basename', type=str, default='qrc_narma_echo')
+    parser.add_argument('--savedir', type=str, default='resecho')
     args = parser.parse_args()
     print(args)
 
     hidden_unit_count, max_coupling_energy, trotter_step, beta =\
         args.units, args.coupling, args.trotter, args.beta
-    train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
-    maxD, N, nproc = args.maxD, args.ntrials, args.nproc
-    virtual_nodes, tau_delta = args.virtuals, args.taudelta
+    val_len, pindex, buffer = args.vallen, args.pindex, args.buffer
+    Ntrials = args.ntrials
+    nums = args.nums
 
-    basename = args.basename
-    savedir = args.savedir
+    basename, savedir = args.basename, args.savedir
+    if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
+        os.mkdir(savedir)
 
-    if os.path.isfile(savedir):
-        # Load result file and plot
-        rsarr = np.loadtxt(savedir)
-        figbase = savedir.replace('.txt', '')
-    else:
-        if os.path.isdir(savedir) == False:
-            os.mkdir(savedir)
+    tdeltas = [2**n for n in range(nums)]
+    tdeltas.insert(0, 0.5)
 
-        qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
-            trotter_step=trotter_step, beta=beta)
+    virtuals = [5*n for n in range(1, nums+1)]
+    virtuals.insert(0, 1)
 
-        timestamp = int(time.time() * 1000.0)
-        now = datetime.datetime.now()
-        datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
-        # Multi-process
-        tmpdir = os.path.join(savedir, '{}_{}'.format(basename, timestamp))
-        os.mkdir(tmpdir)
+    orders = [int(x) for x in args.orders.split(',')]
+    data, target = gen.make_data_for_narma(buffer + val_len, orders=orders)
 
-        processes = []
-        lst = np.array_split(range(N), nproc)
-        for proc_id in range(nproc):
-            outlist = lst[proc_id]
-            if outlist.size == 0:
-                continue
-            print(outlist)
-            p = Process(target=memory_compute, args=(outlist, tmpdir, qparams, train_len, val_len, buffer, maxD, proc_id))
-            processes.append(p)
+    input_seq_ls = np.array(  [ data[: buffer + val_len] ] )
     
-        # Start the process
-        for p in processes:
-            p.start()
+    # Evaluation
+    timestamp = int(time.time() * 1000.0)
+    now = datetime.datetime.now()
+    datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
+    outbase = os.path.join(savedir, '{}_{}_order_{}'.format(basename, datestr, '_'.join([str(o) for o in orders])))
+
+    if True:
+        if os.path.isfile(savedir) == False:
+            jobs, pipels = [], []
+
+            for tdelta in tdeltas:
+                for V in virtuals:
+                    recv_end, send_end = multiprocessing.Pipe(False)
+                    qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
+                        trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tdelta, init_rho=0)
+                    
+                    p = multiprocessing.Process(target=esp_job, args=(qparams, pindex, buffer, input_seq_ls, Ntrials, send_end))
+                    jobs.append(p)
+                    pipels.append(recv_end)
+
+            # Start the process
+            for p in jobs:
+                p.start()
     
-        # Ensure all processes have finiished execution
-        for p in processes:
-            p.join()
+            # Ensure all processes have finished execution
+            for p in jobs:
+                p.join()
 
-        # Sleep 5s
-        time.sleep(5)
+            # Sleep 5s
+            time.sleep(5)
 
-        # Average results and remove tmpdir
-        rsarr = []
-        for idx in range(N):
-            filename = os.path.join(tmpdir, 'mem_idx_{}.txt'.format(idx))
-            if os.path.isfile(filename):
-                arr = np.loadtxt(filename)
-                rsarr.append(arr)
-        rsarr = np.mean(rsarr, axis=0)
+            result_list = [np.array( [float(y) for y in x.recv().split(' ')]  ) for x in pipels]
+            rsarr = np.array(result_list)
+            # save the result
+            np.savetxt('{}_ESP.txt'.format(outbase), rsarr, delimiter=' ')
+        else:
+            # Read the result
+            rsarr = np.loadtxt(savedir)
+            outbase = savedir.replace('.txt', '')
 
-        # remove tmpdir
-        import shutil
-        shutil.rmtree(tmpdir)
+        print(rsarr)
+        print(rsarr.shape)
+
+        # plot the result
+        xs, ys = tdeltas, virtuals
+        zs = rsarr[:, 3].reshape(len(xs), len(ys))
+        # zs = np.random.rand(len(xs), len(ys))
+        # print(zs.shape)
+
+        cmap = plt.get_cmap("viridis")
+        plt.figure(figsize=(11,8))
+        plt.style.use('seaborn-colorblind')
+        plt.rc('font', family='serif')
+        plt.rc('mathtext', fontset='cm')
+        plt.rcParams['font.size']=20
+
+        #plt.subplot(1, 2, i+1)
+        #zs[i] = np.random.rand(len(xs), len(ys))
+        plt.contourf(xs, ys, zs, 64, cmap=cmap)
+        plt.xlabel('$\\tau\Delta$', fontsize=32)
+        plt.ylabel('$V$', fontsize=32)
+        plt.xscale('log')
+        cb = plt.colorbar()
+        cb.set_label('ESP_index')
+        #plt.show()
+        for ftype in ['png', 'pdf']:
+            plt.savefig('{}_ESP.{}'.format(outbase, ftype), bbox_inches='tight')
         
-        # # Save results
-        # outbase = os.path.join(savedir, '{}_{}'.format(basename, datestr))
-        # np.savetxt('{}_mem.txt'.format(outbase), rsarr, delimiter='\t')
-    
-        # # save experiments setting
-        # with open('{}_setting.txt'.format(outbase), 'w') as sfile:
-        #     sfile.write('train_len={}, val_len={}, buffer={}, maxD={}, numtrials={}\n'.format(train_len, val_len, buffer, maxD, N))
-        #     sfile.write('hidden_unit_count={}\n'.format(qparams.hidden_unit_count))
-        #     sfile.write('max_coupling_energy={}\n'.format(qparams.max_coupling_energy))
-        #     sfile.write('trotter_step={}\n'.format(qparams.trotter_step))
-        #     sfile.write('beta={}\n'.format(qparams.beta))
-        # figbase = '{}_mem'.format(outbase)
-
-    # save MF plot
-    # plt.style.use('seaborn-colorblind')
-    # plt.rc('font', family='serif')
-    # plt.rc('mathtext', fontset='cm')
-
-    # fig, ax = plt.subplots()
-    # ax.set_xlabel(r'Delay $d$', fontsize=16)
-    # ax.set_ylabel(r'$MF_d$', fontsize=16)
-    # dlist, MFlist = rsarr[:, 0], rsarr[:, 1]
-    # ax.set_yscale('log')
-    # ax.scatter(dlist, MFlist, label='MF_d')
-    # for ftype in ['png', 'pdf', 'svg']:
-    #     plt.savefig('{}.{}'.format(figbase, ftype), bbox_inches='tight')
-    
