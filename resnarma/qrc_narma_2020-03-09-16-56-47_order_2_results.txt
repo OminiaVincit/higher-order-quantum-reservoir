@@ -1,0 +1,10 @@
+train_loss=1.0207115909951282e-05
+val_loss=0.000227736954417427
+hidden_unit_count=5
+max_coupling_energy=1.0
+trotter_step=10
+beta=1e-14
+virtual nodes=25
+tau_delta=1.0
+init_rho=0
+transitient=2000
