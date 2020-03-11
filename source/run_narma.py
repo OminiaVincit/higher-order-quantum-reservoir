@@ -25,7 +25,7 @@ def nmse_job(qparams, buffer, train_input_seq_ls, train_output_seq_ls, val_input
     train_loss_ls, val_loss_ls = [], []
     print('Start process taudelta={}, virtual={}, Jdelta={}'.format(qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy))
     for n in range(Ntrials):
-         _, train_loss, _, val_loss = qrc.get_loss(qparams, buffer, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls)
+         _, train_loss, _, val_loss = qrc.get_loss(qparams, buffer, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls, ranseed=n)
          train_loss_ls.append(train_loss)
          val_loss_ls.append(val_loss)
 

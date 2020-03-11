@@ -41,6 +41,8 @@ if __name__  == '__main__':
     parser.add_argument('--pindex', type=int, default=10)
     parser.add_argument('--ntrials', type=int, default=1)
     parser.add_argument('--nums', type=int, default=1)
+    
+    parser.add_argument('--resolution', type=int, default=64)
 
     parser.add_argument('--orders', type=str, default='10')
     parser.add_argument('--basename', type=str, default='qrc_narma_echo')
@@ -115,6 +117,7 @@ if __name__  == '__main__':
         # plot the result
         xs, ys = tdeltas, virtuals
         zs = rsarr[:, 3].reshape(len(xs), len(ys))
+        zs = np.log10(zs)
         # zs = np.random.rand(len(xs), len(ys))
         # print(zs.shape)
 
@@ -127,12 +130,12 @@ if __name__  == '__main__':
 
         #plt.subplot(1, 2, i+1)
         #zs[i] = np.random.rand(len(xs), len(ys))
-        plt.contourf(xs, ys, zs, 64, cmap=cmap)
+        plt.contourf(xs, ys, zs, args.resolution, cmap=cmap)
         plt.xlabel('$\\tau\Delta$', fontsize=32)
         plt.ylabel('$V$', fontsize=32)
         plt.xscale('log')
         cb = plt.colorbar()
-        cb.set_label('ESP_index')
+        cb.set_label('log10_ESP_index')
         #plt.show()
         for ftype in ['png', 'pdf']:
             plt.savefig('{}_ESP.{}'.format(outbase, ftype), bbox_inches='tight')
