@@ -100,8 +100,10 @@ class QuantumReservoirComputing(object):
                 rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
                 # (1 + u Z)/2 = (1+u)/2 |0><0| + (1-u)/2 |1><1|
                 value = input_sequence_list[sequence_index, time_step]
-                rho = (1+value)/2 * rho + (1-value)/2 *self.Xop[0] @ rho @ self.Xop[0]
-                
+                # for input in [-1, 1]
+                # rho = (1+value)/2 * rho + (1-value)/2 *self.Xop[0] @ rho @ self.Xop[0]
+                # for input in [0, 1]
+                rho = (1 - value) * rho + value *self.Xop[0] @ rho @ self.Xop[0]
                 # virtual nodes
                 current_state = []
                 for v in range(self.virtual_nodes):
