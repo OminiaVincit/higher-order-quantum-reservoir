@@ -332,7 +332,10 @@ def esp_index(qparams, P, T, input_seq_ls, ranseed):
         z0_state_list = model.init_forward(qparams, input_seq_ls, ranseed = ranseed, init_rs = False)
 
         N, L, D = z0_state_list.shape
-        #print('i={}, State shape'.format(i), z0_state_list.shape)
+        # N = Number of input list
+        # L = Length of time series
+        # D = Number of virtual nodes x Number of qubits
+        # print('i={}, State shape'.format(i), z0_state_list.shape)
         local_diff = 0
         for n in range(N):
             for t in range(T, L):
@@ -344,4 +347,35 @@ def esp_index(qparams, P, T, input_seq_ls, ranseed):
         dP += local_diff
     print('dP={}'.format(dP/P))
     return dP/P
-    
+
+def effective_dim(qparams, P, T, input_seq_ls):
+    # Calculate effective dimension for reservoir
+    from numpy import linalg as LA
+
+    input_seq_ls = np.array(input_seq_ls)
+    model = QuantumReservoirComputing()
+
+    effdim = []
+    for p in range(P):
+        corrsum = []
+        state_list = model.init_forward(qparams, input_seq_ls, ranseed=-1, init_rs=True)
+        N, L, D = state_list.shape
+        # N = Number of input list
+        # L = Length of time series
+        # D = Number of virtual nodes x Number of qubits
+        for n in range(N):
+            locls = []
+            for i in range(D):
+                for j in range(D):
+                    ri = state_list[n, :, i]
+                    rj = state_list[n, :, j]
+                    locls.append(np.mean(ri*rj))
+            locls = np.array(locls).reshape(D, D)
+            corrsum.append(locls)
+        corrsum = np.mean(corrsum, axis=0)
+        w, v = LA.eig(corrsum)
+        w = np.abs(w) / np.abs(w).sum()
+        effdim.append( 1.0/np.power(w, 2).sum()  )
+    return np.mean(effdim)
+
+
