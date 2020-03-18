@@ -7,6 +7,24 @@ import time
 import gen_random
 import utils
 
+def partial_trace(rho, qubit_ls):
+    """
+    Calculate the partial trace for qubit system
+    rho: density matrix
+    qubit_ls: list of index of qubit taking the trace
+    """
+    nqubits = int(np.log2(rho.shape[0]))
+    qaxis = [(i, nqubits + i) for i in range(nqubits) if i in qubit_ls]
+    mfactor = [(i, 2*i) for i in range(len(qaxis))]
+    mqaxis  = [(q[0]-m[0], q[1]-m[1]) for q, m in zip(qaxis, mfactor)]
+    rho_res = np.reshape(rho, [2, 2] * nqubits)
+    qleft = nqubits - len(qaxis)
+    for i, j in mqaxis:
+        rho_res = np.trace(rho_res, axis1=i, axis2=j)
+    if qleft > 1:
+        rho_res = np.reshape(rho_res, [2 ** qleft] * 2)
+    return rho_res
+    
 class QRCParams():
     def __init__(self, hidden_unit_count, max_coupling_energy, trotter_step, beta, virtual_nodes, tau_delta, init_rho):
         self.hidden_unit_count = hidden_unit_count
@@ -29,7 +47,7 @@ class QuantumReservoirComputing(object):
         self.virtual_nodes = qparams.virtual_nodes
         self.tau_delta = qparams.tau_delta
         
-        self.qubit_count = self.hidden_unit_count+1
+        self.qubit_count = self.hidden_unit_count
         self.dim = 2**self.qubit_count
         self.Zop = [1]*self.qubit_count
         self.Xop = [1]*self.qubit_count
@@ -96,19 +114,39 @@ class QuantumReservoirComputing(object):
                 rho = self.init_rho
             #print(rho)
             state = []
+            #print('P0P', self.P0op)
+            #print('P1P', self.P1op)
+            #print('Xop[0]', self.Xop[0])
+            #print('Xop[1]', self.Xop[1])
+
             for time_step in range(0, sequence_length):
+                value = input_sequence_list[sequence_index, time_step]
+                
+                # Native implementation
+                # rho = np.array(range(dim*dim)).reshape(dim, dim)
+                # rho2 = partial_trace(rho, [0])
+                # rhok = np.array([[1-value, 0], [0, value]])
+                # rho2 = np.kron(rhok, rho2)
+                
+                # Implement in qulac wiki
                 rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
                 # (1 + u Z)/2 = (1+u)/2 |0><0| + (1-u)/2 |1><1|
-                value = input_sequence_list[sequence_index, time_step]
+                
                 # for input in [-1, 1]
                 # rho = (1+value)/2 * rho + (1-value)/2 *self.Xop[0] @ rho @ self.Xop[0]
+                
                 # for input in [0, 1]
                 rho = (1 - value) * rho + value *self.Xop[0] @ rho @ self.Xop[0]
+                
+                #if time_step == 3:
+                #    print('rho', rho)
+                #    print('rho2', rho2)
+                
                 # virtual nodes
                 current_state = []
                 for v in range(self.virtual_nodes):
                     rho = self.Uop @ rho @ self.Uop.T.conj()
-                    for qubit_index in range(1,self.qubit_count):
+                    for qubit_index in range(0, self.qubit_count):
                         expectation_value = np.real(np.trace(self.Zop[qubit_index] @ rho))
                         current_state.append(expectation_value)
                 state.append(current_state)
