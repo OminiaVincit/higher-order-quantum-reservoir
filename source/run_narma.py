@@ -14,7 +14,7 @@ import qrc
 import gendata as gen
 import utils
 
-N = 10 
+N = 5 
 tdeltas = [2**n for n in range(N)]
 tdeltas.insert(0, 0.5)
 
