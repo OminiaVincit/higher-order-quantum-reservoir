@@ -84,7 +84,7 @@ if __name__  == '__main__':
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
-    outbase = os.path.join(savedir, '{}_{}_order_{}'.format(basename, datestr, '_'.join([str(o) for o in orders])))
+    outbase = os.path.join(savedir, '{}_{}_tdt_{}_order_{}'.format(basename, datestr, tau_delta, '_'.join([str(o) for o in orders])))
 
     if os.path.isfile(savedir) == False:
         jobs, pipels = [], []
@@ -124,8 +124,8 @@ if __name__  == '__main__':
     # plot the result
     xs = virtuals
     zs = dict()
-    zs[0] = np.log10(rsarr[:, 3])
-    zs[1] = np.log10(rsarr[:, 4])
+    zs[0] = rsarr[:, 3]
+    zs[1] = rsarr[:, 4]
     # zs = np.random.rand(len(xs), len(ys))
     # print(zs.shape)
 
@@ -137,13 +137,16 @@ if __name__  == '__main__':
     plt.rc('mathtext', fontset='cm')
     plt.rcParams['font.size']=20
 
-    plt.plot(xs, zs[0])
-    plt.plot(xs, zs[1])
+    plt.plot(xs, zs[0], 'o--', label='Train loss')
+    plt.plot(xs, zs[1], 'o--', label='Test loss')
+    plt.ylim([1e-4, 1e-2])
     plt.xlabel('$V$', fontsize=32)
     plt.ylabel('NMSE', fontsize=32)
     plt.yscale('log')
 
-    
+    plt.legend()
+    plt.title(outbase)
+    plt.grid(True, which="both", ls="-", color='0.65')
     plt.show()
     for ftype in ['png', 'pdf']:
         plt.savefig('{}_NMSE.{}'.format(outbase, ftype), bbox_inches='tight')
