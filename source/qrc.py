@@ -86,6 +86,7 @@ class QuantumReservoirComputing(object):
             np.random.seed(seed=ranseed)
         self.hamiltonian = np.zeros( (self.dim,self.dim) )
 
+        # include input qubit for computation
         for qubit_index in range(self.qubit_count):
             coef = (np.random.rand()-0.5) * 2 * qparams.max_coupling_energy
             self.hamiltonian += coef * self.Zop[qubit_index]
@@ -103,7 +104,6 @@ class QuantumReservoirComputing(object):
         state_list = []
         dim = 2**self.qubit_count
         sequence_range = tqdm.trange(sequence_count)
-        tau_delta = self.tau_delta
         last_rhos = []
 
         for sequence_index in sequence_range:
@@ -171,7 +171,6 @@ class QuantumReservoirComputing(object):
         #print('shape', input_sequence_list.shape, output_sequence_list.shape)
         assert(input_sequence_list.shape[0] == output_sequence_list.shape[0])
         assert(input_sequence_list.shape[1] == output_sequence_list.shape[1])
-        sequence_count, sequence_length = input_sequence_list.shape
         Nout = output_sequence_list[0].shape[1]
         self.W_out = np.random.rand(self.hidden_unit_count * self.virtual_nodes + 1, Nout)
 
@@ -181,7 +180,7 @@ class QuantumReservoirComputing(object):
         print('before washingout state list shape', state_list.shape)
         
         state_list = state_list[:, buffer:, :]
-        print('aster washingout state list shape', state_list.shape)
+        print('after washingout state list shape', state_list.shape)
 
         # discard the transitient state for training
 
