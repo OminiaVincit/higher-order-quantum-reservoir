@@ -95,7 +95,7 @@ if __name__  == '__main__':
         time.sleep(5)
 
         # Get the result
-        rsarr = [float(x) for x in pipels]
+        rsarr = [float(x.recv()) for x in pipels]
         local_avg, local_std = np.mean(rsarr), np.std(rsarr)
         avg_rs.append(local_avg) 
         std_rs.append(local_std)

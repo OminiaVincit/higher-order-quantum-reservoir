@@ -233,7 +233,7 @@ def get_loss(qrcparams, buffer, train_input_seq_ls, train_output_seq_ls, val_inp
     model.train_to_predict(train_input_seq_ls, train_output_seq_ls, buffer, qrcparams, ranseed)
 
     train_pred_seq_ls, train_loss = model.predict(train_input_seq_ls, train_output_seq_ls, buffer=buffer, use_lastrho=False)
-    print("train_loss={}, shape".format(train_loss, train_pred_seq_ls.shape))
+    print("train_loss={}, shape".format(train_loss), train_pred_seq_ls.shape)
     
     
     # Test phase
