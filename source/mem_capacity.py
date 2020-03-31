@@ -20,7 +20,6 @@ tdeltas.insert(0, 0.5)
 def memory_compute(taskname, qparams, train_len, val_len, buffer, dlist, ranseed, pid, send_end):
     rsarr = qrc.memory_function(taskname, qparams, train_len=train_len, val_len=val_len, buffer=buffer, \
         dlist=dlist, ranseed=ranseed)
-    print(rsarr)
     C = np.sum(rsarr[:, 1])
     print('Finished process {} with dmax={}, capacity={}'.format(pid, dlist[-1], C))
     send_end.send('{}'.format(C))
@@ -47,7 +46,7 @@ if __name__  == '__main__':
     parser.add_argument('--virtuals', type=int, default=10)
 
     parser.add_argument('--basename', type=str, default='qrc_stm')
-    parser.add_argument('--savedir', type=str, default='resmem')
+    parser.add_argument('--savedir', type=str, default='rescapacity')
     args = parser.parse_args()
     print(args)
 
@@ -67,8 +66,9 @@ if __name__  == '__main__':
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
+    outbase = os.path.join(savedir, '{}_{}_V_{}'.format(basename, datestr, V))
 
-    avg_rs, std_rs = [], []
+    global_rs = []
     
     for tau_delta in tdeltas:
         qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
@@ -97,7 +97,19 @@ if __name__  == '__main__':
         # Get the result
         rsarr = [float(x.recv()) for x in pipels]
         local_avg, local_std = np.mean(rsarr), np.std(rsarr)
-        avg_rs.append(local_avg) 
-        std_rs.append(local_std)
-
+        global_rs.append([tau_delta, local_avg, local_std])
         print(tau_delta, local_avg, local_std)
+    global_rs = np.array(global_rs)
+    np.savetxt('{}_capacity_tau.txt'.format(outbase), rsarr, delimiter=' ')
+
+    # save experiments setting
+    with open('{}_setting.txt'.format(outbase), 'w') as sfile:
+        sfile.write('train_len={}, val_len={}, buffer={}\n'.format(train_len, val_len, buffer))
+        sfile.write('hidden_unit_count={}\n'.format(qparams.hidden_unit_count))
+        sfile.write('max_coupling_energy={}\n'.format(qparams.max_coupling_energy))
+        sfile.write('trotter_step={}\n'.format(qparams.trotter_step))
+        sfile.write('beta={}\n'.format(qparams.beta))
+        sfile.write('virtual nodes={}\n'.format(V))
+        sfile.write('tau_delta={}\n'.format(' '.join([str(t) for t in tdeltas])))
+        sfile.write('minD={}, maxD={}, interval={}\n'.format(minD, maxD, interval))
+        sfile.write('Ntrials={}, seed={}\n'.format(N, ranseed))
