@@ -116,7 +116,7 @@ if __name__  == '__main__':
 
         # plot the result
         xs, ys = tdeltas, virtuals
-        zs = rsarr[:, 3].reshape(len(xs), len(ys))
+        zs = rsarr[:, 3].reshape(len(xs), len(ys)).T
         zs = np.log10(zs)
         # zs = np.random.rand(len(xs), len(ys))
         # print(zs.shape)

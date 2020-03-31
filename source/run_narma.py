@@ -4,6 +4,7 @@ import os
 import scipy
 import argparse
 import multiprocessing
+import seaborn as sns
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import ticker
@@ -136,8 +137,8 @@ if __name__  == '__main__':
         # plot the result
         xs, ys = tdeltas, virtuals
         zs = dict()
-        zs[0] = np.log10(rsarr[:, 3].reshape(len(xs), len(ys)))
-        zs[1] = np.log10(rsarr[:, 4].reshape(len(xs), len(ys)))
+        zs[0] = np.log10(rsarr[:, 3].reshape(len(xs), len(ys)).T)
+        zs[1] = np.log10(rsarr[:, 4].reshape(len(xs), len(ys)).T)
         # zs = np.random.rand(len(xs), len(ys))
         # print(zs.shape)
 
@@ -152,10 +153,11 @@ if __name__  == '__main__':
         for i in range(2):
             plt.subplot(1, 2, i+1)
             #zs[i] = np.random.rand(len(xs), len(ys))
-            plt.contourf(xs, ys, zs[i], 64, cmap=cmap)
+            plt.contourf(xs, ys, zs[i], 64, cmap=cmap, alpha=1.0)
+            #sns.heatmap(zs[i])
             plt.xlabel('$\\tau\Delta$', fontsize=32)
             plt.ylabel('$V$', fontsize=32)
-            plt.xscale('log')
+            plt.xscale('log', basex=10)
             cb = plt.colorbar()
             cb.set_label('log_{}'.format(labels[i]))
         plt.show()
