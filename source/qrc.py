@@ -177,19 +177,19 @@ class QuantumReservoirComputing(object):
         _, state_list = self.__feed_forward(input_sequence_list, predict=False)
 
         state_list = np.array(state_list)
-        print('before washingout state list shape', state_list.shape)
+        # print('before washingout state list shape', state_list.shape)
         
         state_list = state_list[:, buffer:, :]
-        print('after washingout state list shape', state_list.shape)
+        # print('after washingout state list shape', state_list.shape)
 
         # discard the transitient state for training
 
         V = np.reshape(state_list, [-1, self.hidden_unit_count * self.virtual_nodes])
         V = np.hstack( [V, np.ones([V.shape[0], 1]) ] )
 
-        print('output seq list', output_sequence_list.shape)
+        # print('output seq list', output_sequence_list.shape)
         discard_output_sequence_list = output_sequence_list[:, buffer:, :]
-        print('discard output seq list', discard_output_sequence_list.shape)
+        # print('discard output seq list', discard_output_sequence_list.shape)
         #S = np.reshape(output_sequence_list, [-1])
         (nx, ny, nz) = discard_output_sequence_list.shape
         S = np.reshape(discard_output_sequence_list, [nx*ny, nz])
@@ -339,7 +339,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, ransee
             cov_matrix = np.cov(np.array([val_output_seq, val_pred_seq]))
             MF_d = cov_matrix[0][1] ** 2
             MF_d = MF_d / (np.var(val_output_seq) * np.var(val_pred_seq))
-            print('d={}, n={}, MF={}'.format(d, n, MF_d))
+            # print('d={}, n={}, MF={}'.format(d, n, MF_d))
             train_loss_ls.append(train_loss)
             val_loss_ls.append(val_loss)
             mfs.append(MF_d)
