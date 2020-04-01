@@ -14,8 +14,7 @@ import qrc
 import gendata as gen
 import utils
 
-tdeltas = [2**n for n in range(11)]
-tdeltas.insert(0, 0.5)
+tdeltas = [2**n for n in range(-5, 11)]
 
 def memory_compute(taskname, qparams, train_len, val_len, buffer, dlist, ranseed, pid, send_end):
     rsarr = qrc.memory_function(taskname, qparams, train_len=train_len, val_len=val_len, buffer=buffer, \
@@ -44,6 +43,7 @@ if __name__  == '__main__':
     
     parser.add_argument('--ntrials', type=int, default=1)
     parser.add_argument('--virtuals', type=int, default=10)
+    parser.add_argument('--nproc', type=int, default=50)
 
     parser.add_argument('--basename', type=str, default='qrc_stm')
     parser.add_argument('--savedir', type=str, default='rescapacity')
@@ -53,14 +53,17 @@ if __name__  == '__main__':
     hidden_unit_count, max_coupling_energy, trotter_step, beta =\
         args.units, args.coupling, args.trotter, args.beta
     train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
-    V = args.virtuals
+    V, nproc = args.virtuals, args.nproc
     init_rho = args.rho
     minD, maxD, interval, N = args.mind, args.maxd, args.interval, args.ntrials
     dlist = list(range(minD, maxD + 1, interval))
+    nproc = min(nproc, len(dlist))
+    print('Divided into {} processes'.format(nproc))
+
     basename = args.basename
     savedir = args.savedir
     ranseed = args.seed
-
+    
     if os.path.isdir(savedir) == False:
         os.mkdir(savedir)
     timestamp = int(time.time() * 1000.0)
@@ -73,34 +76,41 @@ if __name__  == '__main__':
     for tau_delta in tdeltas:
         qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
             trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tau_delta, init_rho=init_rho)
-
-        # Multi-process
-        jobs, pipels = [], []
-        for proc_id in range(N):
-            recv_end, send_end = multiprocessing.Pipe(False)
-            p = multiprocessing.Process(target=memory_compute, \
-                    args=(basename, qparams, train_len, val_len, buffer, dlist, proc_id, proc_id, send_end))
-            jobs.append(p)
-            pipels.append(recv_end)
+        local_sum = []
+        for n in range(N):
+            # Multi-process
+            lst = np.array_split(dlist, nproc)
+            jobs, pipels = [], []
+            for proc_id in range(nproc):
+                dsmall = lst[proc_id]
+                if dsmall.size == 0:
+                    continue
+                print('dlist: ', dsmall)
+                recv_end, send_end = multiprocessing.Pipe(False)
+                p = multiprocessing.Process(target=memory_compute, \
+                    args=(basename, qparams, train_len, val_len, buffer, dsmall, n, proc_id, send_end))
+                jobs.append(p)
+                pipels.append(recv_end)
     
-        # Start the process
-        for p in jobs:
-            p.start()
+            # Start the process
+            for p in jobs:
+                p.start()
     
-        # Ensure all processes have finiished execution
-        for p in jobs:
-            p.join()
+            # Ensure all processes have finiished execution
+            for p in jobs:
+                p.join()
 
-        # Sleep 5s
-        time.sleep(5)
+            # Sleep 5s
+            time.sleep(5)
 
-        # Get the result
-        rsarr = [float(x.recv()) for x in pipels]
-        local_avg, local_std = np.mean(rsarr), np.std(rsarr)
+            # Get the result
+            rsarr = [float(x.recv()) for x in pipels]
+            local_sum.append(np.sum(rsarr))
+        local_avg, local_std = np.mean(local_sum), np.std(local_sum)
         global_rs.append([tau_delta, local_avg, local_std])
         print(tau_delta, local_avg, local_std)
     global_rs = np.array(global_rs)
-    np.savetxt('{}_capacity_tau.txt'.format(outbase), rsarr, delimiter=' ')
+    np.savetxt('{}_capacity_tau.txt'.format(outbase), global_rs, delimiter=' ')
 
     # save experiments setting
     with open('{}_setting.txt'.format(outbase), 'w') as sfile:

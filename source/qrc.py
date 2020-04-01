@@ -82,7 +82,7 @@ class QuantumReservoirComputing(object):
 
         # generate hamiltonian
         if ranseed >= 0:
-            print('Init reserveoir with ranseed={}'.format(ranseed))
+            #print('Init reserveoir with ranseed={}'.format(ranseed))
             np.random.seed(seed=ranseed)
         self.hamiltonian = np.zeros( (self.dim,self.dim) )
 
@@ -108,7 +108,7 @@ class QuantumReservoirComputing(object):
 
         for sequence_index in sequence_range:
             if use_lastrho == True and len(self.last_rhos) > sequence_index:
-                print('Use last density matrix')
+                #print('Use last density matrix')
                 rho = self.last_rhos[sequence_index]
             else:
                 rho = self.init_rho
@@ -233,14 +233,14 @@ def get_loss(qrcparams, buffer, train_input_seq_ls, train_output_seq_ls, val_inp
     model.train_to_predict(train_input_seq_ls, train_output_seq_ls, buffer, qrcparams, ranseed)
 
     train_pred_seq_ls, train_loss = model.predict(train_input_seq_ls, train_output_seq_ls, buffer=buffer, use_lastrho=False)
-    print("train_loss={}, shape".format(train_loss), train_pred_seq_ls.shape)
+    #print("train_loss={}, shape".format(train_loss), train_pred_seq_ls.shape)
     
     
     # Test phase
     val_input_seq_ls = np.array(val_input_seq_ls)
     val_output_seq_ls = np.array(val_output_seq_ls)
     val_pred_seq_ls, val_loss = model.predict(val_input_seq_ls, val_output_seq_ls, buffer=0, use_lastrho=True)
-    print("val_loss={}, shape".format(val_loss), val_pred_seq_ls.shape)
+    #print("val_loss={}, shape".format(val_loss), val_pred_seq_ls.shape)
 
     return train_pred_seq_ls, train_loss, val_pred_seq_ls, val_loss
 
