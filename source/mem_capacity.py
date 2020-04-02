@@ -22,7 +22,9 @@ def memory_compute(taskname, qparams, train_len, val_len, buffer, dlist, ranseed
         dlist=dlist, ranseed=ranseed)
     C = np.sum(rsarr[:, 1])
     etime = int(time.time() * 1000.0)
-    print('Finished process {} in {} s with dmax={}, capacity={}'.format(pid, etime-btime, dlist[-1], C))
+    now = datetime.datetime.now()
+    datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
+    print('{} Finished process {} in {} s with V={}, taudelta={}, dmin={}, dmax={}, capacity={}'.format(datestr, pid, etime-btime, qparams.virtual_nodes, qparams.tau_delta, dlist[0], dlist[-1], C))
     send_end.send('{}'.format(C))
 
 if __name__  == '__main__':
