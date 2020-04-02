@@ -17,10 +17,12 @@ import utils
 tdeltas = [2**n for n in range(-5, 11)]
 
 def memory_compute(taskname, qparams, train_len, val_len, buffer, dlist, ranseed, pid, send_end):
+    btime = int(time.time() * 1000.0)
     rsarr = qrc.memory_function(taskname, qparams, train_len=train_len, val_len=val_len, buffer=buffer, \
         dlist=dlist, ranseed=ranseed)
     C = np.sum(rsarr[:, 1])
-    print('Finished process {} with dmax={}, capacity={}'.format(pid, dlist[-1], C))
+    etime = int(time.time() * 1000.0)
+    print('Finished process {} in {} s with dmax={}, capacity={}'.format(pid, etime-btime, dlist[-1], C))
     send_end.send('{}'.format(C))
 
 if __name__  == '__main__':
