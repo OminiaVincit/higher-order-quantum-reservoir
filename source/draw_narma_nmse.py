@@ -54,7 +54,7 @@ if __name__  == '__main__':
     
     plt.xlabel('$V$', fontsize=32)
     plt.ylabel('NMSE', fontsize=32)
-    plt.yscale('log')
+    plt.yscale('log', nonposy='clip')
 
     plt.legend()
     plt.title(outbase, fontsize=10)
