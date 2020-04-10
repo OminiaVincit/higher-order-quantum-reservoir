@@ -1,0 +1,9 @@
+train_len=3000, val_len=1000, buffer=1000
+hidden_unit_count=5
+max_coupling_energy=1.0
+trotter_step=10
+beta=1e-14
+virtual nodes=5
+tau_delta=0.03125 0.0625 0.125 0.25 0.5 1 2 4 8 16 32 64 128 256 512 1024
+minD=0, maxD=200, interval=1
+Ntrials=10, seed=-1
