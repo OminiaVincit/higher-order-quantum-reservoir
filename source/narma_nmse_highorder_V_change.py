@@ -26,7 +26,8 @@ def nmse_job(qparams, nqrc, layer_strength, buffer, train_input_seq, train_outpu
     train_loss_ls, val_loss_ls = [], []
     print('Start process taudelta={}, virtual={}, Jdelta={}'.format(qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy))
     for n in range(Ntrials):
-        _, train_loss, _, val_loss = hqrc.get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, val_output_seq, nqrc, layer_strength)
+        _, train_loss, _, val_loss = hqrc.get_loss(qparams, buffer, train_input_seq, train_output_seq, \
+            val_input_seq, val_output_seq, nqrc, layer_strength, ranseed=n)
         train_loss_ls.append(train_loss)
         val_loss_ls.append(val_loss)
 
@@ -62,7 +63,7 @@ if __name__  == '__main__':
 
     parser.add_argument('--orders', type=str, default='10')
     parser.add_argument('--basename', type=str, default='qrc_narma')
-    parser.add_argument('--savedir', type=str, default='resnarma_high')
+    parser.add_argument('--savedir', type=str, default='resnarma_high_V2')
     args = parser.parse_args()
     print(args)
 

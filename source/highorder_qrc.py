@@ -24,7 +24,11 @@ def softmax_linear_combine(u, states, coeffs):
     return linear_combine(u, states, coeffs)
 
 class HighorderQuantumReservoirComputing(object):
-    def __init_reservoir(self, qparams, nqrc, layer_strength):
+    def __init_reservoir(self, qparams, nqrc, layer_strength, ranseed):
+        if ranseed >= 0:
+            #print('Init reserveoir with ranseed={}'.format(ranseed))
+            np.random.seed(seed=ranseed)
+        
         I = [[1,0],[0,1]]
         Z = [[1,0],[0,-1]]
         X = [[0,1],[1,0]]
@@ -207,8 +211,9 @@ class HighorderQuantumReservoirComputing(object):
         self.W_out = np.linalg.pinv(V, rcond = beta) @ S
         print('bf Wout', self.W_out.shape)
         
-    def train_to_predict(self, input_sequence, output_sequence, buffer, qparams, nqrc, layer_strength):
-        self.__init_reservoir(qparams, nqrc, layer_strength)
+    def train_to_predict(self, input_sequence, output_sequence, buffer, \
+        qparams, nqrc, layer_strength, ranseed):
+        self.__init_reservoir(qparams, nqrc, layer_strength, ranseed)
         self.__train(input_sequence, output_sequence, buffer, qparams.beta)
 
     def predict(self, input_sequence, output_sequence, buffer, use_lastrho):
@@ -219,19 +224,19 @@ class HighorderQuantumReservoirComputing(object):
         loss = np.sum((pred - out)**2)/np.sum(pred**2)
         return prediction_sequence, loss
 
-    def init_forward(self, qparams, input_seq, nqrc, layer_strength, init_rs):
+    def init_forward(self, qparams, input_seq, nqrc, layer_strength, init_rs, ranseed):
         if init_rs == True:
-            self.__init_reservoir(qparams, nqrc, layer_strength)
+            self.__init_reservoir(qparams, nqrc, layer_strength, ranseed)
         _, state_list =  self.__feed_forward(input_seq, predict=False)
         return state_list
 
 def get_loss(qrcparams, buffer, train_input_seq, train_output_seq, \
-    val_input_seq, val_output_seq, nqrc, layer_strength):
+    val_input_seq, val_output_seq, nqrc, layer_strength, ranseed):
     model = HighorderQuantumReservoirComputing()
 
     train_input_seq = np.array(train_input_seq)
     train_output_seq = np.array(train_output_seq)
-    model.train_to_predict(train_input_seq, train_output_seq, buffer, qrcparams, nqrc, layer_strength)
+    model.train_to_predict(train_input_seq, train_output_seq, buffer, qrcparams, nqrc, layer_strength, ranseed)
 
     train_pred_seq, train_loss = model.predict(train_input_seq, train_output_seq, buffer=buffer, use_lastrho=False)
     #print("train_loss={}, shape".format(train_loss), train_pred_seq_ls.shape)
@@ -245,3 +250,80 @@ def get_loss(qrcparams, buffer, train_input_seq, train_output_seq, \
 
     return train_pred_seq, train_loss, val_pred_seq, val_loss
 
+def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
+        nqrc, layer_strength, ranseed=-1, Ntrials=1):    
+    MFlist = []
+    MFstds = []
+    train_list, val_list = [], []
+    length = buffer + train_len + val_len
+    # generate data
+    if '_stm' not in taskname and '_pc' not in taskname:
+        raise ValueError('Not found taskname ={} to generate data'.format(taskname))
+
+    if ranseed >= 0:
+        np.random.seed(seed=ranseed)
+    data = np.random.randint(0, 2, length)
+
+    #data = np.random.rand(length)
+    for d in dlist:
+        train_input_seq = np.array(data[  : buffer + train_len])
+        train_input_seq = np.tile(train_input_seq, (nqrc, 1))
+        
+        val_input_seq = np.array(data[buffer + train_len : length])
+        val_input_seq = np.tile(val_input_seq, (nqrc, 1))
+            
+        train_out, val_out = [], []
+        if '_pc' in taskname:
+            print('Generate parity check data')
+            for k in range(length):
+                yk = 0
+                if k >= d:
+                    yk = np.sum(data[k-d : k+1]) % 2
+                if k >= buffer + train_len:
+                    val_out.append(yk)
+                else:
+                    train_out.append(yk)
+        else:
+            print('Generate STM task data')
+            for k in range(length):
+                yk = 0
+                if k >= d:
+                    yk = data[k-d]
+                if k >= buffer + train_len:
+                    val_out.append(yk)
+                else:
+                    train_out.append(yk)
+        
+        train_output_seq = np.array(train_out).reshape(len(train_out), 1)
+        val_output_seq = np.array(val_out).reshape(len(val_out), 1)
+        
+        train_loss_ls, val_loss_ls, mfs = [], [], []
+        for n in range(Ntrials):
+            ranseed_net = ranseed
+            if ranseed >= 0:
+                ranseed_net = (ranseed + 10000) * (n + 1)
+            #print('d={}, trial={}'.format(d, n))
+            # Use the same ranseed the same trial
+            train_pred_seq, train_loss, val_pred_seq, val_loss = \
+                get_loss(qparams, buffer, train_input_seq, train_output_seq, \
+                    val_input_seq, val_output_seq, nqrc, layer_strength, ranseed_net)
+
+            # Compute memory function
+            val_out_seq, val_pred_seq = val_output_seq.flatten(), val_pred_seq.flatten()
+            #print('cov', val_output_seq.shape, val_pred_seq.shape)
+            cov_matrix = np.cov(np.array([val_out_seq, val_pred_seq]))
+            MF_d = cov_matrix[0][1] ** 2
+            MF_d = MF_d / (np.var(val_out_seq) * np.var(val_pred_seq))
+            # print('d={}, n={}, MF={}'.format(d, n, MF_d))
+            train_loss_ls.append(train_loss)
+            val_loss_ls.append(val_loss)
+            mfs.append(MF_d)
+
+        avg_train, avg_val, avg_MFd, std_MFd = np.mean(train_loss_ls), np.mean(val_loss_ls), np.mean(mfs), np.std(mfs)
+        #print("d={}, train_loss={}, val_loss={}, MF={}".format(d, avg_train, avg_val, avg_MFd))
+        MFlist.append(avg_MFd)
+        MFstds.append(std_MFd)
+        train_list.append(avg_train)
+        val_list.append(avg_val)
+    
+    return np.array(list(zip(dlist, MFlist, MFstds, train_list, val_list)))
