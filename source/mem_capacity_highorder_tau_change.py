@@ -125,13 +125,13 @@ if __name__  == '__main__':
                     time.sleep(5)
 
                     # Get the result
-                    rsarr = [float(x.recv()) for x in pipels]
-                    local_sum.append(np.sum(rsarr))
+                    local_rsarr = [float(x.recv()) for x in pipels]
+                    local_sum.append(np.sum(local_rsarr))
                 local_avg, local_std = np.mean(local_sum), np.std(local_sum)
                 global_rs.append([nqrc, tau_delta, local_avg, local_std])
                 logger.debug('layers={},taudelta={},capa_avg={},capa_std={}'.format(nqrc, tau_delta, local_avg, local_std))
-        global_rs = np.array(global_rs)
-        np.savetxt('{}_capacity.txt'.format(outbase), global_rs, delimiter=' ')
+        rsarr = np.array(global_rs)
+        np.savetxt('{}_capacity.txt'.format(outbase), rsarr, delimiter=' ')
         
         # save experiments setting
         with open('{}_setting.txt'.format(outbase), 'w') as sfile:
