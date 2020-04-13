@@ -144,7 +144,7 @@ if __name__  == '__main__':
             sfile.write('layers={}\n'.format(' '.join([str(l) for l in layers])))
             sfile.write('V={}\n'.format(V))
             sfile.write('minD={}, maxD={}, interval={}\n'.format(minD, maxD, interval))
-            sfile.write('layer_strength={}, Ntrials={}\n'.format(nqrc, layer_strength, Ntrials))
+            sfile.write('layer_strength={}, Ntrials={}\n'.format(layer_strength, Ntrials))
 
     else:
         # Read the result

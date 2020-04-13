@@ -143,7 +143,7 @@ if __name__  == '__main__':
             sfile.write('taudeltas={}\n'.format(' '.join([str(v) for v in taudeltas])))
             sfile.write('layers={}\n'.format(' '.join([str(l) for l in layers])))
             sfile.write('V={}\n'.format(V))
-            sfile.write('layer_strength={}, Ntrials={}\n'.format(nqrc, layer_strength, Ntrials))
+            sfile.write('layer_strength={}, Ntrials={}\n'.format(layer_strength, Ntrials))
 
     else:
         # Read the result
