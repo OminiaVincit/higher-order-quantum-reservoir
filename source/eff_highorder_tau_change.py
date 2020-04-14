@@ -53,7 +53,7 @@ if __name__  == '__main__':
     
     parser.add_argument('--nproc', type=int, default=50)
     parser.add_argument('--ntrials', type=int, default=1)
-    parser.add_argument('--taudeltas', type=str, default='-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10')
+    parser.add_argument('--taudeltas', type=str, default='-4,-3,-2,-1,0,1,2,3,4,5,6,7')
     parser.add_argument('--layers', type=str, default='1,2,3,4,5')
     parser.add_argument('--strength', type=float, default=0.0)
     parser.add_argument('--virtuals', type=int, default=15)
@@ -148,7 +148,7 @@ if __name__  == '__main__':
         plt.errorbar(xs, avg_effs[ids], yerr=std_effs[ids], elinewidth=2, linewidth=2, markersize=12, \
             label='Layers={}'.format(nqrc))
     #plt.xlim([1e-3, 1024])    
-    #plt.ylim([1e-6, 1e-2])
+    plt.ylim([1.0, 1.4])
     plt.xlabel('$\\tau\Delta$', fontsize=28)
     plt.ylabel('Dim', fontsize=28)
     plt.xscale('log', basex=2)
