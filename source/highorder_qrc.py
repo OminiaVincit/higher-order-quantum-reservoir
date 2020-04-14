@@ -327,3 +327,39 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
         val_list.append(avg_val)
     
     return np.array(list(zip(dlist, MFlist, MFstds, train_list, val_list)))
+
+def effective_dim(qparams, buffer, length, nqrc, layer_strength, ranseed=-1, Ntrials=1):
+    # Calculate effective dimension for reservoir
+    from numpy import linalg as LA
+    
+    if ranseed >= 0:
+        np.random.seed(seed=ranseed)
+
+    data = np.random.rand(length)
+    input_seq = np.array(data)
+    input_seq = np.tile(input_seq, (nqrc, 1))
+
+    model = HighorderQuantumReservoirComputing()
+
+    effdims = []
+    for n in range(Ntrials):
+        ranseed_net = ranseed
+        if ranseed >= 0:
+            ranseed_net = (ranseed + 11000) * (n + 1)
+
+        state_list = model.init_forward(qparams, input_seq, nqrc, layer_strength, \
+            init_rs=True, ranseed=ranseed_net)
+        L, D = state_list.shape
+        # L = Length of time series
+        # D = Number of virtual nodes x Number of qubits
+        locls = []
+        for i in range(D):
+            for j in range(D):
+                ri = state_list[buffer:, i]
+                rj = state_list[buffer:, j]
+                locls.append(np.mean(ri*rj))
+        locls = np.array(locls).reshape(D, D)
+        w, v = LA.eig(locls)
+        w = np.abs(w) / np.abs(w).sum()
+        effdims.append(1.0 / np.power(w, 2).sum())
+    return np.mean(effdims), np.std(effdims)
