@@ -63,7 +63,7 @@ if __name__  == '__main__':
 
     parser.add_argument('--orders', type=str, default='10')
     parser.add_argument('--basename', type=str, default='qrc_narma')
-    parser.add_argument('--savedir', type=str, default='resnarma_high_V2')
+    parser.add_argument('--savedir', type=str, default='resnarma_high_V')
     args = parser.parse_args()
     print(args)
 
@@ -184,7 +184,7 @@ if __name__  == '__main__':
     plt.legend()
     plt.title(outbase, fontsize=12)
     plt.grid(True, which="both", ls="-", color='0.65')
-    plt.show()
+    #plt.show()
     for ftype in ['png', 'pdf']:
         plt.savefig('{}_NMSE.{}'.format(outbase, ftype), bbox_inches='tight')
  

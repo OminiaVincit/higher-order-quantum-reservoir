@@ -34,6 +34,11 @@ class QRCParams():
         self.virtual_nodes = virtual_nodes
         self.tau_delta = tau_delta
         self.init_rho = init_rho
+    
+    def info(self):
+        print('units={},Jdelta={},V={},taudelta={},init_rho={}'.format(\
+            self.hidden_unit_count, self.max_coupling_energy,
+            self.virtual_nodes, self.tau_delta, self.init_rho))
 
 class QuantumReservoirComputing(object):
     def __init_reservoir(self, qparams, ranseed):
@@ -213,11 +218,6 @@ class QuantumReservoirComputing(object):
             loss += np.sum((pred - out)**2)/np.sum(pred**2)
         loss /= N
         return prediction_sequence_list, loss
-
-    def test(self):
-        x = 0
-        print('Test')
-        return x
 
     def init_forward(self, qparams, input_seq_ls, ranseed, init_rs):
         if init_rs == True:

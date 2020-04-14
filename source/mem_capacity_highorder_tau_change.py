@@ -58,7 +58,7 @@ if __name__  == '__main__':
     parser.add_argument('--virtuals', type=int, default=15)
 
     parser.add_argument('--taskname', type=str, default='qrc_stm') # Use _stm or _pc
-    parser.add_argument('--savedir', type=str, default='rescapa_high_stm2')
+    parser.add_argument('--savedir', type=str, default='rescapa_high_stm')
     args = parser.parse_args()
     print(args)
 
@@ -172,13 +172,13 @@ if __name__  == '__main__':
     #plt.xlim([1e-3, 1024])    
     #plt.ylim([1e-6, 1e-2])
     plt.xlabel('$\\tau\Delta$', fontsize=28)
-    plt.ylabel('STM', fontsize=28)
+    plt.ylabel('Capacity', fontsize=28)
     plt.xscale('log', basex=2)
 
     plt.legend()
     plt.title(outbase, fontsize=12)
     plt.grid(True, which="both", ls="-", color='0.65')
-    plt.show()
+    #plt.show()
     for ftype in ['png', 'pdf']:
         plt.savefig('{}_capacity.{}'.format(outbase, ftype), bbox_inches='tight')
  

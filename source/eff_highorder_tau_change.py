@@ -14,6 +14,7 @@ import highorder_qrc as hqrc
 import qrc
 import gendata as gen
 import utils
+from loginit import get_module_logger
 
 # virtuals = [5*n for n in range(1, 6)]
 # virtuals.insert(0, 1)
@@ -21,24 +22,21 @@ import utils
 # layers = [n for n in range(1, 6)]
 # strengths = [0.0 0.1 0.3 0.5 0.7 0.9 1.0]
 
-def nmse_job(qparams, nqrc, layer_strength, buffer, train_input_seq, train_output_seq, \
-        val_input_seq, val_output_seq, Ntrials, send_end):
-    train_loss_ls, val_loss_ls = [], []
-    print('Start process taudelta={}, virtual={}, Jdelta={}'.format(qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy))
+def effdim_job(qparams, nqrc, layer_strength, buffer, length, Ntrials, send_end):
+    print('Start process layer={}, taudelta={}, virtual={}, Jdelta={}'.format(nqrc, qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy))
+    btime = int(time.time() * 1000.0)
+    effd_ls = []
     for n in range(Ntrials):
-        _, train_loss, _, val_loss = hqrc.get_loss(qparams, buffer, train_input_seq, train_output_seq, \
-            val_input_seq, val_output_seq, nqrc, layer_strength, ranseed=n)
-        train_loss_ls.append(train_loss)
-        val_loss_ls.append(val_loss)
+        effd, _ = hqrc.effective_dim(qparams, buffer, length, nqrc, layer_strength, ranseed=n, Ntrials=1)
+        effd_ls.append(effd)
 
-    mean_train, mean_val = np.mean(train_loss_ls), np.mean(val_loss_ls)
-    std_train, std_val = np.std(train_loss_ls), np.std(val_loss_ls)
-    #mean_train, mean_val = np.random.rand(), np.random.rand()
-
-    rstr = '{} {} {} {} {} {} {}'.format(\
-        nqrc, qparams.tau_delta, layer_strength, \
-            mean_train, mean_val, std_train, std_val)
-    print('Finish process {}'.format(rstr))
+    mean_effd, std_effd = np.mean(effd_ls), np.std(effd_ls)
+    rstr = '{} {} {} {} {}'.format(\
+        nqrc, qparams.tau_delta, layer_strength, mean_effd, std_effd)
+    etime = int(time.time() * 1000.0)
+    now = datetime.datetime.now()
+    datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
+    print('{} Finish process {} in {}s'.format(datestr, rstr, etime-btime))
     send_end.send(rstr)
 
 if __name__  == '__main__':
@@ -50,26 +48,24 @@ if __name__  == '__main__':
     parser.add_argument('--rho', type=int, default=0)
     parser.add_argument('--beta', type=float, default=1e-14)
 
-    parser.add_argument('--trainlen', type=int, default=2000)
-    parser.add_argument('--vallen', type=int, default=2000)
+    parser.add_argument('--length', type=int, default=4000)
     parser.add_argument('--buffer', type=int, default=2000)
     
     parser.add_argument('--nproc', type=int, default=50)
     parser.add_argument('--ntrials', type=int, default=1)
-    parser.add_argument('--taudeltas', type=str, default='-4,-3,-2,-1,0,1,2,3,4,5,6,7')
-    parser.add_argument('--layers', type=str, default='2,3,4,5')
+    parser.add_argument('--taudeltas', type=str, default='-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10')
+    parser.add_argument('--layers', type=str, default='1,2,3,4,5')
     parser.add_argument('--strength', type=float, default=0.0)
     parser.add_argument('--virtuals', type=int, default=15)
 
-    parser.add_argument('--orders', type=str, default='10')
-    parser.add_argument('--basename', type=str, default='qrc_narma')
-    parser.add_argument('--savedir', type=str, default='resnarma_high_tau')
+    parser.add_argument('--basename', type=str, default='qrc_eff')
+    parser.add_argument('--savedir', type=str, default='res_high_eff_tau')
     args = parser.parse_args()
     print(args)
 
     hidden_unit_count, max_coupling_energy, trotter_step, beta =\
         args.units, args.coupling, args.trotter, args.beta
-    train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
+    length, buffer = args.length, args.buffer
     nproc, layer_strength, V = args.nproc, args.strength, args.virtuals
     init_rho = args.rho
     Ntrials = args.ntrials
@@ -82,39 +78,21 @@ if __name__  == '__main__':
     taudeltas = [2**x for x in taudeltas]
     
     layers = [int(x) for x in args.layers.split(',')]
-    orders = [int(x) for x in args.orders.split(',')]
-
-    data, target = gen.make_data_for_narma(train_len + val_len + buffer, orders=orders)
-
-    train_input_seq_org = np.array(data[: buffer + train_len])
-    train_input_seq_org = train_input_seq_org.reshape(1, train_input_seq_org.shape[0])
     
-    train_output_seq = target[  : buffer + train_len] 
-
-    val_input_seq_org =  np.array(data[buffer + train_len : buffer + train_len + val_len])
-    val_input_seq_org = val_input_seq_org.reshape(1, val_input_seq_org.shape[0])
-        
-    val_output_seq = target[buffer + train_len : buffer + train_len + val_len]
-
     # Evaluation
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
-    outbase = os.path.join(savedir, '{}_{}_strength_{}_V_{}_layers_{}_narma_{}_ntrials_{}'.format(\
-        basename, datestr, layer_strength, V, '_'.join([str(o) for o in layers]), \
-        '_'.join([str(o) for o in orders]), Ntrials))
-
+    outbase = os.path.join(savedir, '{}_{}_strength_{}_V_{}_layers_{}_eff_ntrials_{}'.format(\
+        basename, datestr, layer_strength, V, '_'.join([str(o) for o in layers]), Ntrials))
     if os.path.isfile(savedir) == False:
         jobs, pipels = [], []
         for nqrc in layers:
-            train_input_seq = np.tile(train_input_seq_org, (nqrc, 1))
-            val_input_seq = np.tile(val_input_seq_org, (nqrc, 1))
             for tau_delta in taudeltas:
                 recv_end, send_end = multiprocessing.Pipe(False)
                 qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
                     trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tau_delta, init_rho=init_rho)
-                p = multiprocessing.Process(target=nmse_job, args=(qparams, nqrc, layer_strength, buffer, train_input_seq, train_output_seq, \
-                    val_input_seq, val_output_seq, Ntrials, send_end))
+                p = multiprocessing.Process(target=effdim_job, args=(qparams, nqrc, layer_strength, buffer, length, Ntrials, send_end))
                 jobs.append(p)
                 pipels.append(recv_end)
 
@@ -132,11 +110,11 @@ if __name__  == '__main__':
         result_list = [np.array( [float(y) for y in x.recv().split(' ')]  ) for x in pipels]
         rsarr = np.array(result_list)
         # save the result
-        np.savetxt('{}_NMSE.txt'.format(outbase), rsarr, delimiter=' ')
+        np.savetxt('{}_eff.txt'.format(outbase), rsarr, delimiter=' ')
 
         # save experiments setting
         with open('{}_setting.txt'.format(outbase), 'w') as sfile:
-            sfile.write('train_len={}, val_len={}, buffer={}\n'.format(train_len, val_len, buffer))
+            sfile.write('length={}, buffer={}\n'.format(length, buffer))
             sfile.write('hidden_unit_count={}\n'.format(hidden_unit_count))
             sfile.write('max_coupling_energy={}\n'.format(max_coupling_energy))
             sfile.write('trotter_step={}\n'.format(trotter_step))
@@ -156,9 +134,8 @@ if __name__  == '__main__':
 
     # plot the result
     xs = taudeltas
-    avg_trains, std_trains = rsarr[:, 3], rsarr[:, 5]
-    avg_tests, std_tests = rsarr[:, 4], rsarr[:, 6]
-    
+    avg_effs, std_effs = rsarr[:, 3], rsarr[:, 4]
+
     cmap = plt.get_cmap("viridis")
     plt.figure(figsize=(16,8))
     #plt.style.use('seaborn-colorblind')
@@ -168,20 +145,12 @@ if __name__  == '__main__':
 
     for nqrc in layers:
         ids = (rsarr[:, 0] == nqrc)
-        #plt.plot(xs, avg_trains, 'o--',  linewidth=2, markersize=12, \
-        #    label='Train layers={}'.format(nqrc))
-        #plt.plot(xs, avg_tests, 'o--',  linewidth=2, markersize=12, \
-        #    label='Test layers={}'.format(nqrc))
-
-        # plt.errorbar(xs, avg_trains, yerr=std_trains, elinewidth=2, linewidth=2, markersize=12, \
-        #     label='Train layers={}'.format(nqrc))
-        plt.errorbar(xs, avg_tests[ids], yerr=std_tests[ids], elinewidth=2, linewidth=2, markersize=12, \
+        plt.errorbar(xs, avg_effs[ids], yerr=std_effs[ids], elinewidth=2, linewidth=2, markersize=12, \
             label='Layers={}'.format(nqrc))
     #plt.xlim([1e-3, 1024])    
-    plt.ylim([1e-6, 1e-2])
+    #plt.ylim([1e-6, 1e-2])
     plt.xlabel('$\\tau\Delta$', fontsize=28)
-    plt.ylabel('NMSE', fontsize=28)
-    plt.yscale('log')
+    plt.ylabel('Dim', fontsize=28)
     plt.xscale('log', basex=2)
 
     plt.legend()
@@ -189,5 +158,5 @@ if __name__  == '__main__':
     plt.grid(True, which="both", ls="-", color='0.65')
     #plt.show()
     for ftype in ['png', 'pdf']:
-        plt.savefig('{}_NMSE.{}'.format(outbase, ftype), bbox_inches='tight')
+        plt.savefig('{}_eff.{}'.format(outbase, ftype), bbox_inches='tight')
  
