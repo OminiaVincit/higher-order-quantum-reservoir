@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-for a in 0.0 0.1 0.3 0.5 0.7 0.9
+for a in 0.3 0.7
   do
-    python source/mem_capacity_highorder_tau_change.py --strength $a --ntrials 10 --maxd 256
+    python source/mem_capacity_highorder_tau_change.py --taskname qrc_stm --layers 2,3,4,5 --strength $a --ntrials 10 --nproc 51 --maxd 200
 done

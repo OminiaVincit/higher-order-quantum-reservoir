@@ -262,9 +262,14 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
 
     if ranseed >= 0:
         np.random.seed(seed=ranseed)
-    data = np.random.randint(0, 2, length)
+    
+    if '_pc' in taskname:
+        print('Generate parity check data')
+        data = np.random.randint(0, 2, length)
+    else:
+        print('Generate STM task data')
+        data = np.random.rand(length)
 
-    #data = np.random.rand(length)
     for d in dlist:
         train_input_seq = np.array(data[  : buffer + train_len])
         train_input_seq = np.tile(train_input_seq, (nqrc, 1))
@@ -274,7 +279,6 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
             
         train_out, val_out = [], []
         if '_pc' in taskname:
-            print('Generate parity check data')
             for k in range(length):
                 yk = 0
                 if k >= d:
@@ -284,7 +288,6 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
                 else:
                     train_out.append(yk)
         else:
-            print('Generate STM task data')
             for k in range(length):
                 yk = 0
                 if k >= d:

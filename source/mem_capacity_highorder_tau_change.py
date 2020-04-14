@@ -58,7 +58,7 @@ if __name__  == '__main__':
     parser.add_argument('--virtuals', type=int, default=15)
 
     parser.add_argument('--taskname', type=str, default='qrc_stm') # Use _stm or _pc
-    parser.add_argument('--savedir', type=str, default='rescapa_high_stm')
+    parser.add_argument('--savedir', type=str, default='rescapa_high_stm2')
     args = parser.parse_args()
     print(args)
 
