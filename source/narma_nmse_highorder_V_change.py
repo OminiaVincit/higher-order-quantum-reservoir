@@ -56,8 +56,8 @@ if __name__  == '__main__':
     
     parser.add_argument('--nproc', type=int, default=50)
     parser.add_argument('--ntrials', type=int, default=1)
-    parser.add_argument('--virtuals', type=str, default='1,5,10,15,20,25')
-    parser.add_argument('--layers', type=str, default='1,2,3,4,5')
+    parser.add_argument('--virtuals', type=str, default='1,5,10,15,20,25,30,35,40,45,50')
+    parser.add_argument('--layers', type=str, default='2,3,4,5')
     parser.add_argument('--strength', type=float, default=0.0)
     parser.add_argument('--taudelta', type=float, default=2.0)
 
@@ -98,8 +98,9 @@ if __name__  == '__main__':
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
-    outbase = os.path.join(savedir, '{}_{}_strength_{}_tdt_{}_narma_{}_ntrials_{}'.format(\
-        basename, datestr, layer_strength, tau_delta, '_'.join([str(o) for o in orders]), Ntrials))
+    outbase = os.path.join(savedir, '{}_{}_strength_{}_tdt_{}_layers_{}_narma_{}_ntrials_{}'.format(\
+        basename, datestr, layer_strength, tau_delta, '_'.join([str(o) for o in layers]),\
+        '_'.join([str(o) for o in orders]), Ntrials))
 
     if os.path.isfile(savedir) == False:
         jobs, pipels = [], []
