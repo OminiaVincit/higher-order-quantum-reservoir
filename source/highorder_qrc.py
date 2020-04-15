@@ -183,8 +183,7 @@ class HighorderQuantumReservoirComputing(object):
                 self.current_states[i] = np.array(current_state)
                 local_rhos[i] = rho
 
-            # only use state of the last qrc to train
-            state = np.array(self.current_states)
+            state = np.array(self.current_states.copy())
             state_list.append(state.flatten())
 
             # update previous states
@@ -377,13 +376,19 @@ def effective_dim(qparams, buffer, length, nqrc, layer_strength, ranseed, Ntrial
                 locls.append(np.mean(ri*rj))
         locls = np.array(locls).reshape(D, D)
         w, v = LA.eig(locls)
+        #print(w)
         w = np.abs(w) / np.abs(w).sum()
         effdims.append(1.0 / np.power(w, 2).sum())
     return np.mean(effdims), np.std(effdims)
 
-def esp_index(qparams, buffer, input_seq, nqrc, layer_strength, \
-        ranseed, state_trials, one_input=False):
-    input_seq = np.array(input_seq)
+def esp_index(qparams, buffer, length, nqrc, layer_strength, ranseed, state_trials, one_input=False):
+    if ranseed >= 0:
+        np.random.seed(seed=ranseed)
+
+    data = np.random.rand(length)
+    input_seq = np.array(data)
+    input_seq = np.tile(input_seq, (nqrc, 1))
+
     # Initialize the reservoir to zero state - density matrix
     model = HighorderQuantumReservoirComputing(nqrc, layer_strength, one_input)
     x0_state_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = ranseed)
@@ -392,9 +397,8 @@ def esp_index(qparams, buffer, input_seq, nqrc, layer_strength, \
     for i in range(state_trials):
         # Initialzie the reservoir to a random initial state
         # Keep same coupling configuration
-        
         model.gen_rand_rhos(ranseed = i + 300000)
-        z0_state_list = model.init_forward(qparams, input_seq, init_rs = False, ranseed = ranseed)
+        z0_state_list = model.init_forward(qparams, input_seq, init_rs = False, ranseed = i + 200000)
         L, D = z0_state_list.shape
         # L = Length of time series
         # D = Number of layers x Number of virtual nodes x Number of qubits

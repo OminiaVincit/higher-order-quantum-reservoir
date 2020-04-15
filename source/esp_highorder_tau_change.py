@@ -22,12 +22,12 @@ from loginit import get_module_logger
 # layers = [n for n in range(1, 6)]
 # strengths = [0.0 0.1 0.3 0.5 0.7 0.9 1.0]
 
-def esp_job(qparams, nqrc, layer_strength, buffer, input_seq, state_trials, net_trials, send_end):
+def esp_job(qparams, nqrc, layer_strength, buffer, length, state_trials, net_trials, send_end):
     print('Start process layer={}, taudelta={}, virtual={}, Jdelta={}'.format(nqrc, qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy))
     btime = int(time.time() * 1000.0)
     dPs, ldas = [], []
     for n in range(net_trials):
-        dP, lda = hqrc.esp_index(qparams, buffer, input_seq, nqrc, layer_strength, ranseed=n, state_trials=state_trials)
+        dP, lda = hqrc.esp_index(qparams, buffer, length, nqrc, layer_strength, ranseed=n, state_trials=state_trials)
         dPs.append(dP)
         ldas.append(lda)
 
@@ -62,8 +62,7 @@ if __name__  == '__main__':
     parser.add_argument('--strength', type=float, default=0.0)
     parser.add_argument('--virtuals', type=int, default=15)
 
-    parser.add_argument('--orders', type=str, default='10')
-    parser.add_argument('--basename', type=str, default='qrc_narma_echo')
+    parser.add_argument('--basename', type=str, default='qrc_echo')
     parser.add_argument('--savedir', type=str, default='res_high_echo_tau')
     args = parser.parse_args()
     print(args)
@@ -84,30 +83,22 @@ if __name__  == '__main__':
     
     layers = [int(x) for x in args.layers.split(',')]
     
-    orders = [int(x) for x in args.orders.split(',')]
-    data, target = gen.make_data_for_narma(length, orders=orders)
-    input_seq_org = np.array(data)
-    input_seq_org = input_seq_org.reshape(1, input_seq_org.shape[0])
-    
-
     # Evaluation
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
-    outbase = os.path.join(savedir, '{}_{}_strength_{}_V_{}_layers_{}_narma_{}_esp_trials_{}_{}'.format(\
-        basename, datestr, layer_strength, V, '_'.join([str(l) for l in layers]), \
-            '_'.join([str(o) for o in orders]), net_trials, state_trials))
+    outbase = os.path.join(savedir, '{}_{}_strength_{}_V_{}_layers_{}_esp_trials_{}_{}'.format(\
+        basename, datestr, layer_strength, V, '_'.join([str(l) for l in layers]), net_trials, state_trials))
     
     if os.path.isfile(savedir) == False:
         jobs, pipels = [], []
         for nqrc in layers:
-            input_seq = np.tile(input_seq_org, (nqrc, 1))
             for tau_delta in taudeltas:
                 recv_end, send_end = multiprocessing.Pipe(False)
                 qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
                     trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tau_delta, init_rho=init_rho)
                 p = multiprocessing.Process(target=esp_job, \
-                    args=(qparams, nqrc, layer_strength, buffer, input_seq, net_trials, state_trials, send_end))
+                    args=(qparams, nqrc, layer_strength, buffer, length, net_trials, state_trials, send_end))
                 jobs.append(p)
                 pipels.append(recv_end)
 

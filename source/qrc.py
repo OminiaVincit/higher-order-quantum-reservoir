@@ -353,7 +353,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, ransee
     
     return np.array(list(zip(dlist, MFlist, MFstds, train_list, val_list)))
 
-def esp_index(qparams, P, T, input_seq_ls, ranseed):
+def esp_index(qparams, P, buffer, input_seq_ls, ranseed):
     input_seq_ls = np.array(input_seq_ls)
     
     # Initialzie the reservoir to zero state - density matrix
@@ -385,27 +385,34 @@ def esp_index(qparams, P, T, input_seq_ls, ranseed):
     print('dP={}'.format(dP/P))
     return dP/P
 
-def effective_dim(qparams, P, T, input_seq_ls):
+def effective_dim(qparams, buffer, length, ranseed, P):
     # Calculate effective dimension for reservoir
     from numpy import linalg as LA
 
-    input_seq_ls = np.array(input_seq_ls)
-    model = QuantumReservoirComputing()
+    if ranseed >= 0:
+        np.random.seed(seed=ranseed)
 
+    data = np.random.rand(length)
+    input_seq_ls = np.array([ data ])
+
+    model = QuantumReservoirComputing()
     effdim = []
     for p in range(P):
+        ranseed_net = ranseed
+        if ranseed >= 0:
+            ranseed_net = (ranseed + 11000) * (p + 1)
         corrsum = []
-        state_list = model.init_forward(qparams, input_seq_ls, ranseed=-1, init_rs=True)
+        state_list = model.init_forward(qparams, input_seq_ls, ranseed=ranseed_net, init_rs=True)
         N, L, D = state_list.shape
         # N = Number of input list
         # L = Length of time series
         # D = Number of virtual nodes x Number of qubits
-        for n in range(N):
+        for n in range(1):
             locls = []
             for i in range(D):
                 for j in range(D):
-                    ri = state_list[n, :, i]
-                    rj = state_list[n, :, j]
+                    ri = state_list[n, buffer:, i]
+                    rj = state_list[n, buffer:, j]
                     locls.append(np.mean(ri*rj))
             locls = np.array(locls).reshape(D, D)
             corrsum.append(locls)

@@ -14,11 +14,11 @@ import qrc
 import gendata as gen
 import utils
 
-def eff_job(qparams, P, T, input_seq_ls, Ntrials, send_end):
+def eff_job(qparams, buffer, length, P, Ntrials, send_end):
     esp_ls = []
     print('Start process taudelta={}, virtual={}, Jdelta={}'.format(qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy))
     for n in range(Ntrials):
-         esp_val = qrc.effective_dim(qparams, P, T, input_seq_ls)
+         esp_val = qrc.effective_dim(qparams, buffer, length, ranseed=n, P=P)
          esp_ls.append(esp_val)
 
     mean_esp = np.mean(esp_ls)
@@ -36,15 +36,13 @@ if __name__  == '__main__':
     parser.add_argument('--trotter', type=int, default=10)
     parser.add_argument('--beta', type=float, default=1e-14)
 
-    parser.add_argument('--vallen', type=int, default=500)
+    parser.add_argument('--length', type=int, default=1000)
     parser.add_argument('--buffer', type=int, default=500)
     parser.add_argument('--pindex', type=int, default=10)
     parser.add_argument('--ntrials', type=int, default=1)
     parser.add_argument('--nums', type=int, default=1)
     
     parser.add_argument('--resolution', type=int, default=64)
-
-    parser.add_argument('--orders', type=str, default='10')
     parser.add_argument('--basename', type=str, default='qrc_effective')
     parser.add_argument('--savedir', type=str, default='reseff')
     args = parser.parse_args()
@@ -52,7 +50,7 @@ if __name__  == '__main__':
 
     hidden_unit_count, max_coupling_energy, trotter_step, beta =\
         args.units, args.coupling, args.trotter, args.beta
-    val_len, pindex, buffer = args.vallen, args.pindex, args.buffer
+    length, pindex, buffer = args.length, args.pindex, args.buffer
     Ntrials = args.ntrials
     nums = args.nums
 
@@ -66,16 +64,11 @@ if __name__  == '__main__':
     virtuals = [5*n for n in range(1, nums+1)]
     virtuals.insert(0, 1)
 
-    orders = [int(x) for x in args.orders.split(',')]
-    data, target = gen.make_data_for_narma(buffer + val_len, orders=orders)
-
-    input_seq_ls = np.array(  [ data[: buffer + val_len] ] )
-    
     # Evaluation
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
-    outbase = os.path.join(savedir, '{}_{}_order_{}'.format(basename, datestr, '_'.join([str(o) for o in orders])))
+    outbase = os.path.join(savedir, '{}_{}'.format(basename, datestr))
 
     if True:
         if os.path.isfile(savedir) == False:
@@ -87,7 +80,7 @@ if __name__  == '__main__':
                     qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
                         trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tdelta, init_rho=0)
                     
-                    p = multiprocessing.Process(target=eff_job, args=(qparams, pindex, buffer, input_seq_ls, Ntrials, send_end))
+                    p = multiprocessing.Process(target=eff_job, args=(qparams, buffer, length, pindex, Ntrials, send_end))
                     jobs.append(p)
                     pipels.append(recv_end)
 
