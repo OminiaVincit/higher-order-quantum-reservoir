@@ -24,11 +24,16 @@ def softmax_linear_combine(u, states, coeffs):
     states = solfmax_layer(states)
     return linear_combine(u, states, coeffs)
 
+def scale_linear_combine(u, states, coeffs, bias):
+    states = (states + bias) / (2.0 * bias)
+    return linear_combine(u, states, coeffs)
+
 class HighorderQuantumReservoirComputing(object):
-    def __init__(self, nqrc, layer_strength, one_input=False):
+    def __init__(self, nqrc, layer_strength, one_input=False, bias=1.0):
         self.nqrc = nqrc
         self.layer_strength = layer_strength
         self.one_input = one_input
+        self.bias = bias
 
     def __init_reservoir(self, qparams, ranseed):
         if ranseed >= 0:
@@ -160,8 +165,8 @@ class HighorderQuantumReservoirComputing(object):
                 # Obtain values from previous layer
                 previous_states = self.previous_states
                 if nqrc > 1 and previous_states[0] is not None:
-                    value = softmax_linear_combine(value, previous_states, self.coeffs[i])
-
+                    #value = softmax_linear_combine(value, previous_states, self.coeffs[i])
+                    value = scale_linear_combine(value, previous_states, self.coeffs[i], self.bias)
                 # Replace the density matrix
                 rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
                 # (1 + u Z)/2 = (1+u)/2 |0><0| + (1-u)/2 |1><1|
