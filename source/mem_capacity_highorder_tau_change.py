@@ -170,7 +170,7 @@ if __name__  == '__main__':
         plt.errorbar(xs, avg_capa[ids], yerr=std_capa[ids], elinewidth=2, linewidth=2, markersize=12, \
             label='Layers={}'.format(nqrc))
     #plt.xlim([1e-3, 1024])    
-    #plt.ylim([1e-6, 1e-2])
+    plt.ylim([0, 80])
     plt.xlabel('$\\tau\Delta$', fontsize=28)
     plt.ylabel('Capacity', fontsize=28)
     plt.xscale('log', basex=2)
