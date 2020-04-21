@@ -179,6 +179,6 @@ if __name__  == '__main__':
     plt.title(outbase, fontsize=12)
     plt.grid(True, which="both", ls="-", color='0.65')
     #plt.show()
-    for ftype in ['png', 'pdf']:
+    for ftype in ['png', 'pdf', 'svg']:
         plt.savefig('{}_capacity.{}'.format(outbase, ftype), bbox_inches='tight')
  
