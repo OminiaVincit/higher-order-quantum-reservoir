@@ -1,0 +1,9 @@
+train_len=2000, val_len=2000, buffer=2000
+hidden_unit_count=5
+max_coupling_energy=1.0
+trotter_step=10
+beta=1e-14
+layer_strength=0.1 0.3 0.5 0.7 0.9
+layers=1 2 3 4 5
+V=20
+taudelta=1.0, Ntrials=10
