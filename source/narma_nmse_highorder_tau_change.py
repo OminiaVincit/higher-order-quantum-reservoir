@@ -21,13 +21,13 @@ import utils
 # layers = [n for n in range(1, 6)]
 # strengths = [0.0 0.1 0.3 0.5 0.7 0.9 1.0]
 
-def nmse_job(qparams, nqrc, layer_strength, buffer, train_input_seq, train_output_seq, \
+def nmse_job(qparams, nqrc, deep, layer_strength, buffer, train_input_seq, train_output_seq, \
         val_input_seq, val_output_seq, Ntrials, send_end):
     train_loss_ls, val_loss_ls = [], []
     print('Start process taudelta={}, virtual={}, Jdelta={}'.format(qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy))
     for n in range(Ntrials):
         _, train_loss, _, val_loss = hqrc.get_loss(qparams, buffer, train_input_seq, train_output_seq, \
-            val_input_seq, val_output_seq, nqrc, layer_strength, ranseed=n)
+            val_input_seq, val_output_seq, nqrc, layer_strength, ranseed=n, deep=deep)
         train_loss_ls.append(train_loss)
         val_loss_ls.append(val_loss)
 
@@ -61,6 +61,7 @@ if __name__  == '__main__':
     parser.add_argument('--strength', type=float, default=0.0)
     parser.add_argument('--virtuals', type=int, default=15)
 
+    parser.add_argument('--deep', type=int, default=0)
     parser.add_argument('--orders', type=str, default='10')
     parser.add_argument('--basename', type=str, default='qrc_narma')
     parser.add_argument('--savedir', type=str, default='resnarma_high_tau')
@@ -73,6 +74,9 @@ if __name__  == '__main__':
     nproc, layer_strength, V = args.nproc, args.strength, args.virtuals
     init_rho = args.rho
     Ntrials = args.ntrials
+    deep = False
+    if args.deep > 0:
+        deep = True
 
     basename, savedir = args.basename, args.savedir
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
@@ -100,8 +104,8 @@ if __name__  == '__main__':
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
-    outbase = os.path.join(savedir, '{}_{}_strength_{}_V_{}_layers_{}_narma_{}_ntrials_{}'.format(\
-        basename, datestr, layer_strength, V, '_'.join([str(o) for o in layers]), \
+    outbase = os.path.join(savedir, '{}_{}_deep_{}_strength_{}_V_{}_layers_{}_narma_{}_ntrials_{}'.format(\
+        basename, datestr, deep, layer_strength, V, '_'.join([str(o) for o in layers]), \
         '_'.join([str(o) for o in orders]), Ntrials))
 
     if os.path.isfile(savedir) == False:
@@ -113,7 +117,7 @@ if __name__  == '__main__':
                 recv_end, send_end = multiprocessing.Pipe(False)
                 qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
                     trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tau_delta, init_rho=init_rho)
-                p = multiprocessing.Process(target=nmse_job, args=(qparams, nqrc, layer_strength, buffer, train_input_seq, train_output_seq, \
+                p = multiprocessing.Process(target=nmse_job, args=(qparams, nqrc, deep, layer_strength, buffer, train_input_seq, train_output_seq, \
                     val_input_seq, val_output_seq, Ntrials, send_end))
                 jobs.append(p)
                 pipels.append(recv_end)
@@ -144,6 +148,7 @@ if __name__  == '__main__':
             sfile.write('taudeltas={}\n'.format(' '.join([str(v) for v in taudeltas])))
             sfile.write('layers={}\n'.format(' '.join([str(l) for l in layers])))
             sfile.write('V={}\n'.format(V))
+            sfile.write('deep={}\n'.format(deep))
             sfile.write('layer_strength={}, Ntrials={}\n'.format(layer_strength, Ntrials))
 
     else:

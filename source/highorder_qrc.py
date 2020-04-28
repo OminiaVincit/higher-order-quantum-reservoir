@@ -29,11 +29,12 @@ def scale_linear_combine(u, states, coeffs, bias):
     return linear_combine(u, states, coeffs)
 
 class HighorderQuantumReservoirComputing(object):
-    def __init__(self, nqrc, layer_strength, one_input=False, bias=1.0):
+    def __init__(self, nqrc, layer_strength, one_input=False, deep=False, bias=1.0):
         self.nqrc = nqrc
         self.layer_strength = layer_strength
         self.one_input = one_input
         self.bias = bias
+        self.deep = deep
 
     def __init_reservoir(self, qparams, ranseed):
         if ranseed >= 0:
@@ -80,15 +81,22 @@ class HighorderQuantumReservoirComputing(object):
                 local_cs = []
                 for j in range(nqrc):
                     cs = [0] * N_local_states
-                    if j != i:
-                        cs = np.random.rand(N_local_states)
+                    if self.deep == False:
+                        if j != i:
+                            cs = np.random.rand(N_local_states)
+                    else:
+                        if j == i-1:
+                            cs = np.random.rand(N_local_states)
                     local_cs.append(cs)
+                
                 local_cs = np.array(local_cs).flatten()
 
                 alpha = self.layer_strength
                 if alpha < 0 or alpha > 1:
                     alpha = np.random.rand()
-                local_cs = alpha * local_cs / np.sum(local_cs)
+                total = np.sum(local_cs)
+                if total > 0:
+                    local_cs = alpha * local_cs / total
                 connections.append(local_cs)
         self.coeffs = connections
 
@@ -251,8 +259,8 @@ class HighorderQuantumReservoirComputing(object):
         return state_list
 
 def get_loss(qparams, buffer, train_input_seq, train_output_seq, \
-    val_input_seq, val_output_seq, nqrc, layer_strength, ranseed, one_input=False):
-    model = HighorderQuantumReservoirComputing(nqrc, layer_strength, one_input)
+    val_input_seq, val_output_seq, nqrc, layer_strength, ranseed, one_input=False, deep=False):
+    model = HighorderQuantumReservoirComputing(nqrc, layer_strength, one_input, deep)
 
     train_input_seq = np.array(train_input_seq)
     train_output_seq = np.array(train_output_seq)
@@ -270,7 +278,7 @@ def get_loss(qparams, buffer, train_input_seq, train_output_seq, \
     return train_pred_seq, train_loss, val_pred_seq, val_loss
 
 def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
-        nqrc, layer_strength, ranseed=-1, Ntrials=1, one_input=False):    
+        nqrc, layer_strength, ranseed=-1, Ntrials=1, one_input=False, deep=False):    
     MFlist = []
     MFstds = []
     train_list, val_list = [], []
@@ -328,7 +336,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
             # Use the same ranseed the same trial
             train_pred_seq, train_loss, val_pred_seq, val_loss = \
                 get_loss(qparams, buffer, train_input_seq, train_output_seq, \
-                    val_input_seq, val_output_seq, nqrc, layer_strength, ranseed_net, one_input)
+                    val_input_seq, val_output_seq, nqrc, layer_strength, ranseed_net, one_input, deep)
 
             # Compute memory function
             val_out_seq, val_pred_seq = val_output_seq.flatten(), val_pred_seq.flatten()
@@ -350,7 +358,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
     
     return np.array(list(zip(dlist, MFlist, MFstds, train_list, val_list)))
 
-def effective_dim(qparams, buffer, length, nqrc, layer_strength, ranseed, Ntrials, one_input=False):
+def effective_dim(qparams, buffer, length, nqrc, layer_strength, ranseed, Ntrials, one_input=False, deep=False):
     # Calculate effective dimension for reservoir
     from numpy import linalg as LA
     
@@ -361,7 +369,7 @@ def effective_dim(qparams, buffer, length, nqrc, layer_strength, ranseed, Ntrial
     input_seq = np.array(data)
     input_seq = np.tile(input_seq, (nqrc, 1))
 
-    model = HighorderQuantumReservoirComputing(nqrc, layer_strength, one_input)
+    model = HighorderQuantumReservoirComputing(nqrc, layer_strength, one_input, deep)
 
     effdims = []
     for n in range(Ntrials):
@@ -386,7 +394,7 @@ def effective_dim(qparams, buffer, length, nqrc, layer_strength, ranseed, Ntrial
         effdims.append(1.0 / np.power(w, 2).sum())
     return np.mean(effdims), np.std(effdims)
 
-def esp_index(qparams, buffer, length, nqrc, layer_strength, ranseed, state_trials, one_input=False):
+def esp_index(qparams, buffer, length, nqrc, layer_strength, ranseed, state_trials, one_input=False, deep=False):
     if ranseed >= 0:
         np.random.seed(seed=ranseed)
 
@@ -395,10 +403,10 @@ def esp_index(qparams, buffer, length, nqrc, layer_strength, ranseed, state_tria
     input_seq = np.tile(input_seq, (nqrc, 1))
 
     # Initialize the reservoir to zero state - density matrix
-    model = HighorderQuantumReservoirComputing(nqrc, layer_strength, one_input)
+    model = HighorderQuantumReservoirComputing(nqrc, layer_strength, one_input, deep)
     x0_state_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = ranseed)
     # Compute esp index and esp_lambda
-    dP, mlda = [], []
+    dP = []
     for i in range(state_trials):
         # Initialzie the reservoir to a random initial state
         # Keep same coupling configuration
@@ -408,22 +416,22 @@ def esp_index(qparams, buffer, length, nqrc, layer_strength, ranseed, state_tria
         # L = Length of time series
         # D = Number of layers x Number of virtual nodes x Number of qubits
         # print('i={}, State shape'.format(i), z0_state_list.shape)
-        local_diff, local_lda = 0, 0
-        prev, current = None, None
+        local_diff = 0
+        # prev, current = None, None
         for t in range(buffer, L):
             diff_state = x0_state_list[t, :] - z0_state_list[t, :]
             diff = np.sqrt(np.power(diff_state, 2).sum())
-            prev = current
-            current = diff
-            if prev is not None:
-                tmp = np.log(diff / prev)
+            #prev = current
+            #current = diff
+            #if prev is not None:
+            #    tmp = np.log(diff / prev)
                 #print('t={},diff={},lambda={},tau_delta={}'.format(t, diff, tmp, qparams.tau_delta))
                 #lda = max(lda, tmp)
-                local_lda += tmp
+            #    local_lda += tmp
             local_diff += diff
         local_diff = local_diff / (L-buffer)
-        local_lda  = local_lda / (L-buffer)
+        #local_lda  = local_lda / (L-buffer)
         #print('i={}, avg Delta={}'.format(i, local_diff))
         dP.append(local_diff)
-        mlda.append(local_lda)
-    return np.mean(dP), np.mean(mlda)
+        #mlda.append(local_lda)
+    return np.mean(dP)

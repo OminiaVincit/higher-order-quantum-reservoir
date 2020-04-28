@@ -1,0 +1,10 @@
+length=1500, buffer=1000
+hidden_unit_count=5
+max_coupling_energy=1.0
+trotter_step=10
+beta=1e-14
+taudeltas=0.125 0.25 0.5 1.0 2.0 4.0 8.0
+layers=5
+Vs=15
+strengths=1.0 0.99999 0.9999
+net_trials=2, state_trials=5
