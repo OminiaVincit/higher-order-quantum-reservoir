@@ -51,21 +51,21 @@ if __name__  == '__main__':
 
     parser.add_argument('--nproc', type=int, default=50)
     parser.add_argument('--ntrials', type=int, default=1)
-    parser.add_argument('--taudeltas', type=str, default='-4,-3,-2,-1,0,1,2,3,4,5,6,7')
+    parser.add_argument('--strengths', type=str, default='0.0,0.1,0.3,0.5,0.7,0.9')
     parser.add_argument('--nqrc', type=int, default='1')
-    parser.add_argument('--strength', type=float, default=0.0)
+    parser.add_argument('--taudelta', type=float, default=0.25)
     parser.add_argument('--virtuals', type=int, default=1)
 
     parser.add_argument('--deep', type=int, default=0)
     parser.add_argument('--taskname', type=str, default='qrc_stm') # Use _stm or _pc
-    parser.add_argument('--savedir', type=str, default='rescapa_highfunc_stm')
+    parser.add_argument('--savedir', type=str, default='res_highfunc_stm2')
     args = parser.parse_args()
     print(args)
 
     hidden_unit_count, max_coupling_energy, trotter_step, beta =\
         args.units, args.coupling, args.trotter, args.beta
     train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
-    nproc, layer_strength, V = args.nproc, args.strength, args.virtuals
+    nproc, tau_delta, V = args.nproc, args.taudelta, args.virtuals
     init_rho = args.rho
     minD, maxD, interval, Ntrials = args.mind, args.maxd, args.interval, args.ntrials
     dlist = list(range(minD, maxD + 1, interval))
@@ -80,15 +80,14 @@ if __name__  == '__main__':
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
         os.mkdir(savedir)
 
-    taudeltas = [float(x) for x in args.taudeltas.split(',')]
-    taudeltas = [2**x for x in taudeltas]
+    strengths = [float(x) for x in args.strengths.split(',')]
     # Evaluation
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
     
-    stmp = '{}_{}_deep_{}_strength_{}_V_{}_layers_{}_mem_ntrials_{}'.format(\
-        taskname, datestr, deep, layer_strength, V, nqrc, Ntrials)
+    stmp = '{}_{}_deep_{}_tdt_{}_V_{}_layers_{}_mem_ntrials_{}'.format(\
+        taskname, datestr, deep, tau_delta, V, nqrc, Ntrials)
     outbase = os.path.join(savedir, stmp)
     
     rsarr = dict()
@@ -101,7 +100,7 @@ if __name__  == '__main__':
         logger = get_module_logger(__name__, log_filename)
         logger.info(log_filename)
 
-        for tau_delta in taudeltas:
+        for layer_strength in strengths:
             qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
         trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tau_delta, init_rho=init_rho)
             local_sum = []
@@ -140,8 +139,8 @@ if __name__  == '__main__':
             local_avg, local_std = np.mean(local_sum, axis=0), np.std(local_sum, axis=0)
             local_arr = np.hstack([local_avg, local_std[:,1].reshape(-1,1)])
             print('local_arr', local_arr.shape)
-            rsarr[str(tau_delta)] = local_arr
-            logger.debug('layers={},V={},taudelta={},mem_func={}'.format(nqrc, V, tau_delta, local_arr))
+            rsarr[str(layer_strength)] = local_arr
+            logger.debug('layers={},V={},taudelta={},strength={},mem_func={}'.format(nqrc, V, tau_delta, layer_strength,local_arr))
         # save multi files
         np.savez('{}_memfunc.npz'.format(outbase), **rsarr)
         
@@ -152,12 +151,12 @@ if __name__  == '__main__':
             sfile.write('max_coupling_energy={}\n'.format(max_coupling_energy))
             sfile.write('trotter_step={}\n'.format(trotter_step))
             sfile.write('beta={}\n'.format(beta))
-            sfile.write('taudeltas={}\n'.format(' '.join([str(v) for v in taudeltas])))
+            sfile.write('strengths={}\n'.format(' '.join([str(v) for v in strengths])))
             sfile.write('layers={}\n'.format(nqrc))
             sfile.write('V={}\n'.format(V))
             sfile.write('deep={}\n'.format(deep))
             sfile.write('minD={}, maxD={}, interval={}\n'.format(minD, maxD, interval))
-            sfile.write('layer_strength={}, Ntrials={}\n'.format(layer_strength, Ntrials))
+            sfile.write('taudelta={}, Ntrials={}\n'.format(tau_delta, Ntrials))
 
     else:
         # Read the result
@@ -172,13 +171,13 @@ if __name__  == '__main__':
     plt.rc('mathtext', fontset='cm')
     plt.rcParams['font.size']=20
 
-    for tau_delta in taudeltas:
-        tarr = rsarr[str(tau_delta)]
+    for layer_strength in strengths:
+        tarr = rsarr[str(layer_strength)]
         xs, ys, zs = tarr[:, 0], tarr[:, 1], tarr[:, 2]
         #plt.errorbar(xs, ys, yerr=zs, elinewidth=2, linewidth=2, markersize=12, \
         #    label='$\\tau\Delta$={}'.format(tau_delta))
         plt.plot(xs, ys, linewidth=2, markersize=12, \
-            label='$\\tau\Delta$={}'.format(tau_delta))
+            label='$\\alpha$={}'.format(layer_strength))
     #plt.xlim([1e-3, 1024])    
     plt.ylim([0, 1.0])
     plt.xlabel('Delay', fontsize=28)
