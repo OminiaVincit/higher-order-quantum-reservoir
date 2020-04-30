@@ -14,11 +14,11 @@ from loginit import get_module_logger
 import qrc
 import utils
 
-def memory_func(taskname, qparams, nqrc, layer_strength,\
+def memory_func(taskname, qparams, nqrc, deep, layer_strength,\
         train_len, val_len, buffer, dlist, ranseed, pid, send_end):
     btime = int(time.time() * 1000.0)
     rsarr = hqrc.memory_function(taskname, qparams, train_len=train_len, val_len=val_len, buffer=buffer, \
-        dlist=dlist, nqrc=nqrc, layer_strength=layer_strength, ranseed=ranseed)
+        dlist=dlist, nqrc=nqrc, layer_strength=layer_strength, ranseed=ranseed, deep=deep)
     
     # obtain the memory
     rslist = []
@@ -56,6 +56,7 @@ if __name__  == '__main__':
     parser.add_argument('--taudelta', type=float, default=0.25)
     parser.add_argument('--virtuals', type=int, default=1)
 
+    parser.add_argument('--deep', type=int, default=0)
     parser.add_argument('--taskname', type=str, default='qrc_stm') # Use _stm or _pc
     parser.add_argument('--savedir', type=str, default='res_highfunc_stm2')
     args = parser.parse_args()
@@ -71,7 +72,10 @@ if __name__  == '__main__':
     nproc = min(nproc, len(dlist))
     nqrc  = args.nqrc
     print('Divided into {} processes'.format(nproc))
-    
+    deep = False
+    if args.deep > 0:
+        deep =True
+
     taskname, savedir = args.taskname, args.savedir
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
         os.mkdir(savedir)
@@ -82,8 +86,8 @@ if __name__  == '__main__':
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
     
-    stmp = '{}_{}_tdt_{}_V_{}_layers_{}_mem_ntrials_{}'.format(\
-        taskname, datestr, tau_delta, V, nqrc, Ntrials)
+    stmp = '{}_{}_deep_{}_tdt_{}_V_{}_layers_{}_mem_ntrials_{}'.format(\
+        taskname, datestr, deep, tau_delta, V, nqrc, Ntrials)
     outbase = os.path.join(savedir, stmp)
     
     rsarr = dict()
@@ -111,7 +115,7 @@ if __name__  == '__main__':
                     print('dlist: ', dsmall)
                     recv_end, send_end = multiprocessing.Pipe(False)
                     p = multiprocessing.Process(target=memory_func, \
-                        args=(taskname, qparams, nqrc, layer_strength, train_len, val_len, buffer, dsmall, n, proc_id, send_end))
+                        args=(taskname, qparams, nqrc, deep, layer_strength, train_len, val_len, buffer, dsmall, n, proc_id, send_end))
                     jobs.append(p)
                     pipels.append(recv_end)
         
@@ -150,6 +154,7 @@ if __name__  == '__main__':
             sfile.write('strengths={}\n'.format(' '.join([str(v) for v in strengths])))
             sfile.write('layers={}\n'.format(nqrc))
             sfile.write('V={}\n'.format(V))
+            sfile.write('deep={}\n'.format(deep))
             sfile.write('minD={}, maxD={}, interval={}\n'.format(minD, maxD, interval))
             sfile.write('taudelta={}, Ntrials={}\n'.format(tau_delta, Ntrials))
 
