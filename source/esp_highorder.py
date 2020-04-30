@@ -33,8 +33,8 @@ def esp_job(qparams, nqrc, layer_strength, buffer, length, state_trials, net_tri
 
     mean_dp, std_dp = np.mean(dPs), np.std(dPs)
     
-    rstr = '{} {} {} {} {} {}'.format(\
-        nqrc, qparams.virtual_nodes, qparams.tau_delta, layer_strength, mean_dp, std_dp)
+    rstr = '{} {} {} {} {} {} {}'.format(\
+        nqrc, qparams.virtual_nodes, qparams.tau_delta, qparams.max_coupling_energy, layer_strength, mean_dp, std_dp)
     etime = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
@@ -56,7 +56,7 @@ if __name__  == '__main__':
     parser.add_argument('--ntrials', type=int, default=1)
     parser.add_argument('--strials', type=int, default=1)
 
-    parser.add_argument('--taudeltas', type=str, default='-3,-2,-1,0,1,2,3')
+    parser.add_argument('--taudeltas', type=str, default='-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7')
     parser.add_argument('--layers', type=str, default='5')
     parser.add_argument('--strengths', type=str, default='0.0')
     parser.add_argument('--virtuals', type=str, default='1')
