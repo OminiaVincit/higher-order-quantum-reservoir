@@ -206,14 +206,14 @@ class HighorderQuantumReservoirComputing(object):
 
         if predict:
             stacked_state = np.hstack( [state_list, np.ones([input_length, 1])])
-            print('stacked state {}; Wout {}'.format(stacked_state.shape, self.W_out.shape))
+            #print('stacked state {}; Wout {}'.format(stacked_state.shape, self.W_out.shape))
             predict_sequence = stacked_state @ self.W_out
         
         return predict_sequence, state_list
 
 
     def __train(self, input_sequence, output_sequence, buffer, beta):
-        print('shape', input_sequence.shape, output_sequence.shape)
+        #print('shape', input_sequence.shape, output_sequence.shape)
         assert(input_sequence.shape[1] == output_sequence.shape[0])
         Nout = output_sequence.shape[1]
         self.W_out = np.random.rand(self.hidden_unit_count * self.virtual_nodes * self.nqrc + 1, Nout)
@@ -221,23 +221,23 @@ class HighorderQuantumReservoirComputing(object):
         _, state_list = self.__feed_forward(input_sequence, predict=False, use_lastrho=False)
 
         state_list = np.array(state_list)
-        print('before washingout state list shape', state_list.shape)
+        #print('before washingout state list shape', state_list.shape)
         
         state_list = state_list[buffer:, :]
-        print('after washingout state list shape', state_list.shape)
+        #print('after washingout state list shape', state_list.shape)
 
         # discard the transitient state for training
         V = np.reshape(state_list, [-1, self.hidden_unit_count * self.virtual_nodes * self.nqrc])
         V = np.hstack( [state_list, np.ones([V.shape[0], 1]) ] )
 
-        print('output seq', output_sequence.shape)
+        #print('output seq', output_sequence.shape)
         discard_output = output_sequence[buffer:, :]
-        print('discard output seq', discard_output.shape)
+        #print('discard output seq', discard_output.shape)
         #S = np.reshape(output_sequence_list, [-1])
         S = np.reshape(discard_output, [discard_output.shape[0]*discard_output.shape[1], -1])
-        print('V S', V.shape, S.shape)
+        #print('V S', V.shape, S.shape)
         self.W_out = np.linalg.pinv(V, rcond = beta) @ S
-        print('bf Wout', self.W_out.shape)
+        #print('bf Wout', self.W_out.shape)
         
     def train_to_predict(self, input_sequence, output_sequence, buffer, qparams, ranseed):
         self.__init_reservoir(qparams, ranseed)
