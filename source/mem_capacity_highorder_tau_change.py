@@ -53,12 +53,13 @@ if __name__  == '__main__':
     parser.add_argument('--nproc', type=int, default=50)
     parser.add_argument('--ntrials', type=int, default=1)
     parser.add_argument('--taudeltas', type=str, default='-4,-3,-2,-1,0,1,2,3,4,5,6,7')
-    parser.add_argument('--layers', type=str, default='2,3,4,5')
+    parser.add_argument('--layers', type=str, default='5')
     parser.add_argument('--strength', type=float, default=0.0)
-    parser.add_argument('--virtuals', type=int, default=15)
+    parser.add_argument('--virtuals', type=int, default=1)
 
     parser.add_argument('--taskname', type=str, default='qrc_stm') # Use _stm or _pc
     parser.add_argument('--savedir', type=str, default='rescapa_high_stm')
+    parser.add_argument('--plot', type=int, default=0)
     args = parser.parse_args()
     print(args)
 
@@ -84,8 +85,8 @@ if __name__  == '__main__':
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
-    outbase = os.path.join(savedir, '{}_{}_strength_{}_V_{}_layers_{}_capacity_ntrials_{}'.format(\
-        taskname, datestr, layer_strength, V, '_'.join([str(o) for o in layers]), Ntrials))
+    outbase = os.path.join(savedir, '{}_{}_J_{}_strength_{}_V_{}_layers_{}_capacity_ntrials_{}'.format(\
+        taskname, datestr, max_coupling_energy, layer_strength, V, '_'.join([str(o) for o in layers]), Ntrials))
     
     if os.path.isfile(savedir) == False:
         log_filename = '{}.log'.format(outbase)
@@ -128,8 +129,8 @@ if __name__  == '__main__':
                     local_rsarr = [float(x.recv()) for x in pipels]
                     local_sum.append(np.sum(local_rsarr))
                 local_avg, local_std = np.mean(local_sum), np.std(local_sum)
-                global_rs.append([nqrc, tau_delta, local_avg, local_std])
-                logger.debug('layers={},taudelta={},capa_avg={},capa_std={}'.format(nqrc, tau_delta, local_avg, local_std))
+                global_rs.append([nqrc, tau_delta, max_coupling_energy, local_avg, local_std])
+                logger.debug('layers={},taudelta={},J={},capa_avg={},capa_std={}'.format(nqrc, tau_delta, max_coupling_energy, local_avg, local_std))
         rsarr = np.array(global_rs)
         np.savetxt('{}_capacity.txt'.format(outbase), rsarr, delimiter=' ')
         
@@ -155,30 +156,31 @@ if __name__  == '__main__':
     print(rsarr.shape)
 
     # plot the result
-    xs = taudeltas
-    avg_capa, std_capa = rsarr[:, 2], rsarr[:, 3]
+    if args.plot > 0:
+        xs = taudeltas
+        avg_capa, std_capa = rsarr[:, -2], rsarr[:, -1]
 
-    cmap = plt.get_cmap("viridis")
-    plt.figure(figsize=(16,8))
-    #plt.style.use('seaborn-colorblind')
-    plt.rc('font', family='serif')
-    plt.rc('mathtext', fontset='cm')
-    plt.rcParams['font.size']=20
+        cmap = plt.get_cmap("viridis")
+        plt.figure(figsize=(16,8))
+        #plt.style.use('seaborn-colorblind')
+        plt.rc('font', family='serif')
+        plt.rc('mathtext', fontset='cm')
+        plt.rcParams['font.size']=20
 
-    for nqrc in layers:
-        ids = (rsarr[:, 0] == nqrc)
-        plt.errorbar(xs, avg_capa[ids], yerr=std_capa[ids], elinewidth=2, linewidth=2, markersize=12, \
-            label='Layers={}'.format(nqrc))
-    #plt.xlim([1e-3, 1024])    
-    plt.ylim([0, 80])
-    plt.xlabel('$\\tau\Delta$', fontsize=28)
-    plt.ylabel('Capacity', fontsize=28)
-    plt.xscale('log', basex=2)
+        for nqrc in layers:
+            ids = (rsarr[:, 0] == nqrc)
+            plt.errorbar(xs, avg_capa[ids], yerr=std_capa[ids], elinewidth=2, linewidth=2, markersize=12, \
+                label='Layers={}'.format(nqrc))
+        #plt.xlim([1e-3, 1024])    
+        plt.ylim([0, 80])
+        plt.xlabel('$\\tau\Delta$', fontsize=28)
+        plt.ylabel('Capacity', fontsize=28)
+        plt.xscale('log', basex=2)
 
-    plt.legend()
-    plt.title(outbase, fontsize=12)
-    plt.grid(True, which="both", ls="-", color='0.65')
-    #plt.show()
-    for ftype in ['png', 'pdf', 'svg']:
-        plt.savefig('{}_capacity.{}'.format(outbase, ftype), bbox_inches='tight')
+        plt.legend()
+        plt.title(outbase, fontsize=12)
+        plt.grid(True, which="both", ls="-", color='0.65')
+        #plt.show()
+        for ftype in ['png', 'pdf', 'svg']:
+            plt.savefig('{}_capacity.{}'.format(outbase, ftype), bbox_inches='tight')
  
