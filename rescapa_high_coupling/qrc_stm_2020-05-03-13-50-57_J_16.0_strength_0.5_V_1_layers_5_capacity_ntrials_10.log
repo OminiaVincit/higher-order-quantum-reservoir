@@ -7,3 +7,7 @@
 2020-05-03 14:38:57,925 - __main__ - DEBUG - layers=5,taudelta=2.0,J=16.0,capa_avg=9.40779167529968,capa_std=0.7260418918394245
 2020-05-03 14:46:58,008 - __main__ - DEBUG - layers=5,taudelta=4.0,J=16.0,capa_avg=9.529490214988417,capa_std=0.8040386689745787
 2020-05-03 14:55:02,710 - __main__ - DEBUG - layers=5,taudelta=8.0,J=16.0,capa_avg=9.283756403691502,capa_std=0.7135937838762119
+2020-05-03 15:03:02,885 - __main__ - DEBUG - layers=5,taudelta=16.0,J=16.0,capa_avg=9.297513595870626,capa_std=0.7252982257509998
+2020-05-03 15:11:01,070 - __main__ - DEBUG - layers=5,taudelta=32.0,J=16.0,capa_avg=9.22643651280379,capa_std=0.6386137312730106
+2020-05-03 15:18:55,280 - __main__ - DEBUG - layers=5,taudelta=64.0,J=16.0,capa_avg=9.179716738067622,capa_std=0.6423630537835391
+2020-05-03 15:26:50,077 - __main__ - DEBUG - layers=5,taudelta=128.0,J=16.0,capa_avg=9.089076891722957,capa_std=0.42730360388687494
