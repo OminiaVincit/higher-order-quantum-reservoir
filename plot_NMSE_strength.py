@@ -9,7 +9,7 @@ if __name__  == '__main__':
     # Check for command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--folders', type=str, default='resnarma_deep_strength,resnarma_high_strength')
-    parser.add_argument('--prefix', type=str, default='qrc_narma_2020-04')
+    parser.add_argument('--prefix', type=str, default='qrc_narma_2020-0')
     parser.add_argument('--posfix', type=str, default='NMSE')
     args = parser.parse_args()
     print(args)
