@@ -1,0 +1,13 @@
+2020-05-02 11:06:28,253 - __main__ - INFO - rescapa_high_coupling/qrc_stm_2020-05-02-11-06-28_J_0.0625_strength_0.9_V_1_layers_5_capacity_ntrials_10.log
+2020-05-02 11:13:45,217 - __main__ - DEBUG - layers=5,taudelta=0.0625,J=0.0625,capa_avg=1.543764116280608,capa_std=0.45164557945738004
+2020-05-02 11:21:04,095 - __main__ - DEBUG - layers=5,taudelta=0.125,J=0.0625,capa_avg=2.0031705706598597,capa_std=0.17468916066143383
+2020-05-02 11:28:24,424 - __main__ - DEBUG - layers=5,taudelta=0.25,J=0.0625,capa_avg=2.1093504056443124,capa_std=0.14679515455685072
+2020-05-02 11:35:43,329 - __main__ - DEBUG - layers=5,taudelta=0.5,J=0.0625,capa_avg=2.2563643759193517,capa_std=0.16135710290745733
+2020-05-02 11:43:02,506 - __main__ - DEBUG - layers=5,taudelta=1.0,J=0.0625,capa_avg=2.7773342239089063,capa_std=0.4170201031969721
+2020-05-02 11:50:14,768 - __main__ - DEBUG - layers=5,taudelta=2.0,J=0.0625,capa_avg=7.779744328763198,capa_std=2.776626492210528
+2020-05-02 11:57:27,318 - __main__ - DEBUG - layers=5,taudelta=4.0,J=0.0625,capa_avg=20.020042290179124,capa_std=1.8134872863817888
+2020-05-02 12:04:42,969 - __main__ - DEBUG - layers=5,taudelta=8.0,J=0.0625,capa_avg=22.001673913953564,capa_std=0.9295412625925312
+2020-05-02 12:12:04,080 - __main__ - DEBUG - layers=5,taudelta=16.0,J=0.0625,capa_avg=18.323049718047635,capa_std=0.9249894176778982
+2020-05-02 12:19:21,359 - __main__ - DEBUG - layers=5,taudelta=32.0,J=0.0625,capa_avg=14.873165677731091,capa_std=0.7919970701851259
+2020-05-02 12:26:39,846 - __main__ - DEBUG - layers=5,taudelta=64.0,J=0.0625,capa_avg=13.975141574758634,capa_std=0.637769039570822
+2020-05-02 12:33:54,743 - __main__ - DEBUG - layers=5,taudelta=128.0,J=0.0625,capa_avg=13.38162934055975,capa_std=0.6783474981397198

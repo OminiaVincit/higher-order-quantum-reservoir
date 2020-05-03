@@ -34,7 +34,7 @@ if __name__  == '__main__':
         for i in range(N):
             order = orders[i]
             rsarr = []
-            for rfile in glob.glob('{}/{}*_strength_{}_V_15_narma_{}_*_{}.txt'.format(folder, prefix, alpha, order, posfix)):
+            for rfile in glob.glob('{}/{}*_strength_{}_V_15*narma_{}_*_{}.txt'.format(folder, prefix, alpha, order, posfix)):
                 print(rfile)
                 ntitle = os.path.basename(rfile)
                 nidx = ntitle.find('V_15')
@@ -64,12 +64,12 @@ if __name__  == '__main__':
                 ax.set_xscale('log', basex=2)
                 #ax.set_ylim([np.min(avg_tests)/2, 2*np.max(avg_tests)])
                 ax.set_ylim(slims[i])
-                #ax.set_xticklabels(labels='')
-                #ax.set_yticklabels(labels='')
+                ax.set_xticklabels(labels='')
+                ax.set_yticklabels(labels='')
                 #ax.set_title('NARMA{},s={}'.format(order,alpha), fontsize=8)
                 ax.grid(True, which="both", ls="-", color='0.65')
-                if i == N-1 and j == M-1:
-                    ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=10)
+                #if i == N-1 and j == M-1:
+                #    ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=10)
     
     outbase = '{}\{}'.format(folder, ntitle)
     plt.suptitle(outbase, fontsize=12)
