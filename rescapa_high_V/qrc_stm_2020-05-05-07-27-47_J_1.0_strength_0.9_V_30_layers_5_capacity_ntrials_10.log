@@ -1,0 +1,3 @@
+2020-05-05 07:27:47,728 - __main__ - INFO - rescapa_high_V/qrc_stm_2020-05-05-07-27-47_J_1.0_strength_0.9_V_30_layers_5_capacity_ntrials_10.log
+2020-05-05 08:53:47,238 - __main__ - DEBUG - layers=5,taudelta=0.0625,J=1.0,capa_avg=3.728125044988643,capa_std=0.37412842913177596
+2020-05-05 10:19:17,356 - __main__ - DEBUG - layers=5,taudelta=0.125,J=1.0,capa_avg=39.87010175816456,capa_std=9.31709126157074
