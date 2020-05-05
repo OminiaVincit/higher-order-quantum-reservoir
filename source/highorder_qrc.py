@@ -50,6 +50,7 @@ class HighorderQuantumReservoirComputing(object):
         self.virtual_nodes = qparams.virtual_nodes
         self.tau_delta = qparams.tau_delta
         self.qubit_count = self.hidden_unit_count
+        self.max_coupling_energy = qparams.max_coupling_energy
         self.dim = 2**self.qubit_count
         self.Zop = [1]*self.qubit_count
         self.Xop = [1]*self.qubit_count
@@ -121,11 +122,11 @@ class HighorderQuantumReservoirComputing(object):
 
             # include input qubit for computation
             for qubit_index in range(self.qubit_count):
-                coef = (np.random.rand()-0.5) * 2 * qparams.max_coupling_energy
+                coef = (np.random.rand()-0.5) * 2 * self.max_coupling_energy
                 hamiltonian += coef * self.Zop[qubit_index]
             for qubit_index1 in range(self.qubit_count):
                 for qubit_index2 in range(qubit_index1+1, self.qubit_count):
-                    coef = (np.random.rand()-0.5) * 2 * qparams.max_coupling_energy
+                    coef = (np.random.rand()-0.5) * 2 * self.max_coupling_energy
                     hamiltonian += coef * self.Xop[qubit_index1] @ self.Xop[qubit_index2]
                     
             ratio = float(self.tau_delta) / float(self.virtual_nodes)        
