@@ -1,0 +1,8 @@
+2020-05-07 17:45:03,543 - __main__ - INFO - rescapa_high_V/qrc_stm_2020-05-07-17-45-03_J_1.0_strength_0.5_V_20_layers_5_capacity_ntrials_10.log
+2020-05-07 18:43:44,184 - __main__ - DEBUG - layers=5,taudelta=0.0625,J=1.0,capa_avg=3.956926808667057,capa_std=0.9388806423707059
+2020-05-07 19:42:25,939 - __main__ - DEBUG - layers=5,taudelta=0.125,J=1.0,capa_avg=42.75028284922366,capa_std=8.788969210327844
+2020-05-07 20:40:09,583 - __main__ - DEBUG - layers=5,taudelta=0.25,J=1.0,capa_avg=74.94790882631796,capa_std=7.736493020610129
+2020-05-07 21:37:11,645 - __main__ - DEBUG - layers=5,taudelta=0.5,J=1.0,capa_avg=61.48159402211304,capa_std=8.509342635297546
+2020-05-07 22:35:12,909 - __main__ - DEBUG - layers=5,taudelta=1.0,J=1.0,capa_avg=36.06661713203084,capa_std=6.025819205137392
+2020-05-07 23:32:04,634 - __main__ - DEBUG - layers=5,taudelta=2.0,J=1.0,capa_avg=26.376228264517255,capa_std=3.894606408531355
+2020-05-08 00:30:18,984 - __main__ - DEBUG - layers=5,taudelta=4.0,J=1.0,capa_avg=25.113536766823735,capa_std=4.470440190423822
