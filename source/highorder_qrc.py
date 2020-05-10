@@ -146,7 +146,7 @@ class HighorderQuantumReservoirComputing(object):
             tmp_rhos.append(rho)
         self.init_rhos = tmp_rhos.copy()
 
-    def __step_forward(self, local_rhos, input_val):
+    def step_forward(self, local_rhos, input_val):
         nqrc = self.nqrc
         local_prev_states = []
         for i in range(nqrc):
@@ -200,7 +200,7 @@ class HighorderQuantumReservoirComputing(object):
         state_list = []
         for time_step in range(0, input_length):
             input_val = input_sequence[:, time_step].ravel()
-            local_rhos = self.__step_forward(local_rhos, input_val)
+            local_rhos = self.step_forward(local_rhos, input_val)
 
             state = np.array(self.current_states.copy(), dtype=np.float64)
             state_list.append(state.flatten())
@@ -440,73 +440,40 @@ def esp_index(qparams, buffer, length, nqrc, layer_strength, ranseed, state_tria
         #mlda.append(local_lda)
     return np.mean(dP)
 
-# def lyapunov_exp(qparams, buffer, length, nqrc, layer_strength, ranseed, state_trials, \
-#     initial_distance, one_input=False, deep=False):
-#     if ranseed >= 0:
-#         np.random.seed(seed=ranseed)
+def lyapunov_exp(qparams, buffer, length, nqrc, layer_strength, ranseed, \
+    initial_distance, one_input=False, deep=False):
+    if ranseed >= 0:
+        np.random.seed(seed=ranseed)
 
-#     data = np.random.rand(length)
-#     input_seq = np.array(data)
-#     input_seq = np.tile(input_seq, (nqrc, 1))
+    data = np.random.rand(length)
+    input_seq = np.array(data)
+    input_seq = np.tile(input_seq, (nqrc, 1))
 
-#     # Initialize the reservoir to zero state - density matrix
-#     model = HighorderQuantumReservoirComputing(nqrc, layer_strength, one_input, deep)
-#     state_list1 = model.init_forward(qparams, input_seq, init_rs = True, ranseed = -1)
-#     L, D = state_list1.shape
-#     # L = Length of time series
-#     # D = Number of layers x Number of virtual nodes x Number of qubits
-#     lyps = []
-#     for n in range(int(D / nqrc)):
-#         model.init_forward(qparams, input_seq[:buffer], init_rs = False, ranseed = -1)
-#         state_list2 = np.zeros((L, D))
-#         state_list2[buffer-1, :] = state_list1[buffer-1, :]
-#         state_list2[buffer-1, n] = state_list1[buffer-1, n] + initial_distance
-#         gamma_k_list = []
-#         for k in range(buffer, L):
-#             # Update current states
+    # Initialize the reservoir to zero state - density matrix
+    model = HighorderQuantumReservoirComputing(nqrc, layer_strength, one_input, deep)
+    states1 = model.init_forward(qparams, input_seq, init_rs = True, ranseed = -1)
+    L, D = states1.shape
+    # L = Length of time series
+    # D = Number of layers x Number of virtual nodes x Number of qubits
+    lyps = []
+    for n in range(int(D / nqrc)):
+        model.init_forward(qparams, input_seq[:buffer], init_rs = False, ranseed = -1)
+        states2 = np.zeros((L, D))
+        states2[buffer-1, :] = states1[buffer-1, :]
+        states2[buffer-1, n] = states1[buffer-1, n] + initial_distance
+        gamma_k_list = []
+        local_rhos = model.last_rhos.copy()
+        for k in range(buffer, L):
+            # Update prev states
+            model.previous_states = states2[k-1, :].copy()
+            input_val = input_seq[:, k].ravel()
+            local_rhos = model.step_forward(local_rhos, input_val)
+            states2[k, :] = np.array(model.current_states, dtype=np.float64).flatten()
+            # Add to gamma list and update states
+            gamma_k = np.linalg.norm(states2[k, :] - states1[k, :])
+            gamma_k_list.append(gamma_k / initial_distance)
+            states2[k, :] = states1[k, :] + (initial_distance / gamma_k) * (states2[k, :] - states1[k, :])
 
-#             # Add to gamma list and update states
-#             gamma_k = np.linalg.norm(states2[k, :] - states1[k, :])
-#             gamma_k_list.append(gamma_k / initial_distance)
-#             states2[k, :] = states1[k, :] + (initial_distance / gamma_k) * (states2[k, :] - states1[k, :])
-#         lyps.append(np.mean(np.log(gamma_k_list)))
-#     lyapunov_exp = np.mean(lyps)
-#     return lyapunov_exp
-    
-#     for n in range(D):
-#         state_list2 = np.zeros((L, D))
-#         state_list2[buffer-1, :] = state_list1[buffer-1, :]
-#         state_list2[buffer-1, n] = state_list1[buffer-1, n] + initial_distance
-#         gamma_k_list = []
-#         for k in range(buffer, )
-        
-#     # Compute esp index and esp_lambda
-#     dP = []
-#     for i in range(state_trials):
-#         # Initialzie the reservoir to a random initial state
-#         # Keep same coupling configuration
-#         model.gen_rand_rhos(ranseed = i + 300000)
-#         z0_state_list = model.init_forward(qparams, input_seq, init_rs = False, ranseed = i + 200000)
-#         L, D = z0_state_list.shape
-#         # L = Length of time series
-#         # D = Number of layers x Number of virtual nodes x Number of qubits
-#         # print('i={}, State shape'.format(i), z0_state_list.shape)
-#         local_diff = 0
-#         # prev, current = None, None
-#         for t in range(buffer, L):
-#             diff_state = x0_state_list[t, :] - z0_state_list[t, :]
-#             diff = np.sqrt(np.power(diff_state, 2).sum())
-#             #prev = current
-#             #current = diff
-#             #if prev is not None:
-#             #    tmp = np.log(diff / prev)
-#                 #print('t={},diff={},lambda={},tau_delta={}'.format(t, diff, tmp, qparams.tau_delta))
-#                 #lda = max(lda, tmp)
-#             #    local_lda += tmp
-#             local_diff += diff
-#         local_diff = local_diff / (L-buffer)
-#         #local_lda  = local_lda / (L-buffer)
-#         #print('i={}, avg Delta={}'.format(i, local_diff))
-#         dP.append(local_diff)
-#         #mlda.append(local_lda)
-#     return np.mean(dP)
+        lyps.append(np.mean(np.log(gamma_k_list)))
+    lyapunov_exp = np.mean(lyps)
+    return lyapunov_exp
