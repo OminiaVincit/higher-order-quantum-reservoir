@@ -29,7 +29,7 @@ if __name__  == '__main__':
     slims  = [[1e-8, 2e-1], [2e-6, 1e-1], [2e-5, 1e-1], [2e-4, 1.2]]
     M, N = len(Vs), len(strengths)
     cmap = plt.get_cmap("RdBu")
-    fig, axs = plt.subplots(1, N*M, figsize=(5*M*N, 4))
+    fig, axs = plt.subplots(1, N*M, figsize=(5*M*N, 4), squeeze=False)
     axs = axs.ravel()
     #plt.style.use('seaborn-colorblind')
     plt.rc('font', family='serif')
@@ -94,7 +94,7 @@ if __name__  == '__main__':
     outbase = '{}\{}'.format(folder, ntitle)
     plt.suptitle(outbase, fontsize=12)
     
-    for ftype in ['pdf', 'svg']:
+    for ftype in ['pdf', 'svg', 'png']:
         plt.savefig('{}_esp.{}'.format(outbase, ftype), bbox_inches='tight')
-    plt.show()
+    #plt.show()
     
