@@ -93,5 +93,5 @@ if __name__  == '__main__':
         ax.set_title('$\\alpha$ = {}, $\\tau$ = {}'.format(layer_strength, tau_delta))
     outbase = os.path.join(savedir, '{}_layers_{}_V_{}_strength_{}_rho_{}'.format(basename, \
         nqrc, V, layer_strength, init_rho))
-    for ftype in ['png']:
+    for ftype in ['png', 'svg']:
         plt.savefig('{}_dyn.{}'.format(outbase, ftype), bbox_inches='tight')
