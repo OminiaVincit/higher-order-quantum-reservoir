@@ -39,57 +39,61 @@ if __name__  == '__main__':
     ntitle = ''
     for j in range(M):
         V = Vs[j]
+        rsarr = []
+
+        for J in Js:
+            for rfile in glob.glob('{}/{}*_J_{}_V_{}_layers_5_*_{}.txt'.format(folder, prefix, J, V, posfix)):
+                print(rfile)
+                ntitle = os.path.basename(rfile)
+                nidx = ntitle.find('layers')
+                ntitle = ntitle[nidx:]
+                ntitle = ntitle.replace('.txt', '')
+                tmp = np.loadtxt(rfile)
+                print(tmp.shape)
+                rsarr.append(tmp[:, [2, 4, -2, -1]])
+                    
+        if len(rsarr) > 0:
+            rsarr = np.concatenate(rsarr, axis=0)
+            print('rsarr shape', rsarr.shape)
+
         for i in range(N):
             alpha = strengths[i]
             ax = axs[i*M+j]
-            rsarr = []
-            xs = []
-            for J in Js:
-                for rfile in glob.glob('{}/{}*_J_{}_strength_{}_V_{}_layers_5_*_{}.txt'.format(folder, prefix, J, alpha, V, posfix)):
-                    print(rfile)
-                    ntitle = os.path.basename(rfile)
-                    nidx = ntitle.find('layers')
-                    ntitle = ntitle[nidx:]
-                    ntitle = ntitle.replace('.txt', '')
-                    tmp = np.loadtxt(rfile)
-                    print(tmp.shape)
-                    rsarr.append(tmp[:, [2, -2, -1]])
-                    xs.append(J)
-            nx = len(rsarr)
-            if len(rsarr) > 0:
-                rsarr = np.concatenate(rsarr, axis=0)
-                print('V={},strength={}'.format(V, alpha), rsarr.shape)
-                ys, avg_esp, std_esp = rsarr[:, 0], rsarr[:, 1], rsarr[:, 2]
-                
-                arr_2d = avg_esp.reshape((nx, -1))
-                ny = arr_2d.shape[1]
-                print('nx={}, ny={}'.format(nx, ny))
-                
-                arr_2d = np.log10(arr_2d)
-                #ax.contourf(arr_2d, cmap=cm.RdBu, levels=[10**x for x in np.linspace(-5, 0, 11)])
+            ids = (rsarr[:, 1] == alpha)
+            arr = rsarr[ids,:]
+            print('V={},strength={}'.format(V, alpha), arr.shape)
 
-                df = pd.DataFrame(data=arr_2d, \
-                   index=['{:.0f}'.format(np.log2(J)) for J in xs], \
-                   columns=['{:.0f}'.format(np.log2(t)) for t in ys[:ny]])
+            ys, avg_esp, std_esp = rsarr[:, 0], rsarr[:, -2], rsarr[:, -1]
             
-                sns.heatmap(data=df, ax=ax, cmap=cmap, vmin=args.vmin, vmax=args.vmax)
+            arr_2d = avg_esp.reshape((len(Js), -1))
+            nx, ny = arr_2d.shape
+            print('nx={}, ny={}'.format(nx, ny))
+            
+            arr_2d = np.log10(arr_2d)
+            #ax.contourf(arr_2d, cmap=cm.RdBu, levels=[10**x for x in np.linspace(-5, 0, 11)])
 
-                # print('xs shape ', len(xs), 'ys shape ', len(ys))
-                # xs = xs.reshape((9, 15))
-                # ys = ys.reshape((9, 15))
-                # pcm = ax.pcolormesh(xs, ys, arr_2d,
-                #     #    norm=colors.SymLogNorm(linthresh=0.03, linscale=0.03,
-                #     #                           vmin=-5.0, vmax=1.0),
-                #        cmap='RdBu_r', vmin=np.min(arr_2d), vmax=np.max(arr_2d))
-                #ax.plot(xs, avg_esp, 'o-', alpha = 0.8, linewidth=1.5, markersize=6, mec='k', mew=0.5, label='$J$={}'.format(J))
-                #ax.errorbar(xs, avg_esp, yerr=std_esp, elinewidth=2, linewidth=2, markersize=12, \
-                #    label='J={}'.format(J))
-            ax.set_title('V={},$\\alpha$={}'.format(V,alpha), fontsize=16)
-            # ax.set_yscale('log', basey=10)
-            # ax.set_xscale('log', basex=2)
-            # #ax.set_ylim(slims[i])
-            # if i == N-1 and j == M-1:
-            #     ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=10)
+            df = pd.DataFrame(data=arr_2d, \
+                index=['{:.0f}'.format(np.log2(J)) for J in xs], \
+                columns=['{:.0f}'.format(np.log2(t)) for t in ys[:ny]])
+        
+            sns.heatmap(data=df, ax=ax, cmap=cmap, vmin=args.vmin, vmax=args.vmax)
+
+            # print('xs shape ', len(xs), 'ys shape ', len(ys))
+            # xs = xs.reshape((9, 15))
+            # ys = ys.reshape((9, 15))
+            # pcm = ax.pcolormesh(xs, ys, arr_2d,
+            #     #    norm=colors.SymLogNorm(linthresh=0.03, linscale=0.03,
+            #     #                           vmin=-5.0, vmax=1.0),
+            #        cmap='RdBu_r', vmin=np.min(arr_2d), vmax=np.max(arr_2d))
+            #ax.plot(xs, avg_esp, 'o-', alpha = 0.8, linewidth=1.5, markersize=6, mec='k', mew=0.5, label='$J$={}'.format(J))
+            #ax.errorbar(xs, avg_esp, yerr=std_esp, elinewidth=2, linewidth=2, markersize=12, \
+            #    label='J={}'.format(J))
+        ax.set_title('V={},$\\alpha$={}'.format(V,alpha), fontsize=16)
+        # ax.set_yscale('log', basey=10)
+        # ax.set_xscale('log', basex=2)
+        # #ax.set_ylim(slims[i])
+        # if i == N-1 and j == M-1:
+        #     ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=10)
     
     outbase = '{}\{}'.format(folder, ntitle)
     plt.suptitle(outbase, fontsize=12)
