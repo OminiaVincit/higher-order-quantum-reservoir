@@ -28,7 +28,7 @@ if __name__  == '__main__':
     parser.add_argument('--length', type=int, default=2000)
     parser.add_argument('--buffer', type=int, default=1000)
 
-    parser.add_argument('--taudeltas', type=str, default='-3,-2,-1,0,1,2,3')
+    parser.add_argument('--taudeltas', type=str, default='-3,-2,-1,3')
     parser.add_argument('--nqrc', type=int, default=5)
     parser.add_argument('--strength', type=float, default=0.0)
     parser.add_argument('--virtuals', type=int, default=1)
@@ -66,9 +66,9 @@ if __name__  == '__main__':
 
     N = len(taudeltas)
 
-    plt.rc('font', family='serif', size=8)
+    plt.rc('font', family='serif', size=14)
     plt.rc('mathtext', fontset='cm')
-    fig, axs = plt.subplots(N, 1, figsize=(6, 4*N), squeeze=False)
+    fig, axs = plt.subplots(1, 4, figsize=(6*N, 3.6), squeeze=False)
     axs = axs.ravel()
     
     bg = int((buffer + length) / 2)
@@ -90,8 +90,8 @@ if __name__  == '__main__':
             ys = x0_state_list[bg:ed, j].ravel()
             if j % hidden_unit_count != 0:
                 ax.plot(ts, ys)
-        ax.set_title('a={},tau={}'.format(layer_strength, tau_delta))
+        ax.set_title('$\\alpha$ = {}, $\\tau$ = {}'.format(layer_strength, tau_delta))
     outbase = os.path.join(savedir, '{}_layers_{}_V_{}_strength_{}_rho_{}'.format(basename, \
         nqrc, V, layer_strength, init_rho))
-    for ftype in ['png', 'svg']:
+    for ftype in ['png']:
         plt.savefig('{}_dyn.{}'.format(outbase, ftype), bbox_inches='tight')
