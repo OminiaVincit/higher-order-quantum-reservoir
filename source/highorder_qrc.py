@@ -126,7 +126,7 @@ class HighorderQuantumReservoirComputing(object):
                     hamiltonian += coef * self.Xop[qubit_index1] @ self.Xop[qubit_index2]
                     
             ratio = float(self.tau_delta) / float(self.virtual_nodes)        
-            Uop = sp.linalg.expm(1.j * hamiltonian * ratio)
+            Uop = sp.linalg.expm(-1.j * hamiltonian * ratio)
             tmp_uops.append(Uop)
         
         self.init_rhos = tmp_rhos.copy()
