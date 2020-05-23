@@ -51,7 +51,7 @@ if __name__  == '__main__':
     parser.add_argument('--nproc', type=int, default=50)
     parser.add_argument('--ntrials', type=int, default=10)
     parser.add_argument('--taudeltas', type=str, default='1.0')
-    parser.add_argument('--layers', type=str, default='5')
+    parser.add_argument('--layers', type=str, default='1')
     parser.add_argument('--strength', type=float, default=0.0)
     parser.add_argument('--virtuals', type=int, default=20)
 
