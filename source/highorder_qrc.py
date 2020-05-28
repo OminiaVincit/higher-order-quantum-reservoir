@@ -126,7 +126,7 @@ class HighorderQuantumReservoirComputing(object):
                     hamiltonian += coef * self.Xop[qubit_index1] @ self.Xop[qubit_index2]
                     
             ratio = float(self.tau_delta) / float(self.virtual_nodes)        
-            Uop = sp.linalg.expm(1.j * hamiltonian * ratio)
+            Uop = sp.linalg.expm(-1.j * hamiltonian * ratio)
             tmp_uops.append(Uop)
         
         self.init_rhos = tmp_rhos.copy()
@@ -160,7 +160,7 @@ class HighorderQuantumReservoirComputing(object):
             if nqrc > 1 and prev_states[0] is not None:
                 scaled_coeffs = self.coeffs[i] * self.layer_strength
                 value = scale_linear_combine(value, prev_states, scaled_coeffs, self.bias)
-            
+            #print(i, input_val[i], value)
             # Replace the density matrix
             rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
             # (1 + u Z)/2 = (1+u)/2 |0><0| + (1-u)/2 |1><1|
