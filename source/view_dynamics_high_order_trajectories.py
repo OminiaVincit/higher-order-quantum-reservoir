@@ -95,4 +95,4 @@ if __name__  == '__main__':
     outbase = os.path.join(savedir, '{}_layers_{}_V_{}_rho_{}'.format(basename, \
         nqrc, V, init_rho))
     for ftype in ['png','svg']:
-        plt.savefig('{}_traj.{}'.format(outbase, ftype), bbox_inches='tight')
+        plt.savefig('{}_interval.{}'.format(outbase, ftype), bbox_inches='tight')
