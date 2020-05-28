@@ -42,7 +42,7 @@ if __name__  == '__main__':
         rsarr = []
 
         for J in Js:
-            for rfile in glob.glob('{}/{}*_J_{}_V_{}_layers_5_*_{}.txt'.format(folder, prefix, J, V, posfix)):
+            for rfile in glob.glob('{}\{}*_J_{}*V_{}_layers_5_*_{}.txt'.format(folder, prefix, J, V, posfix)):
                 print(rfile)
                 ntitle = os.path.basename(rfile)
                 nidx = ntitle.find('layers')
@@ -63,7 +63,7 @@ if __name__  == '__main__':
             arr = rsarr[ids,:]
             print('V={},strength={}'.format(V, alpha), arr.shape)
 
-            ys, avg_esp, std_esp = rsarr[:, 0], rsarr[:, -2], rsarr[:, -1]
+            ys, avg_esp, std_esp = arr[:, 0], arr[:, -2], arr[:, -1]
             
             arr_2d = avg_esp.reshape((len(Js), -1))
             nx, ny = arr_2d.shape
@@ -73,7 +73,7 @@ if __name__  == '__main__':
             #ax.contourf(arr_2d, cmap=cm.RdBu, levels=[10**x for x in np.linspace(-5, 0, 11)])
 
             df = pd.DataFrame(data=arr_2d, \
-                index=['{:.0f}'.format(np.log2(J)) for J in xs], \
+                index=['{:.0f}'.format(np.log2(J)) for J in Js], \
                 columns=['{:.0f}'.format(np.log2(t)) for t in ys[:ny]])
         
             sns.heatmap(data=df, ax=ax, cmap=cmap, vmin=args.vmin, vmax=args.vmax)
