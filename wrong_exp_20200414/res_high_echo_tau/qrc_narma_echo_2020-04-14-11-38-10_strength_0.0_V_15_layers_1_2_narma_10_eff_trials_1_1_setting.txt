@@ -1,9 +1,0 @@
-length=4000, buffer=2000
-hidden_unit_count=5
-max_coupling_energy=1.0
-trotter_step=10
-beta=1e-14
-taudeltas=1.0 2.0
-layers=1 2
-V=15
-layer_strength=0.0, net_trials=1, state_trials=1
