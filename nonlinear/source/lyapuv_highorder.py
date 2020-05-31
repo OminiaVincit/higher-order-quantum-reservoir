@@ -10,17 +10,10 @@ from matplotlib import ticker
 import tqdm
 import time
 import datetime
-import highorder_qrc as hqrc
-import qrc
-import gendata as gen
+import hqrc as hqrc
 import utils
+from utils import QRCParams
 from loginit import get_module_logger
-
-# virtuals = [5*n for n in range(1, 6)]
-# virtuals.insert(0, 1)
-
-# layers = [n for n in range(1, 6)]
-# strengths = [0.0 0.1 0.3 0.5 0.7 0.9 1.0]
 
 def lyp_job(qparams, nqrc, layer_strength, buffer, length, net_trials, initial_distance, send_end):
     print('Start process layer={}, taudelta={}, virtual={}, Jdelta={}, strength={}'.format(\
@@ -78,9 +71,11 @@ if __name__  == '__main__':
         os.mkdir(savedir)
 
     tstr = args.taudeltas.replace('\'','')
-    taudeltas = [float(x) for x in tstr.split(',')]
-    taudeltas = [2**x for x in taudeltas]
-    
+    #taudeltas = [float(x) for x in tstr.split(',')]
+    #taudeltas = [2**x for x in taudeltas]
+    tx = np.arange(-3,-1,0.1)
+    taudeltas = [2**x for x in tx]
+
     virtuals = [int(x) for x in args.virtuals.split(',')]
     layers = [int(x) for x in args.layers.split(',')]
     strengths = [float(x) for x in args.strengths.split(',')]
@@ -103,8 +98,8 @@ if __name__  == '__main__':
                 for V in virtuals:
                     for tau_delta in taudeltas:
                         recv_end, send_end = multiprocessing.Pipe(False)
-                        qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
-                            trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tau_delta, init_rho=init_rho)
+                        qparams = QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
+                            beta=beta, virtual_nodes=V, tau_delta=tau_delta, init_rho=init_rho)
                         p = multiprocessing.Process(target=lyp_job, \
                             args=(qparams, nqrc, layer_strength, buffer, length, net_trials, initial_distance, send_end))
                         jobs.append(p)

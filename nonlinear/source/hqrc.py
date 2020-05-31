@@ -1,32 +1,7 @@
 import sys
 import numpy as np
 import scipy as sp 
-import utils
-import qrc
-import gen_random
-from scipy.special import softmax
-
-def solfmax_layer(states):
-    states = np.array(states)
-    return softmax(states)
-
-def linear_combine(u, states, coeffs):
-    assert(len(coeffs) == len(states))
-    v = 1.0 - np.sum(coeffs)
-    assert(v <= 1.00001 and v >= -0.00001)
-    v = max(v, 0.0)
-    v = min(v, 1.0)
-    total = v * u
-    total += np.dot(np.array(states).flatten(), np.array(coeffs).flatten())
-    return total
-
-def softmax_linear_combine(u, states, coeffs):
-    states = solfmax_layer(states)
-    return linear_combine(u, states, coeffs)
-
-def scale_linear_combine(u, states, coeffs, bias):
-    states = (states + bias) / (2.0 * bias)
-    return linear_combine(u, states, coeffs)
+from utils import *
 
 class HighorderQuantumReservoirComputing(object):
     def __init__(self, nqrc, layer_strength, one_input=False, deep=False, bias=1.0):
@@ -46,7 +21,6 @@ class HighorderQuantumReservoirComputing(object):
         P0 = [[1,0],[0,0]]
         P1 = [[0,0],[0,1]]
         self.hidden_unit_count = qparams.hidden_unit_count
-        self.trotter_step = qparams.trotter_step
         self.virtual_nodes = qparams.virtual_nodes
         self.tau_delta = qparams.tau_delta
         self.qubit_count = self.hidden_unit_count
@@ -210,14 +184,12 @@ class HighorderQuantumReservoirComputing(object):
 
         if predict:
             stacked_state = np.hstack( [state_list, np.ones([input_length, 1])])
-            #print('stacked state {}; Wout {}'.format(stacked_state.shape, self.W_out.shape))
             predict_sequence = stacked_state @ self.W_out
         
         return predict_sequence, state_list
 
 
     def __train(self, input_sequence, output_sequence, buffer, beta):
-        #print('shape', input_sequence.shape, output_sequence.shape)
         assert(input_sequence.shape[1] == output_sequence.shape[0])
         Nout = output_sequence.shape[1]
         self.W_out = np.random.rand(self.hidden_unit_count * self.virtual_nodes * self.nqrc + 1, Nout)
@@ -225,23 +197,15 @@ class HighorderQuantumReservoirComputing(object):
         _, state_list = self.__feed_forward(input_sequence, predict=False, use_lastrho=False)
 
         state_list = np.array(state_list)
-        #print('before washingout state list shape', state_list.shape)
-        
         state_list = state_list[buffer:, :]
-        #print('after washingout state list shape', state_list.shape)
 
         # discard the transitient state for training
         V = np.reshape(state_list, [-1, self.hidden_unit_count * self.virtual_nodes * self.nqrc])
         V = np.hstack( [state_list, np.ones([V.shape[0], 1]) ] )
 
-        #print('output seq', output_sequence.shape)
         discard_output = output_sequence[buffer:, :]
-        #print('discard output seq', discard_output.shape)
-        #S = np.reshape(output_sequence_list, [-1])
         S = np.reshape(discard_output, [discard_output.shape[0], discard_output.shape[1]])
-        #print('V S', V.shape, S.shape)
         self.W_out = np.linalg.pinv(V, rcond = beta) @ S
-        #print('bf Wout', self.W_out.shape)
         
     def train_to_predict(self, input_sequence, output_sequence, buffer, qparams, ranseed):
         self.__init_reservoir(qparams, ranseed)
@@ -336,7 +300,6 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
             ranseed_net = ranseed
             if ranseed >= 0:
                 ranseed_net = (ranseed + 10000) * (n + 1)
-            #print('d={}, trial={}'.format(d, n))
             # Use the same ranseed the same trial
             train_pred_seq, train_loss, val_pred_seq, val_loss = \
                 get_loss(qparams, buffer, train_input_seq, train_output_seq, \
@@ -354,7 +317,6 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
             mfs.append(MF_d)
 
         avg_train, avg_val, avg_MFd, std_MFd = np.mean(train_loss_ls), np.mean(val_loss_ls), np.mean(mfs), np.std(mfs)
-        #print("d={}, train_loss={}, val_loss={}, MF={}".format(d, avg_train, avg_val, avg_MFd))
         MFlist.append(avg_MFd)
         MFstds.append(std_MFd)
         train_list.append(avg_train)
@@ -425,19 +387,9 @@ def esp_index(qparams, buffer, length, nqrc, layer_strength, ranseed, state_tria
         for t in range(buffer, L):
             diff_state = x0_state_list[t, :] - z0_state_list[t, :]
             diff = np.sqrt(np.power(diff_state, 2).sum())
-            #prev = current
-            #current = diff
-            #if prev is not None:
-            #    tmp = np.log(diff / prev)
-                #print('t={},diff={},lambda={},tau_delta={}'.format(t, diff, tmp, qparams.tau_delta))
-                #lda = max(lda, tmp)
-            #    local_lda += tmp
             local_diff += diff
         local_diff = local_diff / (L-buffer)
-        #local_lda  = local_lda / (L-buffer)
-        #print('i={}, avg Delta={}'.format(i, local_diff))
         dP.append(local_diff)
-        #mlda.append(local_lda)
     return np.mean(dP)
 
 def lyapunov_exp(qparams, buffer, length, nqrc, layer_strength, ranseed, \
@@ -457,6 +409,9 @@ def lyapunov_exp(qparams, buffer, length, nqrc, layer_strength, ranseed, \
     # D = Number of layers x Number of virtual nodes x Number of qubits
     lyps = []
     for n in range(int(D / nqrc)):
+        if n % qparams.hidden_unit_count == 0:
+            # Skip the input qubits
+            continue
         model.init_forward(qparams, input_seq[:buffer], init_rs = False, ranseed = -1)
         states2 = np.zeros((L, D))
         states2[buffer-1, :] = states1[buffer-1, :]

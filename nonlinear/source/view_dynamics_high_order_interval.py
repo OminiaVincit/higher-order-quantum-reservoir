@@ -10,10 +10,9 @@ from matplotlib import ticker
 import tqdm
 import time
 import datetime
-import highorder_qrc as hqrc
-import qrc
-import gendata as gen
+import hqrc as hqrc
 import utils
+from utils import QRCParams
 from loginit import get_module_logger
 
 if __name__  == '__main__':
@@ -25,10 +24,10 @@ if __name__  == '__main__':
     parser.add_argument('--rho', type=int, default=0)
     parser.add_argument('--beta', type=float, default=1e-14)
 
-    parser.add_argument('--length', type=int, default=500)
-    parser.add_argument('--buffer', type=int, default=100)
+    parser.add_argument('--length', type=int, default=1500)
+    parser.add_argument('--buffer', type=int, default=1000)
 
-    parser.add_argument('--taudeltas', type=str, default='-3,1,4')
+    parser.add_argument('--taudeltas', type=str, default='-3,-1,1,2,4')
     parser.add_argument('--nqrc', type=int, default=5)
     parser.add_argument('--strength', type=float, default=0.0)
     parser.add_argument('--virtuals', type=int, default=50)
@@ -68,18 +67,18 @@ if __name__  == '__main__':
 
     plt.rc('font', family='serif', size=14)
     plt.rc('mathtext', fontset='cm')
-    fig, axs = plt.subplots(1, N, figsize=(4*N, 3.6), squeeze=False)
+    fig, axs = plt.subplots(1, N, figsize=(6*N, 3.6), squeeze=False)
     axs = axs.ravel()
     
-    bg = int((buffer + length) / 2)
-    ed = bg + 2
+    bg = buffer
+    ed = length
 
     # plot the signals
     for i in range(N):
         ax = axs[i]
         tau_delta = taudeltas[i]
 
-        qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
+        qparams = QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
             trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tau_delta, init_rho=init_rho)
     
         model = hqrc.HighorderQuantumReservoirComputing(nqrc, layer_strength)

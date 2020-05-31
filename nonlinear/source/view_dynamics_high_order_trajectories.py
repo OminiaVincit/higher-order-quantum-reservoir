@@ -10,10 +10,9 @@ from matplotlib import ticker
 import tqdm
 import time
 import datetime
-import highorder_qrc as hqrc
-import qrc
-import gendata as gen
+import hqrc as hqrc
 import utils
+from utils import QRCParams
 from loginit import get_module_logger
 
 if __name__  == '__main__':
@@ -28,13 +27,13 @@ if __name__  == '__main__':
     parser.add_argument('--length', type=int, default=2000)
     parser.add_argument('--buffer', type=int, default=1000)
 
-    parser.add_argument('--taudeltas', type=str, default='-4,-3,-2,-1,0,1,2,3,4,5,6,7')
+    parser.add_argument('--taudeltas', type=str, default='-6,2')
     parser.add_argument('--nqrc', type=int, default=5)
-    parser.add_argument('--strengths', type=str, default='0.1,0.3,0.5,0.7,0.9')
+    parser.add_argument('--strengths', type=str, default='0.0,0.5,1.0')
     parser.add_argument('--virtuals', type=int, default=1)
 
     parser.add_argument('--basename', type=str, default='qrc_dyn')
-    parser.add_argument('--savedir', type=str, default='res_dynamics')
+    parser.add_argument('--savedir', type=str, default='res_dynamics2')
     args = parser.parse_args()
     print(args)
 
@@ -77,7 +76,7 @@ if __name__  == '__main__':
     for layer_strength in strengths:
         ams = []
         for tau_delta in taudeltas:
-            qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
+            qparams = QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
                 trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tau_delta, init_rho=init_rho)
         
             model = hqrc.HighorderQuantumReservoirComputing(nqrc, layer_strength)
@@ -94,5 +93,5 @@ if __name__  == '__main__':
     ax.grid()
     outbase = os.path.join(savedir, '{}_layers_{}_V_{}_rho_{}'.format(basename, \
         nqrc, V, init_rho))
-    for ftype in ['png','svg']:
+    for ftype in ['png']:
         plt.savefig('{}_interval.{}'.format(outbase, ftype), bbox_inches='tight')

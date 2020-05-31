@@ -2,6 +2,43 @@ import sys
 import numpy as np
 import math
 from scipy.stats import unitary_group
+from scipy.special import softmax
+
+class QRCParams():
+    def __init__(self, hidden_unit_count, max_coupling_energy, beta, virtual_nodes, tau_delta, init_rho):
+        self.hidden_unit_count = hidden_unit_count
+        self.max_coupling_energy = max_coupling_energy
+        self.beta = beta
+        self.virtual_nodes = virtual_nodes
+        self.tau_delta = tau_delta
+        self.init_rho = init_rho
+    
+    def info(self):
+        print('units={},Jdelta={},V={},taudelta={},init_rho={}'.format(\
+            self.hidden_unit_count, self.max_coupling_energy,
+            self.virtual_nodes, self.tau_delta, self.init_rho))
+
+def solfmax_layer(states):
+    states = np.array(states)
+    return softmax(states)
+
+def softmax_linear_combine(u, states, coeffs):
+    states = solfmax_layer(states)
+    return linear_combine(u, states, coeffs)
+
+def linear_combine(u, states, coeffs):
+    assert(len(coeffs) == len(states))
+    v = 1.0 - np.sum(coeffs)
+    assert(v <= 1.00001 and v >= -0.00001)
+    v = max(v, 0.0)
+    v = min(v, 1.0)
+    total = v * u
+    total += np.dot(np.array(states).flatten(), np.array(coeffs).flatten())
+    return total
+
+def scale_linear_combine(u, states, coeffs, bias):
+    states = (states + bias) / (2.0 * bias)
+    return linear_combine(u, states, coeffs)
 
 def make_data_for_narma(length, orders):
     xs = np.random.rand(length)

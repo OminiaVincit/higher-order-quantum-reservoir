@@ -25,21 +25,6 @@ def partial_trace(rho, qubit_ls):
         rho_res = np.reshape(rho_res, [2 ** qleft] * 2)
     return rho_res
     
-class QRCParams():
-    def __init__(self, hidden_unit_count, max_coupling_energy, trotter_step, beta, virtual_nodes, tau_delta, init_rho):
-        self.hidden_unit_count = hidden_unit_count
-        self.max_coupling_energy = max_coupling_energy
-        self.trotter_step = trotter_step
-        self.beta = beta
-        self.virtual_nodes = virtual_nodes
-        self.tau_delta = tau_delta
-        self.init_rho = init_rho
-    
-    def info(self):
-        print('units={},Jdelta={},V={},taudelta={},init_rho={}'.format(\
-            self.hidden_unit_count, self.max_coupling_energy,
-            self.virtual_nodes, self.tau_delta, self.init_rho))
-
 class QuantumReservoirComputing(object):
     def __init_reservoir(self, qparams, ranseed):
         I = [[1,0],[0,1]]
