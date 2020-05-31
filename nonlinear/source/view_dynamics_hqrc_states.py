@@ -57,6 +57,7 @@ if __name__  == '__main__':
     parser.add_argument('--strength', type=float, default=0.5)
     parser.add_argument('--nproc', type=int, default=50)
 
+    parser.add_argument('--interval', type=float, default=0.05, help='tau-interval')
     parser.add_argument('--basename', type=str, default='qrc_dyn')
     parser.add_argument('--savedir', type=str, default='res_states')
     args = parser.parse_args()
@@ -70,7 +71,7 @@ if __name__  == '__main__':
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
         os.mkdir(savedir)
     
-    tx = list(np.arange(-7, 7.1, 0.1))
+    tx = list(np.arange(-7, 7.1, args.interval))
     nproc = min(len(tx), nproc)
     lst = np.array_split(tx, nproc)
 
