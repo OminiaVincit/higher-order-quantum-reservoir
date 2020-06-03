@@ -145,6 +145,6 @@ if __name__  == '__main__':
     ax.set_xscale("log", basex=2)
     ax.set_yscale("symlog", basey=10, linthreshy=1e-5)
     outbase = filename.replace('.binaryfile', '')
-    for ftype in ['png','svg']:
+    for ftype in ['png','pdf','svg']:
         plt.savefig('{}.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
     plt.show()
