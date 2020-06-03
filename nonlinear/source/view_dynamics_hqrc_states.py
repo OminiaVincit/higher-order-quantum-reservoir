@@ -131,24 +131,30 @@ if __name__  == '__main__':
 
     #fig, axs = plt.subplots(1, 1, figsize=(8, 6), squeeze=False, dpi=600)
     #ax1 = axs.ravel()[0]
-
-    # if False:
-        # Very slow to run density plot
-        #xy = np.vstack([ts, rs])
-        #z = gaussian_kde(xy)(xy)
-        #ax.scatter(ts, rs, c=z, s=(12*72./fig.dpi)**2, marker='o', cmap='brg', lw=0, rasterized=True)
     
     #ax.plot(ts, rs, ls="", marker=",")
 
     fig = plt.figure(figsize=(8, 6), dpi=600)
-    ax1 = plt.subplot2grid((4,3), (0,0), colspan=2, rowspan=4)
-    ax1.scatter(ts, rs, s=(12*72./fig.dpi)**2, marker='o', lw=0, rasterized=True)
+    ax1 = plt.subplot2grid((4,3), (0,0), colspan=2, rowspan=2)
+
+    if False:
+        # Very slow to run density plot
+        xy = np.vstack([ts, rs])
+        z = gaussian_kde(xy)(xy)
+        ax1.scatter(ts, rs, c=z, s=(12*72./fig.dpi)**2, marker='o', cmap='brg', lw=0, rasterized=True)
+    else:
+        ax1.scatter(ts, rs, s=(12*72./fig.dpi)**2, marker='o', lw=0, rasterized=True)
     
     ax1.set_title('{}'.format(os.path.basename(filename)))
     ax1.set_xscale("log", basex=2)
     ax1.set_yscale("symlog", basey=10, linthreshy=1e-5)
-
-    ids = [20, 60, 90, 180]
+    ax1.grid(alpha=0.8,axis='x')
+    ax1.set_xticks([2**x for x in np.arange(-7,7.1,1.0)])
+    ax1.minorticks_on()
+    ax1.tick_params('both', length=6, width=1, which='major')
+    ax1.tick_params('both', length=3, width=1, which='minor')
+    #ax1.set_xlim([2**(-2), 2**(0)])
+    ids = [20, 60, 80, 180]
     for i in range(len(ids)):
         ax2 = plt.subplot2grid((4,3), (i,2))
         x = tx[ids[i]]
@@ -161,6 +167,6 @@ if __name__  == '__main__':
         ax2.set_xticklabels([])
         
     outbase = filename.replace('.binaryfile', '_bg_{}_ed_{}'.format(bg, ed))
-    for ftype in ['png', 'svg']:
-        plt.savefig('{}.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
+    for ftype in ['png','svg']:
+        plt.savefig('{}_v3.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
     plt.show()

@@ -9,9 +9,8 @@ import matplotlib.pyplot as plt
 from matplotlib import ticker
 import time
 import datetime
-import highorder_qrc as hqrc
+import hqrc as hqrc
 from loginit import get_module_logger
-import qrc
 import utils
 
 # virtuals = [5*n for n in range(1, 6)]
