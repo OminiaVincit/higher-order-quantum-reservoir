@@ -5,10 +5,9 @@ import scipy
 import argparse
 import multiprocessing
 import matplotlib
-matplotlib.use("Qt5Cairo")
+#matplotlib.use("cairo")
 import matplotlib.pyplot as plt
 from matplotlib import ticker
-import tqdm
 import time
 import datetime
 import hqrc as hqrc
@@ -66,7 +65,7 @@ if __name__  == '__main__':
     length, nqrc, nproc = args.length, args.nqrc, args.nproc
     bg, ed = args.bg, args.ed
     layer_strength = args.strength
-    
+
     basename, savedir = args.basename, args.savedir
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
         os.mkdir(savedir)
@@ -117,12 +116,6 @@ if __name__  == '__main__':
         with open(filename, 'rb') as rrs:
             z = pickle.load(rrs)
     
-    # Plot file
-    plt.rc('font', family='serif', size=8)
-    plt.rc('mathtext', fontset='cm')
-    fig, axs = plt.subplots(1, 1, figsize=(8, 6), squeeze=False, dpi=600)
-    ax = axs.ravel()[0]
-
     rs, ts = [], []
     for x in tx:
         state_list = z[x]
@@ -132,19 +125,48 @@ if __name__  == '__main__':
     ts = np.array(ts).ravel()
     rs = np.array(rs).ravel()
 
-    # if False:
-        # Very slow to run density plot
-        #xy = np.vstack([ts, rs])
-        #z = gaussian_kde(xy)(xy)
-        #ax.scatter(ts, rs, c=z, s=(12*72./fig.dpi)**2, marker='o', cmap='brg', lw=0, rasterized=True)
+    # Plot file
+    plt.rc('font', family='serif', size=8)
+    plt.rc('mathtext', fontset='cm')
+
+    #fig, axs = plt.subplots(1, 1, figsize=(8, 6), squeeze=False, dpi=600)
+    #ax1 = axs.ravel()[0]
     
     #ax.plot(ts, rs, ls="", marker=",")
-    ax.scatter(ts, rs, s=(12*72./fig.dpi)**2, marker='o', lw=0, rasterized=True)
+
+    fig = plt.figure(figsize=(8, 6), dpi=600)
+    ax1 = plt.subplot2grid((4,3), (0,0), colspan=2, rowspan=2)
+
+    if False:
+        # Very slow to run density plot
+        xy = np.vstack([ts, rs])
+        z = gaussian_kde(xy)(xy)
+        ax1.scatter(ts, rs, c=z, s=(12*72./fig.dpi)**2, marker='o', cmap='brg', lw=0, rasterized=True)
+    else:
+        ax1.scatter(ts, rs, s=(12*72./fig.dpi)**2, marker='o', lw=0, rasterized=True)
     
-    ax.set_title('$\\alpha$ = {}'.format(layer_strength))
-    ax.set_xscale("log", basex=2)
-    ax.set_yscale("symlog", basey=10, linthreshy=1e-5)
-    outbase = filename.replace('.binaryfile', '')
-    for ftype in ['png','pdf','svg']:
-        plt.savefig('{}.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
+    ax1.set_title('{}'.format(os.path.basename(filename)))
+    ax1.set_xscale("log", basex=2)
+    ax1.set_yscale("symlog", basey=10, linthreshy=1e-5)
+    ax1.grid(alpha=0.8,axis='x')
+    ax1.set_xticks([2**x for x in np.arange(-7,7.1,1.0)])
+    ax1.minorticks_on()
+    ax1.tick_params('both', length=6, width=1, which='major')
+    ax1.tick_params('both', length=3, width=1, which='minor')
+    #ax1.set_xlim([2**(-2), 2**(0)])
+    ids = [20, 60, 80, 180]
+    for i in range(len(ids)):
+        ax2 = plt.subplot2grid((4,3), (i,2))
+        x = tx[ids[i]]
+        state_list = z[x]
+        for j in range(1, UNITS):
+            ys = state_list[bg:ed, j].ravel()
+            ax2.plot(ys)
+        ax2.set_title('2^{:.1f}'.format(x))
+        ax2.set_yticklabels([])
+        ax2.set_xticklabels([])
+        
+    outbase = filename.replace('.binaryfile', '_bg_{}_ed_{}'.format(bg, ed))
+    for ftype in ['png','svg']:
+        plt.savefig('{}_v3.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
     plt.show()
