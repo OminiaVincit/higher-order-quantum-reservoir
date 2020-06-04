@@ -51,7 +51,7 @@ if __name__  == '__main__':
     parser.add_argument('--length', type=int, default=2000)
     parser.add_argument('--bg', type=int, default=1000)
     parser.add_argument('--ed', type=int, default=2000)
-
+    parser.add_argument('--const', type=int, default=0, help='constant input')
     parser.add_argument('--nqrc', type=int, default=5)
     parser.add_argument('--strength', type=float, default=0.5)
     parser.add_argument('--nproc', type=int, default=50)
@@ -65,19 +65,25 @@ if __name__  == '__main__':
     length, nqrc, nproc = args.length, args.nqrc, args.nproc
     bg, ed = args.bg, args.ed
     layer_strength = args.strength
+    const_input = args.const
 
-    basename, savedir = args.basename, args.savedir
+    basename = '{}_const_input_{}'.format(args.basename, args.const)
+    savedir = args.savedir
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
         os.mkdir(savedir)
     
+    # KEEP CONSTANT interval = 0.05
     tx = list(np.arange(-7, 7.1, args.interval))
     nproc = min(len(tx), nproc)
     lst = np.array_split(tx, nproc)
 
     if os.path.isfile(savedir) == False:
         # prepare the data
-        np.random.seed(seed=1000)
-        data = np.random.rand(length)
+        if const_input == 0:
+            np.random.seed(seed=1000)
+            data = np.random.rand(length)
+        else:
+            data = np.zeros(length)
         input_seq = np.array(data)
         input_seq = np.tile(input_seq, (nqrc, 1))
         
