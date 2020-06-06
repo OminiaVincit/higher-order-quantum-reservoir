@@ -98,7 +98,7 @@ if __name__  == '__main__':
     outbase = '{}\{}'.format(folder, ntitle)
     plt.suptitle(outbase, fontsize=12)
     
-    for ftype in ['pdf', 'svg', 'png']:
-        plt.savefig('{}_esp.{}'.format(outbase, ftype), bbox_inches='tight')
-    #plt.show()
+    #for ftype in ['pdf', 'svg', 'png']:
+    #    plt.savefig('{}_esp.{}'.format(outbase, ftype), bbox_inches='tight')
+    plt.show()
     

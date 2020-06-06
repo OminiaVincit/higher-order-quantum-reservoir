@@ -1,9 +1,0 @@
-train_len=3000, val_len=1000, buffer=1000
-beta=1e-14, Ntrials=1
-hidden_unit_count=5
-max_coupling_energy=1.0
-taudeltas=0.5
-layers=5
-V=25
-minD=0, maxD=200, interval=1
-layer_strength=0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9
