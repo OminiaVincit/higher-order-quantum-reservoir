@@ -9,16 +9,16 @@ import matplotlib.pyplot as plt
 from matplotlib import ticker
 import time
 import datetime
-import highorder_qrc as hqrc
+import hqrc as hqrc
 from loginit import get_module_logger
-import qrc
 import utils
+from utils import *
 
-def memory_func(taskname, qparams, nqrc, deep, layer_strength,\
+def memory_func(taskname, qparams, nqrc, deep, alpha,\
         train_len, val_len, buffer, dlist, ranseed, pid, send_end):
     btime = int(time.time() * 1000.0)
     rsarr = hqrc.memory_function(taskname, qparams, train_len=train_len, val_len=val_len, buffer=buffer, \
-        dlist=dlist, nqrc=nqrc, layer_strength=layer_strength, ranseed=ranseed, deep=deep)
+        dlist=dlist, nqrc=nqrc, alpha=alpha, ranseed=ranseed, deep=deep)
     
     # obtain the memory
     rslist = []
@@ -28,8 +28,8 @@ def memory_func(taskname, qparams, nqrc, deep, layer_strength,\
     etime = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
-    print('{} Finished process {} in {} s with nqrc={}, strength={}, V={}, taudelta={}, dmin={}, dmax={}'.format(\
-        datestr, pid, etime-btime, nqrc, layer_strength, qparams.virtual_nodes, qparams.tau_delta, dlist[0], dlist[-1]))
+    print('{} Finished process {} in {} s with nqrc={}, alpha={}, V={}, taudelta={}, dmin={}, dmax={}'.format(\
+        datestr, pid, etime-btime, nqrc, alpha, qparams.virtual_nodes, qparams.tau, dlist[0], dlist[-1]))
     send_end.send('{}'.format(','.join([str(c) for c in rslist])))
 
 if __name__  == '__main__':
@@ -37,9 +37,10 @@ if __name__  == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--units', type=int, default=5)
     parser.add_argument('--coupling', type=float, default=1.0)
-    parser.add_argument('--trotter', type=int, default=10)
     parser.add_argument('--rho', type=int, default=0)
     parser.add_argument('--beta', type=float, default=1e-14)
+    parser.add_argument('--solver', type=str, default=LINEAR_PINV, \
+        help='regression solver by linear_pinv,ridge_pinv,auto,svd,cholesky,lsqr,sparse_cg,sag')
 
     parser.add_argument('--trainlen', type=int, default=3000)
     parser.add_argument('--vallen', type=int, default=1000)
@@ -62,10 +63,9 @@ if __name__  == '__main__':
     args = parser.parse_args()
     print(args)
 
-    hidden_unit_count, max_coupling_energy, trotter_step, beta =\
-        args.units, args.coupling, args.trotter, args.beta
+    n_units, max_energy, beta = args.units, args.coupling, args.beta
     train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
-    nproc, layer_strength, V = args.nproc, args.strength, args.virtuals
+    nproc, alpha, V = args.nproc, args.strength, args.virtuals
     init_rho = args.rho
     minD, maxD, interval, Ntrials = args.mind, args.maxd, args.interval, args.ntrials
     dlist = list(range(minD, maxD + 1, interval))
@@ -76,7 +76,7 @@ if __name__  == '__main__':
     if args.deep > 0:
         deep =True
 
-    taskname, savedir = args.taskname, args.savedir
+    taskname, savedir, solver = args.taskname, args.savedir, args.solver
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
         os.mkdir(savedir)
 
@@ -88,7 +88,7 @@ if __name__  == '__main__':
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
     
     stmp = '{}_{}_deep_{}_strength_{}_V_{}_layers_{}_mem_ntrials_{}'.format(\
-        taskname, datestr, deep, layer_strength, V, nqrc, Ntrials)
+        taskname, datestr, deep, alpha, V, nqrc, Ntrials)
     outbase = os.path.join(savedir, stmp)
     
     rsarr = dict()
@@ -101,9 +101,9 @@ if __name__  == '__main__':
         logger = get_module_logger(__name__, log_filename)
         logger.info(log_filename)
 
-        for tau_delta in taudeltas:
-            qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
-        trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tau_delta, init_rho=init_rho)
+        for tau in taudeltas:
+            qparams = QRCParams(n_units=n_units, max_energy=max_energy, \
+                beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver)
             local_sum = []
             for n in range(Ntrials):
                 # Multi process
@@ -116,7 +116,7 @@ if __name__  == '__main__':
                     print('dlist: ', dsmall)
                     recv_end, send_end = multiprocessing.Pipe(False)
                     p = multiprocessing.Process(target=memory_func, \
-                        args=(taskname, qparams, nqrc, deep, layer_strength, train_len, val_len, buffer, dsmall, n, proc_id, send_end))
+                        args=(taskname, qparams, nqrc, deep, alpha, train_len, val_len, buffer, dsmall, n, proc_id, send_end))
                     jobs.append(p)
                     pipels.append(recv_end)
         
@@ -140,24 +140,23 @@ if __name__  == '__main__':
             local_avg, local_std = np.mean(local_sum, axis=0), np.std(local_sum, axis=0)
             local_arr = np.hstack([local_avg, local_std[:,1].reshape(-1,1)])
             print('local_arr', local_arr.shape)
-            rsarr[str(tau_delta)] = local_arr
-            logger.debug('layers={},V={},taudelta={},mem_func={}'.format(nqrc, V, tau_delta, local_arr))
+            rsarr[str(tau)] = local_arr
+            logger.debug('layers={},V={},taudelta={},mem_func={}'.format(nqrc, V, tau, local_arr))
         # save multi files
         np.savez('{}_memfunc.npz'.format(outbase), **rsarr)
         
         # save experiments setting
         with open('{}_setting.txt'.format(outbase), 'w') as sfile:
             sfile.write('train_len={}, val_len={}, buffer={}\n'.format(train_len, val_len, buffer))
-            sfile.write('hidden_unit_count={}\n'.format(hidden_unit_count))
-            sfile.write('max_coupling_energy={}\n'.format(max_coupling_energy))
-            sfile.write('trotter_step={}\n'.format(trotter_step))
+            sfile.write('n_units={}\n'.format(n_units))
+            sfile.write('max_energy={}\n'.format(max_energy))
             sfile.write('beta={}\n'.format(beta))
             sfile.write('taudeltas={}\n'.format(' '.join([str(v) for v in taudeltas])))
             sfile.write('layers={}\n'.format(nqrc))
             sfile.write('V={}\n'.format(V))
             sfile.write('deep={}\n'.format(deep))
             sfile.write('minD={}, maxD={}, interval={}\n'.format(minD, maxD, interval))
-            sfile.write('layer_strength={}, Ntrials={}\n'.format(layer_strength, Ntrials))
+            sfile.write('alpha={}, Ntrials={}\n'.format(alpha, Ntrials))
 
     else:
         # Read the result
@@ -172,13 +171,13 @@ if __name__  == '__main__':
     plt.rc('mathtext', fontset='cm')
     plt.rcParams['font.size']=20
 
-    for tau_delta in taudeltas:
-        tarr = rsarr[str(tau_delta)]
+    for tau in taudeltas:
+        tarr = rsarr[str(tau)]
         xs, ys, zs = tarr[:, 0], tarr[:, 1], tarr[:, 2]
         #plt.errorbar(xs, ys, yerr=zs, elinewidth=2, linewidth=2, markersize=12, \
-        #    label='$\\tau\Delta$={}'.format(tau_delta))
+        #    label='$\\tau\Delta$={}'.format(tau))
         plt.plot(xs, ys, linewidth=2, markersize=12, \
-            label='$\\tau\Delta$={}'.format(tau_delta))
+            label='$\\tau\Delta$={}'.format(tau))
     #plt.xlim([1e-3, 1024])    
     plt.ylim([0, 1.0])
     plt.xlabel('Delay', fontsize=28)
@@ -187,7 +186,7 @@ if __name__  == '__main__':
     plt.legend()
     plt.title(outbase, fontsize=12)
     plt.grid(True, which="both", ls="-", color='0.65')
-    #plt.show()
-    for ftype in ['png', 'pdf']:
+    for ftype in ['png']:
         plt.savefig('{}.{}'.format(outbase, ftype), bbox_inches='tight')
- 
+    #plt.show()
+    

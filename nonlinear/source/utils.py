@@ -4,19 +4,29 @@ import math
 from scipy.stats import unitary_group
 from scipy.special import softmax
 
+LINEAR_PINV = 'linear_pinv'
+RIDGE_PINV  = 'ridge_pinv'
+RIDGE_AUTO  = 'auto'
+RIDGE_SVD   = 'svd'
+RIDGE_CHOLESKY = 'cholesky'
+RIDGE_LSQR = 'lsqr'
+RIDGE_SPARSE = 'sparse_cg'
+RIDGE_SAG = 'sag'
+
 class QRCParams():
-    def __init__(self, hidden_unit_count, max_coupling_energy, beta, virtual_nodes, tau_delta, init_rho):
-        self.hidden_unit_count = hidden_unit_count
-        self.max_coupling_energy = max_coupling_energy
+    def __init__(self, n_units, max_energy, beta, virtual_nodes, tau, init_rho, solver=LINEAR_PINV):
+        self.n_units = n_units
+        self.max_energy = max_energy
         self.beta = beta
         self.virtual_nodes = virtual_nodes
-        self.tau_delta = tau_delta
+        self.tau = tau
         self.init_rho = init_rho
-    
+        self.solver = solver
+
     def info(self):
         print('units={},Jdelta={},V={},taudelta={},init_rho={}'.format(\
-            self.hidden_unit_count, self.max_coupling_energy,
-            self.virtual_nodes, self.tau_delta, self.init_rho))
+            self.n_units, self.max_energy,
+            self.virtual_nodes, self.tau, self.init_rho))
 
 def solfmax_layer(states):
     states = np.array(states)
