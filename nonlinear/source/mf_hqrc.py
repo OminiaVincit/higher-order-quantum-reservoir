@@ -52,6 +52,7 @@ if __name__  == '__main__':
 
     parser.add_argument('--nproc', type=int, default=50)
     parser.add_argument('--ntrials', type=int, default=1)
+    
     parser.add_argument('--taudeltas', type=str, default='-4,-3,-2,-1,0,1,2,3,4,5,6,7')
     parser.add_argument('--nqrc', type=int, default='1')
     parser.add_argument('--strength', type=float, default=0.0)
@@ -80,8 +81,10 @@ if __name__  == '__main__':
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
         os.mkdir(savedir)
 
-    taudeltas = [float(x) for x in args.taudeltas.split(',')]
+    tstr = args.taudeltas.replace('\'','')
+    taudeltas = [float(x) for x in tstr.split(',')]
     taudeltas = [2**x for x in taudeltas]
+
     # Evaluation
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()

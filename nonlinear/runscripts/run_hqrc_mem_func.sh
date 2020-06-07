@@ -9,11 +9,15 @@ SAVE=../test_mf
 QR=5
 PROC=24
 SOLVER='ridge_pinv'
+TAUS=\'-1,0,3\'
+MIND=0
+MAXD=20
+INT=1
 
 for a in 0.5
 do
 for V in 5 
 do
-    python $BIN --solver $SOLVER --coupling $J --taskname $TASK --nqrc $QR --strength $a --virtuals $V --ntrials $N --nproc $PROC --mind 0 --maxd 20 --savedir $SAVE
+    python $BIN --solver $SOLVER --coupling $J --taudeltas $TAUS --taskname $TASK --nqrc $QR --strength $a --virtuals $V --ntrials $N --nproc $PROC --mind $MIND --maxd $MAXD --interval $INT --savedir $SAVE
 done
 done

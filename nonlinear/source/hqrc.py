@@ -219,10 +219,10 @@ class HQRC(object):
             XTY = X.T @ Y
             if self.solver == RIDGE_PINV:
                 I = np.identity(np.shape(XTX)[1])	
-                pinv_ = scipypinv2(XTX + self.regularization * I)
+                pinv_ = scipypinv2(XTX + beta * I)
                 W_out = pinv_ @ XTY
             elif self.solver in ['auto', 'svd', 'cholesky', 'lsqr', 'sparse_cg', 'sag']:
-                ridge = Ridge(alpha=self.beta, fit_intercept=False, normalize=False, copy_X=True, solver=self.solver)
+                ridge = Ridge(alpha=beta, fit_intercept=False, normalize=False, copy_X=True, solver=self.solver)
                 ridge.fit(XTX, XTY)
                 W_out = np.array(ridge.coef_).reshape((-1, Nout))
             else:
