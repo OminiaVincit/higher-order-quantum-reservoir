@@ -220,11 +220,11 @@ class HQRC(object):
             if self.solver == RIDGE_PINV:
                 I = np.identity(np.shape(XTX)[1])	
                 pinv_ = scipypinv2(XTX + beta * I)
-                W_out = pinv_ @ XTY
+                self.W_out = pinv_ @ XTY
             elif self.solver in ['auto', 'svd', 'cholesky', 'lsqr', 'sparse_cg', 'sag']:
                 ridge = Ridge(alpha=beta, fit_intercept=False, normalize=False, copy_X=True, solver=self.solver)
                 ridge.fit(XTX, XTY)
-                W_out = np.array(ridge.coef_).reshape((-1, Nout))
+                self.W_out = np.array(ridge.coef_).reshape((-1, Nout))
             else:
                 raise ValueError('Undefined solver')
 

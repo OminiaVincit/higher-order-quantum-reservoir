@@ -25,7 +25,7 @@ def memory_compute(taskname, qparams, nqrc, layer_strength,\
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
     print('{} Finished process {} in {} s with J={}, taudelta={}, V={}, layers={}, strength={}, dmin={}, dmax={}, capacity={}'.format(\
         datestr, pid, etime-btime, \
-        qparams.max_coupling_energy, qparams.tau_delta, qparams.virtual_nodes, nqrc, layer_strength, dlist[0], dlist[-1], C))
+        qparams.max_energy, qparams.tau, qparams.virtual_nodes, nqrc, layer_strength, dlist[0], dlist[-1], C))
     send_end.send('{}'.format(C))
 
 if __name__  == '__main__':
@@ -57,7 +57,7 @@ if __name__  == '__main__':
     args = parser.parse_args()
     print(args)
 
-    hidden_unit_count, beta = args.units, args.beta
+    n_units, beta = args.units, args.beta
     train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
     nproc, init_rho = args.nproc, args.init_rho
     minD, maxD, interval, Ntrials = args.mind, args.maxd, args.interval, args.ntrials
@@ -94,11 +94,11 @@ if __name__  == '__main__':
     logger.info(log_filename)
 
     global_rs = []
-    for max_coupling_energy in couplings:
-        for tau_delta in taudeltas:
+    for max_energy in couplings:
+        for tau in taudeltas:
             for V in virtuals:
-                qparams = QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
-                    beta=beta, virtual_nodes=V, tau_delta=tau_delta, init_rho=init_rho)
+                qparams = QRCParams(n_units=n_units, max_energy=max_energy,\
+                    beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho)
                 for layer_strength in strengths:
                     for nqrc in layers:
                         local_sum = []
@@ -132,9 +132,9 @@ if __name__  == '__main__':
                             local_rsarr = [float(x.recv()) for x in pipels]
                             local_sum.append(np.sum(local_rsarr))
                         local_avg, local_std = np.mean(local_sum), np.std(local_sum)
-                        global_rs.append([nqrc, tau_delta, max_coupling_energy, local_avg, local_std])
+                        global_rs.append([nqrc, tau, max_energy, local_avg, local_std])
                         logger.debug('J={},tau={},V={},alpha={},layers={},capa_avg={},capa_std={}'.format(\
-                            max_coupling_energy, tau_delta, V, layer_strength, nqrc, local_avg, local_std))
+                            max_energy, tau, V, layer_strength, nqrc, local_avg, local_std))
     rsarr = np.array(global_rs)
     np.savetxt('{}_capacity.txt'.format(outbase), rsarr, delimiter=' ')
     
@@ -142,8 +142,8 @@ if __name__  == '__main__':
     with open('{}_setting.txt'.format(outbase), 'w') as sfile:
         sfile.write('train_len={}, val_len={}, buffer={}\n'.format(train_len, val_len, buffer))
         sfile.write('beta={}, Ntrials={}\n'.format(beta, Ntrials))
-        sfile.write('hidden_unit_count={}\n'.format(hidden_unit_count))
-        sfile.write('max_coupling_energy={}\n'.format(' '.join([str(v) for v in couplings])))
+        sfile.write('n_units={}\n'.format(n_units))
+        sfile.write('max_energy={}\n'.format(' '.join([str(v) for v in couplings])))
         sfile.write('taudeltas={}\n'.format(' '.join([str(v) for v in taudeltas])))
         sfile.write('layers={}\n'.format(' '.join([str(l) for l in layers])))
         sfile.write('V={}\n'.format(' '.join([str(v) for v in virtuals])))

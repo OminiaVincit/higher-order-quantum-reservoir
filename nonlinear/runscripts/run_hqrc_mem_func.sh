@@ -9,7 +9,9 @@ SAVE=../test_mf
 QR=5
 PROC=24
 SOLVER='ridge_pinv'
-TAUS=\'-1,0,3\'
+#SOLVER='linear_pinv'
+
+TAUS=\'-1,0,3\' # The parameters for tau is 2**x for x in TAUS
 MIND=0
 MAXD=20
 INT=1

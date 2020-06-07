@@ -1,3 +1,10 @@
+#!/usr/bin/env python
+"""
+Quoc Hoan Tran, Nakajima-Lab, The University of Tokyo
+    Calculate memory function for higher-order quantum reservoir
+    See run_hqrc_mem_func.sh for an example of the running script
+"""
+
 import sys
 import numpy as np
 import os
@@ -35,10 +42,10 @@ def memory_func(taskname, qparams, nqrc, deep, alpha,\
 if __name__  == '__main__':
     # Check for command line arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--units', type=int, default=5)
-    parser.add_argument('--coupling', type=float, default=1.0)
-    parser.add_argument('--rho', type=int, default=0)
-    parser.add_argument('--beta', type=float, default=1e-14)
+    parser.add_argument('--units', type=int, default=5, help='Number of the hidden units')
+    parser.add_argument('--coupling', type=float, default=1.0, help='Maximum coupling energy')
+    parser.add_argument('--rho', type=int, default=0, help='Flag for initializing the density matrix')
+    parser.add_argument('--beta', type=float, default=1e-14, help='regularization term')
     parser.add_argument('--solver', type=str, default=LINEAR_PINV, \
         help='regression solver by linear_pinv,ridge_pinv,auto,svd,cholesky,lsqr,sparse_cg,sag')
 
@@ -53,10 +60,11 @@ if __name__  == '__main__':
     parser.add_argument('--nproc', type=int, default=50)
     parser.add_argument('--ntrials', type=int, default=1)
     
-    parser.add_argument('--taudeltas', type=str, default='-4,-3,-2,-1,0,1,2,3,4,5,6,7')
-    parser.add_argument('--nqrc', type=int, default='1')
-    parser.add_argument('--strength', type=float, default=0.0)
-    parser.add_argument('--virtuals', type=int, default=1)
+    parser.add_argument('--taudeltas', type=str, default='-4,-3,-2,-1,0,1,2,3,4,5,6,7', \
+        help='Interval between the inputs')
+    parser.add_argument('--nqrc', type=int, default=1, help='Number of reservoirs')
+    parser.add_argument('--strength', type=float, default=0.0, help='The connection strength')
+    parser.add_argument('--virtuals', type=int, default=1, help='Number of virtual nodes')
 
     parser.add_argument('--deep', type=int, default=0)
     parser.add_argument('--taskname', type=str, default='qrc_stm') # Use _stm or _pc
