@@ -1,0 +1,10 @@
+train_len=3000, val_len=1000, buffer=1000
+n_units=5
+max_energy=1.0
+beta=1e-14
+taudeltas=0.5 1.0 8.0
+layers=5
+V=5
+deep=False
+minD=0, maxD=20, interval=1
+alpha=0.5, Ntrials=2

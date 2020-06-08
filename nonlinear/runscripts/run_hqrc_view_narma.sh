@@ -1,4 +1,5 @@
 #!/usr/bin/bash
+# Script to view predicted time series of NARMA tasks
 export OMP_NUM_THREADS=1
 
 BIN=../source/view_narma.py

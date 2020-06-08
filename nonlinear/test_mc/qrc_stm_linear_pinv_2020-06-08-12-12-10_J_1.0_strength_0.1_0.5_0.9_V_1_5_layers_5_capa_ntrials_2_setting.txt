@@ -1,0 +1,9 @@
+solver=linear_pinv, train_len=3000, val_len=1000, buffer=1000
+beta=1e-14, Ntrials=2
+n_units=5
+max_energy=1.0
+taudeltas=0.5 1.0 8.0
+layers=5
+V=1 5
+minD=0, maxD=20, interval=1
+alpha=0.1 0.5 0.9

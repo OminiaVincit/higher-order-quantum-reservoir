@@ -2,7 +2,7 @@
 """
 Quoc Hoan Tran, Nakajima-Lab, The University of Tokyo
     Calculate memory function for higher-order quantum reservoir
-    See run_hqrc_mem_func.sh for an example of the running script
+    See run_hqrc_mem_func.sh for an example to run the script
 """
 
 import sys

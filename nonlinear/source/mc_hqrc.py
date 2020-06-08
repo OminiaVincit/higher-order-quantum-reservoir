@@ -1,3 +1,10 @@
+#!/usr/bin/env python
+"""
+Quoc Hoan Tran, Nakajima-Lab, The University of Tokyo
+    Calculate memory capacity for higher-order quantum reservoir
+    See run_hqrc_mem_func.sh for an example to run the script
+"""
+
 import sys
 import numpy as np
 import os
@@ -12,7 +19,7 @@ import datetime
 import hqrc as hqrc
 from loginit import get_module_logger
 import utils
-from utils import QRCParams
+from utils import *
 
 def memory_compute(taskname, qparams, nqrc, alpha,\
         train_len, val_len, buffer, dlist, ranseed, pid, send_end):
@@ -61,7 +68,8 @@ if __name__  == '__main__':
 
     n_units, beta = args.units, args.beta
     train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
-    nproc, init_rho = args.nproc, args.rho
+    nproc, init_rho, solver = args.nproc, args.rho, args.solver
+
     minD, maxD, interval, Ntrials = args.mind, args.maxd, args.interval, args.ntrials
     dlist = list(range(minD, maxD + 1, interval))
     nproc = min(nproc, len(dlist))
@@ -84,8 +92,8 @@ if __name__  == '__main__':
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
-    outbase = os.path.join(savedir, '{}_{}_J_{}_strength_{}_V_{}_layers_{}_capa_ntrials_{}'.format(\
-        taskname, datestr, \
+    outbase = os.path.join(savedir, '{}_{}_{}_J_{}_strength_{}_V_{}_layers_{}_capa_ntrials_{}'.format(\
+        taskname, solver, datestr, \
         '_'.join([str(o) for o in couplings]), \
         '_'.join([str(o) for o in strengths]), \
         '_'.join([str(o) for o in virtuals]), \
@@ -100,7 +108,7 @@ if __name__  == '__main__':
         for tau in taudeltas:
             for V in virtuals:
                 qparams = QRCParams(n_units=n_units, max_energy=max_energy,\
-                    beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho)
+                    beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver)
                 for alpha in strengths:
                     for nqrc in layers:
                         local_sum = []
@@ -142,7 +150,8 @@ if __name__  == '__main__':
     
     # save experiments setting
     with open('{}_setting.txt'.format(outbase), 'w') as sfile:
-        sfile.write('train_len={}, val_len={}, buffer={}\n'.format(train_len, val_len, buffer))
+        sfile.write('solver={}, train_len={}, val_len={}, buffer={}\n'.format(\
+            solver, train_len, val_len, buffer))
         sfile.write('beta={}, Ntrials={}\n'.format(beta, Ntrials))
         sfile.write('n_units={}\n'.format(n_units))
         sfile.write('max_energy={}\n'.format(' '.join([str(v) for v in couplings])))

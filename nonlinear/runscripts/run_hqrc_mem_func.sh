@@ -1,4 +1,5 @@
 #!/usr/bin/bash
+# Script to calculate memory function
 export OMP_NUM_THREADS=1
 
 BIN=../source/mf_hqrc.py

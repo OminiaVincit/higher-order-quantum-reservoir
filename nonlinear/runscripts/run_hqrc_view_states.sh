@@ -1,4 +1,5 @@
 #!/usr/bin/bash
+# Script to view dynamics of the HQRC
 export OMP_NUM_THREADS=1
 
 BIN=../source/view_states.py
