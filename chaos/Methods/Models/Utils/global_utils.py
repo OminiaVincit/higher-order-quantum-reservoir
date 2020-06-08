@@ -3,7 +3,7 @@
 
 """
 	Created by: Vlachas Pantelis, CSE-lab, ETH Zurich
-	Adapted to Higher-order quantum reservori computing by Quoc Hoan Tran, Nakajima-Lab, The University of Tokyo
+	Adapted to Higher-order quantum reservori computing
 
 	Implemented in the framework created by Vlachas Pantelis, CSE-lab, ETH Zurich
 		https://github.com/pvlachas/RNN-RC-Chaos
@@ -341,17 +341,17 @@ def getHQRCParser(parser):
 	parser.add_argument("--RDIM", help="RDIM", type=int, required=True)
 
 	parser.add_argument("--nqrc", help="number of reservoirs", type=int, required=True)
-	parser.add_argument("--layer_strength", help="layer_strength", type=float, required=True)
-	parser.add_argument("--max_coupling_energy", help="max_coupling_energy", type=float, required=True)
+	parser.add_argument("--alpha", help="alpha", type=float, required=True)
+	parser.add_argument("--max_energy", help="max_energy", type=float, required=True)
 	parser.add_argument("--fix_coupling", help="fix_coupling", type=int, default=0)
 	parser.add_argument("--virtual_nodes", help="virtual_nodes", type=int, required=True)
-	parser.add_argument("--tau_delta", help="tau_delta", type=float, required=True)
+	parser.add_argument("--tau", help="tau", type=float, required=True)
 	parser.add_argument("--one_input", help="one_input", type=int, default=0)
 	parser.add_argument("--scale_input", help="scale_input", type=float, default=1.0)
 	parser.add_argument("--trans_input", help="trans_input", type=float, default=0.0)
 	parser.add_argument("--bias", help="bias", type=float, default=1.0)
 	parser.add_argument("--deep", help="use deep connection", type=int, default=0)
-	parser.add_argument("--hidden_unit_count", help="hidden unit count", type=int, required=True)
+	parser.add_argument("--n_units", help="hidden unit count", type=int, required=True)
 
 	parser.add_argument("--regularization", help="regularization", type=float, required=True)
 	parser.add_argument("--dynamics_length", help="dynamics_length", type=int, required=True)

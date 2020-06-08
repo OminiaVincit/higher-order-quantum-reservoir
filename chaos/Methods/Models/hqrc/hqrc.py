@@ -2,9 +2,8 @@
 # # -*- coding: utf-8 -*-
 
 """
-Created by:  Quoc Hoan Tran,
-    Nakajima-lab, The University of Tokyo
-    
+Created by:  Anonymous authors to submit NeurIPS 2020
+
     Implemented in the framework created by Vlachas Pantelis, CSE-lab, ETH Zurich
         https://github.com/pvlachas/RNN-RC-Chaos
         [1] P.R. Vlachas, J. Pathak, B.R. Hunt et al., 
@@ -21,7 +20,6 @@ from scipy.sparse import linalg as splinalg
 from scipy.linalg import pinv2 as scipypinv2
 # from scipy.linalg import lstsq as scipylstsq
 # from numpy.linalg import lstsq as numpylstsq
-from utils import *
 import os
 from plotting_utils import *
 from global_utils import *
@@ -36,17 +34,17 @@ from sklearn.linear_model import Ridge
 import psutil
 
 class QRCParams():
-    def __init__(self, hidden_unit_count, max_coupling_energy, beta, virtual_nodes, tau_delta):
-        self.hidden_unit_count = hidden_unit_count
-        self.max_coupling_energy = max_coupling_energy
+    def __init__(self, n_units, max_energy, beta, virtual_nodes, tau):
+        self.n_units = n_units
+        self.max_energy = max_energy
         self.beta = beta
         self.virtual_nodes = virtual_nodes
-        self.tau_delta = tau_delta
+        self.tau = tau
     
     def info(self):
         print('units={},Jdelta={},V={},taudelta={}'.format(\
-            self.hidden_unit_count, self.max_coupling_energy,
-            self.virtual_nodes, self.tau_delta))
+            self.n_units, self.max_energy,
+            self.virtual_nodes, self.tau))
 
 def generate_list_rho(dim, n):
     rho = np.zeros( [dim, dim], dtype=np.float64 )
@@ -86,18 +84,18 @@ class hqrc(object):
         
         # Parameters for high-order model
         self.nqrc = params["nqrc"]
-        self.layer_strength = params["layer_strength"]
-        self.max_coupling_energy = params["max_coupling_energy"]
+        self.alpha = params["alpha"]
+        self.max_energy = params["max_energy"]
         self.fix_coupling = params["fix_coupling"]
         self.virtual_nodes = params["virtual_nodes"]
-        self.tau_delta = params["tau_delta"]
+        self.tau = params["tau"]
         self.one_input = params["one_input"]
         self.scale_input = params["scale_input"]
         self.trans_input = params["trans_input"]
         self.bias = params["bias"]
         self.deep = params["deep"]
-        self.hidden_unit_count = params["hidden_unit_count"]
-        self.qubit_count = self.hidden_unit_count
+        self.n_units = params["n_units"]
+        self.qubit_count = self.n_units
         self.dim = 2**self.qubit_count
         # Finish
 
@@ -149,7 +147,7 @@ class hqrc(object):
         self.Xop = [1]*self.qubit_count
         self.P0op = [1]
         self.P1op = [1]
-        self.layer_strength = self.layer_strength
+        self.alpha = self.alpha
 
         for cursor_index in range(self.qubit_count):
             for qubit_index in range(self.qubit_count):
@@ -175,7 +173,7 @@ class hqrc(object):
 
         # initialize connection to layer i
         connections = []
-        N_local_states = self.hidden_unit_count * self.virtual_nodes
+        N_local_states = self.n_units * self.virtual_nodes
         nqrc = self.nqrc
         if nqrc > 1:
             for i in range(nqrc):
@@ -210,16 +208,16 @@ class hqrc(object):
             # include input qubit for computation
             for qubit_index in range(self.qubit_count):
                 if self.fix_coupling > 0:
-                    coef = 2 * self.max_coupling_energy
+                    coef = 2 * self.max_energy
                 else:
-                    coef = (np.random.rand()-0.5) * 2 * self.max_coupling_energy
+                    coef = (np.random.rand()-0.5) * 2 * self.max_energy
                 hamiltonian += coef * self.Zop[qubit_index]
             for qubit_index1 in range(self.qubit_count):
                 for qubit_index2 in range(qubit_index1+1, self.qubit_count):
-                    coef = (np.random.rand()-0.5) * 2 * self.max_coupling_energy
+                    coef = (np.random.rand()-0.5) * 2 * self.max_energy
                     hamiltonian += coef * self.Xop[qubit_index1] @ self.Xop[qubit_index2]
                     
-            ratio = float(self.tau_delta) / float(self.virtual_nodes)        
+            ratio = float(self.tau) / float(self.virtual_nodes)        
             Uop = sp.linalg.expm(1.j * hamiltonian * ratio)
             tmp_uops.append(Uop)
         
@@ -235,15 +233,15 @@ class hqrc(object):
         'N_used':'N_used', 
         'dynamics_length':'DL',
         'nqrc':'Nqr',
-        'layer_strength':'A',
+        'alpha':'A',
         #'trans':'sT',
         #'ratio':'sR',
         #'scale_input':'sI',
-        'max_coupling_energy':'J',
+        'max_energy':'J',
         'fix_coupling':'fJ',
         'virtual_nodes':'V',
-        #'tau_delta':'TAU',
-        #'hidden_unit_count':'UNIT',
+        #'tau':'TAU',
+        #'n_units':'UNIT',
         #'bias':'B',
         'noise_level':'NL',
         'iterative_prediction_length':'IPL',
@@ -279,7 +277,7 @@ class hqrc(object):
             #print('Size of prev states', len(prev_states))
             if nqrc > 1 and prev_states[0] is not None:
                 #value = softmax_linear_combine(value, previous_states, self.coeffs[i])
-                scaled_coeffs = self.coeffs[i] * self.layer_strength
+                scaled_coeffs = self.coeffs[i] * self.alpha
                 value = scale_linear_combine(value, prev_states, scaled_coeffs, self.bias)
             
             # Replace the density matrix
@@ -466,7 +464,7 @@ class hqrc(object):
         # TRAINING LENGTH
         tl = N - dynamics_length
 
-        print("TRAINING: Dynamics prerun...with layer strength={}".format(self.layer_strength))
+        print("TRAINING: Dynamics prerun...with layer strength={}".format(self.alpha))
         self.__feed_forward(rep_train_input_seq[:dynamics_length], predict=False, use_lastrho=False)
         print("\n")
 
@@ -503,7 +501,7 @@ class hqrc(object):
         return hs_aug
 
     def getReservoirSize(self): 
-        return self.hidden_unit_count * self.virtual_nodes * self.nqrc
+        return self.n_units * self.virtual_nodes * self.nqrc
     
     def predictSequence(self, input_sequence):
         dynamics_length = self.dynamics_length
@@ -556,10 +554,10 @@ class hqrc(object):
                 local_rhos = self.__step_forward(local_rhos, input_val)
             self.last_rhos = local_rhos.copy()
         else:
-            # Because restart_layer_strength is set to 1.0
+            # Because restart_alpha is set to 1.0
             # It means that, not need input signals
-            print('Restart layer strength from {} to 1.0'.format(self.layer_strength))
-            self.layer_strength = 1.0
+            print('Restart layer strength from {} to 1.0'.format(self.alpha))
+            self.alpha = 1.0
             prediction, _ = \
                 self.__feed_forward(rep_train_input_seq[dynamics_length:], predict=True, use_lastrho=True)
         print("\n")

@@ -21,11 +21,11 @@ mpiexec -n $NR python3 RUN.py hqrc_parallel \
 --trans 10.0 \
 --ratio 20.0 \
 --scale_input 1.0 \
---layer_strength 0.0 \
---max_coupling_energy 1.0 \
+--alpha 0.0 \
+--max_energy 1.0 \
 --virtual_nodes 1 \
---tau_delta 2.0 \
---hidden_unit_count 6 \
+--tau 2.0 \
+--n_units 6 \
 --regularization $RE \
 --solver pinv \
 --norm_every 0 \

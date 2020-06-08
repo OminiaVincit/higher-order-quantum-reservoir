@@ -22,11 +22,11 @@ python3 RUN.py hqrc \
 --scaler MinMaxZeroOne \
 --scale_input 1.0 \
 --nqrc $RDIM \
---layer_strength $ALPHA \
---max_coupling_energy 1.0 \
+--alpha $ALPHA \
+--max_energy 1.0 \
 --virtual_nodes 50 \
---tau_delta 2.0 \
---hidden_unit_count 6 \
+--tau 2.0 \
+--n_units 6 \
 --regularization $RE \
 --solver pinv \
 --augment $AU \

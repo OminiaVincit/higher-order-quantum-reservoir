@@ -3,9 +3,9 @@
 
 """
 	Created by: Vlachas Pantelis, CSE-lab, ETH Zurich
-	Adapted to Higher-order quantum reservori computing by Quoc Hoan Tran, Nakajima-Lab, The University of Tokyo
+	Adapted to Higher-order quantum reservori computing by Anonymous authors in submitting to NeurIPS2020
 
-    Implemented in the framework created by Vlachas Pantelis, CSE-lab, ETH Zurich
+	Implemented in the framework created by Vlachas Pantelis, CSE-lab, ETH Zurich
         https://github.com/pvlachas/RNN-RC-Chaos
         [1] P.R. Vlachas, J. Pathak, B.R. Hunt et al., 
         Backpropagation algorithms and Reservoir Computing in Recurrent Neural Networks 
