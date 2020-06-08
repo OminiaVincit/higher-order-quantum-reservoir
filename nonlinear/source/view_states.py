@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+"""
+Quoc Hoan Tran, Nakajima-Lab, The University of Tokyo
+    View bifurcation diagrams and dynamics for higher-order quantum reservoir
+    See run_view_states.sh for an example of the running script
+"""
 import sys
 import numpy as np
 import os
@@ -14,7 +20,6 @@ import hqrc as hqrc
 import utils
 from utils import QRCParams
 from loginit import get_module_logger
-from scipy.stats import gaussian_kde
 import pickle
 
 UNITS=5
@@ -22,6 +27,7 @@ J=1.0
 BETA=1e-14
 INIT_RHO=0
 V=1
+INTERVAL=0.05
 
 def dumpstates_job(savedir, basename, input_seq, nqrc, layer_strength, xs, idx, send_end):
     """
@@ -30,10 +36,10 @@ def dumpstates_job(savedir, basename, input_seq, nqrc, layer_strength, xs, idx, 
     print('Start pid={} with size {} (from {} to {})'.format(idx, len(xs), xs[0], xs[-1]))
     results = dict()
     for x in xs:
-        tau_delta = 2**x
-        qparams = QRCParams(hidden_unit_count=UNITS, max_coupling_energy=J,\
-            beta=BETA, virtual_nodes=V, tau_delta=tau_delta, init_rho=INIT_RHO)
-        model = hqrc.HighorderQuantumReservoirComputing(nqrc, layer_strength)
+        tau = 2**x
+        qparams = QRCParams(n_units=UNITS, max_energy=J,\
+            beta=BETA, virtual_nodes=V, tau=tau, init_rho=INIT_RHO)
+        model = hqrc.HQRC(nqrc, layer_strength)
         state_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = 0)
         results[x] = state_list
     
@@ -49,14 +55,14 @@ if __name__  == '__main__':
     # Check for command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--length', type=int, default=2000)
-    parser.add_argument('--bg', type=int, default=1000)
-    parser.add_argument('--ed', type=int, default=2000)
-    parser.add_argument('--const', type=int, default=0, help='constant input')
-    parser.add_argument('--nqrc', type=int, default=5)
-    parser.add_argument('--strength', type=float, default=0.5)
+    parser.add_argument('--bg', type=int, default=1000, help='start index to view dynamics')
+    parser.add_argument('--ed', type=int, default=2000, help='end index to view dynamics')
+    parser.add_argument('--const', type=int, default=0, help='flag to set constant input')
+    parser.add_argument('--nqrc', type=int, default=5, help='Number of reservoirs')
+    parser.add_argument('--strength', type=float, default=0.5, help='The connection strength')
     parser.add_argument('--nproc', type=int, default=50)
 
-    parser.add_argument('--interval', type=float, default=0.05, help='tau-interval')
+    parser.add_argument('--interval', type=float, default=INTERVAL, help='tau-interval')
     parser.add_argument('--basename', type=str, default='qrc_dyn')
     parser.add_argument('--savedir', type=str, default='res_states')
     args = parser.parse_args()
@@ -173,6 +179,6 @@ if __name__  == '__main__':
         ax2.set_xticklabels([])
         
     outbase = filename.replace('.binaryfile', '_bg_{}_ed_{}'.format(bg, ed))
-    for ftype in ['png','svg']:
+    for ftype in ['png']:
         plt.savefig('{}_v3.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
     plt.show()
