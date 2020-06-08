@@ -1,7 +1,15 @@
 #!/usr/bin/env python
 # # -*- coding: utf-8 -*-
 
-"""Created by: Vlachas Pantelis, CSE-lab, ETH Zurich
+"""
+    Created by: Vlachas Pantelis, CSE-lab, ETH Zurich
+
+    Implemented in the framework created by Vlachas Pantelis, CSE-lab, ETH Zurich
+        https://github.com/pvlachas/RNN-RC-Chaos
+        [1] P.R. Vlachas, J. Pathak, B.R. Hunt et al., 
+        Backpropagation algorithms and Reservoir Computing in Recurrent Neural Networks 
+        for the forecasting of complex spatiotemporal dynamics. Neural Networks (2020), 
+        doi: https://doi.org/10.1016/j.neunet.2020.02.016.
 """
 #!/usr/bin/env python
 import numpy as np

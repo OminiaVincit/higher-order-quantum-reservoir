@@ -1,8 +1,16 @@
 #!/usr/bin/env python
 # # -*- coding: utf-8 -*-
 
-"""Created by:  Jaideep Pathak, University of Maryland
-                Vlachas Pantelis, CSE-lab, ETH Zurich
+"""
+	Created by: Vlachas Pantelis, CSE-lab, ETH Zurich
+	Adapted to Higher-order quantum reservori computing by Quoc Hoan Tran, Nakajima-Lab, The University of Tokyo
+
+    Implemented in the framework created by Vlachas Pantelis, CSE-lab, ETH Zurich
+        https://github.com/pvlachas/RNN-RC-Chaos
+        [1] P.R. Vlachas, J. Pathak, B.R. Hunt et al., 
+        Backpropagation algorithms and Reservoir Computing in Recurrent Neural Networks 
+        for the forecasting of complex spatiotemporal dynamics. Neural Networks (2020), 
+        doi: https://doi.org/10.1016/j.neunet.2020.02.016.
 """
 #!/usr/bin/env python
 import numpy as np
@@ -82,6 +90,8 @@ class esn_parallel(object):
         self.num_test_ICS = params["num_test_ICS"]
 
         self.regularization = params["regularization"]
+        self.norm_every = params["norm_every"]
+		self.augment =  params["augment"]
         self.scaler_tt = params["scaler"]
         self.scaler = scaler(self.scaler_tt)
         self.noise_level = params["noise_level"]
@@ -125,7 +135,7 @@ class esn_parallel(object):
 
     def createModelName(self, params):
         keys = self.getKeysInModelName()
-        str_ = "GPU-" * self.GPU + "RNN-esn-PL"
+        str_ = "GPU-" * self.GPU + "ESN-PL"
         for key in keys:
             str_ += "-" + keys[key] + "_{:}".format(params[key])
         return str_
@@ -146,23 +156,16 @@ class esn_parallel(object):
         W = (W/np.max(eigenvalues))*radius
         return W
 
-    def augmentHidden(self, h):
-        h_aug = h.copy()
-        # h_aug = pow(h_aug, 2.0)
-        # h_aug = np.concatenate((h,h_aug), axis=0)
-        h_aug[::2]=pow(h_aug[::2],2.0)
-        return h_aug
+	def augmentHidden(self, h):
+		h_aug = h.copy()
+		# h_aug = pow(h_aug, 2.0)
+		# h_aug = np.concatenate((h,h_aug), axis=0)
+		if self.augment > 0:
+			h_aug[::2] = pow(h_aug[::2], 2.0)
+		return h_aug
+
     def getAugmentedStateSize(self):
         return self.reservoir_size
-
-    # def augmentHidden(self, h):
-    #     h_aug = h.copy()
-    #     h_aug = pow(h_aug, 2.0)
-    #     h_aug = np.concatenate((h,h_aug), axis=0)
-    #     return h_aug
-    # def getAugmentedStateSize(self):
-    #     return 2*self.reservoir_size
-
 
     def train(self):
         self.start_time = time.time()
@@ -196,7 +199,7 @@ class esn_parallel(object):
         nodes_per_input = int(np.ceil(self.approx_reservoir_size/input_dim))
         self.reservoir_size = int(input_dim*nodes_per_input)
 
-        self.sparsity = self.degree/self.reservoir_size;
+        self.sparsity = self.degree/self.reservoir_size
 
         if self.parallel_group_num==0: print("Computing sparse hidden to hidden weight matrix...")
         W_h = self.getSparseWeights(self.reservoir_size, self.reservoir_size, self.radius, self.sparsity, self.worker_id)
@@ -231,7 +234,6 @@ class esn_parallel(object):
         # plt.savefig(fig_path)
         # plt.close()
 
-        NORMEVERY = 10
         HTH = np.zeros((self.getAugmentedStateSize(), self.getAugmentedStateSize()))
         YTH = np.zeros((input_dim-2*self.parallel_group_interaction_length, self.getAugmentedStateSize()))
         H = []
@@ -249,7 +251,7 @@ class esn_parallel(object):
 
             H.append(h_aug[:,0])
             Y.append(target[:,0])
-            if (t % NORMEVERY == 0):
+            if (self.norm_every > 0) and ((t+1) % self.norm_every == 0):
                 H = np.array(H)
                 Y = np.array(Y)
                 # print(np.shape(H))

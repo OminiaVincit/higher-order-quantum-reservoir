@@ -1,10 +1,18 @@
 #!/usr/bin/env python
 # # -*- coding: utf-8 -*-
 
-"""Created by:  Jaideep Pathak, University of Maryland
-				Vlachas Pantelis, CSE-lab, ETH Zurich
 """
-#!/usr/bin/env python
+	Created by: Vlachas Pantelis, CSE-lab, ETH Zurich
+	Adapted to Higher-order quantum reservori computing by Quoc Hoan Tran, Nakajima-Lab, The University of Tokyo
+
+	Implemented in the framework created by Vlachas Pantelis, CSE-lab, ETH Zurich
+        https://github.com/pvlachas/RNN-RC-Chaos
+        [1] P.R. Vlachas, J. Pathak, B.R. Hunt et al., 
+        Backpropagation algorithms and Reservoir Computing in Recurrent Neural Networks 
+        for the forecasting of complex spatiotemporal dynamics. Neural Networks (2020), 
+        doi: https://doi.org/10.1016/j.neunet.2020.02.016.
+"""
+
 import numpy as np
 import pickle
 from scipy import sparse as sparse
@@ -12,7 +20,6 @@ from scipy.sparse import linalg as splinalg
 from scipy.linalg import pinv2 as scipypinv2
 # from scipy.linalg import lstsq as scipylstsq
 # from numpy.linalg import lstsq as numpylstsq
-from utils import *
 import os
 from plotting_utils import *
 from global_utils import *
@@ -517,14 +524,14 @@ class esn(object):
 			writeToTrainLogFile(logfile_train, self)
 
 		data = {
-		"memory":self.memory,
-		"n_trainable_parameters":self.n_trainable_parameters,
-		"n_model_parameters":self.n_model_parameters,
-		"total_training_time":self.total_training_time,
-		"W_out":self.W_out,
-		"W_in":self.W_in,
-		"W_h":self.W_h,
-		"scaler":self.scaler,
+			"memory":self.memory,
+			"n_trainable_parameters":self.n_trainable_parameters,
+			"n_model_parameters":self.n_model_parameters,
+			"total_training_time":self.total_training_time,
+			"W_out":self.W_out,
+			"W_in":self.W_in,
+			"W_h":self.W_h,
+			"scaler":self.scaler,
 		}
 		data_path = self.saving_path + self.model_dir + self.model_name + "/data.pickle"
 		with open(data_path, "wb") as file:
