@@ -1,3 +1,8 @@
+#!/usr/bin/env python
+"""
+Quoc Hoan Tran, Nakajima-Lab, The University of Tokyo
+    Utils for higher-order quantum reservoir computing framework
+"""
 import sys
 import numpy as np
 import math

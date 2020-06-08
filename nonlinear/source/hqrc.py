@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+"""
+Quoc Hoan Tran, Nakajima-Lab, The University of Tokyo
+    Higher-order reservoir class
+"""
+
 import sys
 import numpy as np
 import scipy as sp 
