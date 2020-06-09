@@ -20,7 +20,6 @@ from scipy.sparse import linalg as splinalg
 from scipy.linalg import pinv2 as scipypinv2
 # from scipy.linalg import lstsq as scipylstsq
 # from numpy.linalg import lstsq as numpylstsq
-from utils import *
 import os
 from plotting_utils import *
 from global_utils import *

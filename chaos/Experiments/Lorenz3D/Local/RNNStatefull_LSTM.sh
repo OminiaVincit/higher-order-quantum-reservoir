@@ -1,10 +1,10 @@
 #!/bin/bash
-
+#export OMP_NUM_THREADS=12
 cd ../../../Methods
 
 for RDIM in 1
 do
-for SS in 100 150
+for SS in 100
 do
 for SL in 16
 do
@@ -16,7 +16,7 @@ do
     --system_name Lorenz3D \
     --write_to_log 1 \
     --N 100000 \
-    --N_used 10000 \
+    --N_used 1000 \
     --RDIM $RDIM \
     --noise_level 1 \
     --rnn_cell_type lstm \
@@ -28,7 +28,7 @@ do
     --sequence_length $SL \
     --dropout_keep_prob $KP \
     --zoneout_keep_prob $KP \
-    --hidden_state_propagation_length 1000 \
+    --hidden_state_propagation_length 100 \
     --prediction_length 4 \
     --rnn_activation_str tanh \
     --rnn_num_layers 1 \
@@ -41,7 +41,7 @@ do
     --training_min_epochs 1 \
     --learning_rate 0.001 \
     --train_val_ratio 0.8 \
-    --iterative_prediction_length 1000 \
+    --iterative_prediction_length 500 \
     --num_test_ICS 2 \
     --reference_train_time 1 \
     --buffer_train_time 0.2 \

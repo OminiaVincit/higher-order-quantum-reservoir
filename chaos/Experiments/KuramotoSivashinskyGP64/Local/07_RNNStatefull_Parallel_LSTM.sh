@@ -1,4 +1,5 @@
 #!/bin/bash
+#export OMP_NUM_THREADS=12
 
 cd ../../../Methods
 for AR in 80 100 120 150 500 1000

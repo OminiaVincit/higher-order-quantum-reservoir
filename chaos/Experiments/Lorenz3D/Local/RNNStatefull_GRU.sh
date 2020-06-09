@@ -1,11 +1,11 @@
 #!/bin/bash
-
+#export OMP_NUM_THREADS=12
 
 cd ../../../Methods
 
 for RDIM in 1
 do
-for SS in 100 150
+for SS in 100
 do
 for SL in 16
 do

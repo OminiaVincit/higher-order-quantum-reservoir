@@ -3,7 +3,7 @@
 
 """
     Created by: Vlachas Pantelis, CSE-lab, ETH Zurich
-    Adapted by:  Anonymous authors
+    Adapted by:  Anonymous authors to submit NeurIPS 2020
 
     Implemented in the framework created by Vlachas Pantelis, CSE-lab, ETH Zurich
         https://github.com/pvlachas/RNN-RC-Chaos
