@@ -1,20 +1,69 @@
-> 📋A template README.md for code accompanying a Machine Learning paper
+# Higher-Order Quantum Reservoir Computing
 
-# My Paper Title
-
-This repository is the official implementation of [My Paper Title](https://arxiv.org/abs/2030.12345). 
+This repository is the official implementation of Higher-Order Quantum Reservoir Computing. 
 
 > 📋Optional: include a graphic explaining your approach/main result, bibtex entry, link to demos, blog posts and tutorials
 
 ## Requirements
+The code requires the following libraries:
+- python 3.6-3.7
+- tensorflow 1.11.0-1.15.0
+- numpy, matplotlib, sklearn
+- psutil (for memory tracking)
+- mpi4py (for running in parallel structures)
 
-To install requirements:
+The packages can be installed as follows. First, we recommend to create a virtual environment in Python3:
 
-```setup
-pip install -r requirements.txt
+```create virtual env
+# Create virtual environment
+pyenv install 3.7.7
+python3 -m venv ~/vqrc 
+source ~/vqrc/bin/activate
 ```
 
-> 📋Describe how to set up the environment, e.g. pip/conda/docker commands, download datasets, etc...
+Install the following packages for the basic functions of our implementations:
+- Calculate the memory capacities of the higher-order quantum reservoir (HQR)
+- Analyze the dynamics and bifurcation diagrams
+- Perform NARMA tasks
+
+```
+# For running scripts in the nonlinear folder
+pip3 install numpy matplotlib sklearn 
+```
+
+Install the following packages for chaos emulating tasks:
+
+```
+# For tracking memory
+pip3 install psutil
+
+# Install tensorflow to run LSTM, GRU scripts
+pip install tensorflow==1.15.0
+
+# For parallel structures in KuramotoSivashinskyGP64 task
+sudo apt install libopenmpi-dev
+pip3 install mpi4py
+```
+
+## Properties of higher-order quantum reservoir dynamics
+To calculate the memory function MF(d) in the paper, run this command (see the running script run_hqrc_mem_func.sh for the detailed explanations):
+```mfd
+cd nonlinear/runscrips
+sh run_hqrc_mem_func.sh
+```
+
+To calculate the memory capacity (MC) in the paper, run this command (see the running script run_hqrc_mem_capa.sh for the detailed explanations):
+```mc
+cd nonlinear/runscrips
+sh run_hqrc_mem_capa.sh
+```
+
+To view the dynamics (the bifurcation diagrams and the time series), run this command (see the running script run_hqrc_view_states.sh for the detailed explanations):
+
+```mc
+cd nonlinear/runscrips
+sh run_hqrc_view_states.sh
+```
 
 ## Training
 
