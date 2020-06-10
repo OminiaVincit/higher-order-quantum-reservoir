@@ -1,7 +1,16 @@
 #!/usr/bin/env python
 # # -*- coding: utf-8 -*-
 
-"""Created by: Vlachas Pantelis, CSE-lab, ETH Zurich
+"""
+	Created by: Vlachas Pantelis, CSE-lab, ETH Zurich
+	Adapted to Higher-order quantum reservori computing by Anonymous authors in submitting to NeurIPS2020
+
+	Implemented in the framework created by Vlachas Pantelis, CSE-lab, ETH Zurich
+        https://github.com/pvlachas/RNN-RC-Chaos
+        [1] P.R. Vlachas, J. Pathak, B.R. Hunt et al., 
+        Backpropagation algorithms and Reservoir Computing in Recurrent Neural Networks 
+        for the forecasting of complex spatiotemporal dynamics. Neural Networks (2020), 
+        doi: https://doi.org/10.1016/j.neunet.2020.02.016.
 """
 #!/usr/bin/env python
 import tensorflow as tf
@@ -98,7 +107,7 @@ class rnn_statefull_parallel(object):
 
     def getKeysInModelName(self):
         keys = {
-        'num_parallel_groups':'NUM_PARALL_GROUPS', 
+        'n_groups':'NUM_PARALL_GROUPS', 
         'RDIM':'RDIM', 
         'N_used':'N_used', 
         'rnn_num_layers':'NUM-LAY', 
@@ -111,12 +120,12 @@ class rnn_statefull_parallel(object):
         'dropout_keep_prob':'DKP',
         'zoneout_keep_prob':'ZKP',
         'hidden_state_propagation_length':'HSPL',
-        'iterative_prediction_length':'IPL',
+        'it_pred_length':'IPL',
         'noise_level':'NL',
-        'num_test_ICS':'NICS',
-        'num_parallel_groups':'NG', 
+        'n_tests':'NICS',
+        'n_groups':'NG', 
         'parallel_group_size':'GS', 
-        'parallel_group_interaction_length':'GIL', 
+        'group_interaction_length':'GIL', 
         # 'worker_id':'WID', 
         }
         return keys
@@ -130,32 +139,32 @@ class rnn_statefull_parallel(object):
 
     def __init__(self, params):
 
-        if params["RDIM"] % params["num_parallel_groups"]: raise ValueError("ERROR: The num_parallel_groups should divide RDIM.")
-        if size != params["num_parallel_groups"]: raise ValueError("ERROR: The num_parallel_groups is not equal to the number or ranks. Aborting...")
+        if params["RDIM"] % params["n_groups"]: raise ValueError("ERROR: The n_groups should divide RDIM.")
+        if size != params["n_groups"]: raise ValueError("ERROR: The n_groups is not equal to the number or ranks. Aborting...")
         
         self.display_output = params["display_output"]
         self.GPU = True if (tf.test.is_gpu_available()==True) else False
 
         # PARALLEL MODEL
-        self.num_parallel_groups = params["num_parallel_groups"]
+        self.n_groups = params["n_groups"]
         self.RDIM = params["RDIM"]
         self.N_used = params["N_used"]
         self.dropout_keep_prob = params["dropout_keep_prob"]
         self.zoneout_keep_prob = params["zoneout_keep_prob"]
         
-        self.parallel_group_interaction_length = params["parallel_group_interaction_length"]
-        params["parallel_group_size"] = int(params["RDIM"]/params["num_parallel_groups"])
+        self.group_interaction_length = params["group_interaction_length"]
+        params["parallel_group_size"] = int(params["RDIM"]/params["n_groups"])
         self.parallel_group_size = params["parallel_group_size"]
 
         self.worker_id = rank
         self.parallel_group_num = rank
 
-        self.input_dim = params["parallel_group_size"] + params["parallel_group_interaction_length"] * 2
+        self.input_dim = params["parallel_group_size"] + params["group_interaction_length"] * 2
         self.output_dim = params["parallel_group_size"]
 
 
-        self.num_test_ICS = params["num_test_ICS"]
-        self.iterative_prediction_length = params["iterative_prediction_length"]
+        self.n_tests = params["n_tests"]
+        self.it_pred_length = params["it_pred_length"]
         self.hidden_state_propagation_length = params["hidden_state_propagation_length"]
 
         self.rnn_activation_str = params['rnn_activation_str']
@@ -174,7 +183,7 @@ class rnn_statefull_parallel(object):
         self.scaler = scaler(self.scaler_tt)
         self.noise_level = params["noise_level"]
 
-        self.regularization =  params['regularization']
+        self.reg =  params['reg']
         self.retrain =  params['retrain']
         self.subsample =  params['subsample']
         self.train_val_ratio = params['train_val_ratio']
@@ -297,15 +306,15 @@ class rnn_statefull_parallel(object):
             os.makedirs(self.saving_path + self.results_dir + self.model_name, exist_ok=True)
             os.makedirs(self.saving_path + self.logfile_dir + self.model_name, exist_ok=True)
 
-    def regularizationLoss(self):
-        if not isZeroOrNone(self.regularization):
-            print("#### List of variables where regularization is applied: ####")
+    def regLoss(self):
+        if not isZeroOrNone(self.reg):
+            print("#### List of variables where reg is applied: ####")
             vars_ = self.trainable_variables
             for var in vars_:
                 if "bias" not in var.name and "_b_" not in var.name:
                     print(var.name)
                     print("###########################################")
-            lossL2 = tf.add_n([ tf.nn.l2_loss(v) for v in vars_ if "bias" not in v.name and "_b_" not in v.name]) * self.regularization
+            lossL2 = tf.add_n([ tf.nn.l2_loss(v) for v in vars_ if "bias" not in v.name and "_b_" not in v.name]) * self.reg
             
             return lossL2
         else:
@@ -313,7 +322,7 @@ class rnn_statefull_parallel(object):
 
     def defineLoss(self):
         with tf.name_scope('Losses'):
-            loss = self.rmse_loss + self.regularizationLoss()
+            loss = self.rmse_loss + self.regLoss()
         return loss
 
     def clip_grad_norms(self, gradients_to_variables, max_norm=5):
@@ -354,7 +363,7 @@ class rnn_statefull_parallel(object):
         target_batch = []
         for predict_on in batch_idx:
             input = sequence[predict_on-self.sequence_length:predict_on+self.prediction_length-1]
-            target = sequence[predict_on:predict_on+self.prediction_length, getFirstActiveIndex(self.parallel_group_interaction_length):getLastActiveIndex(self.parallel_group_interaction_length)]
+            target = sequence[predict_on:predict_on+self.prediction_length, getFirstActiveIndex(self.group_interaction_length):getLastActiveIndex(self.group_interaction_length)]
             target = np.reshape(target, (self.prediction_length, -1))
             input_batch.append(input)
             target_batch.append(target)
@@ -639,7 +648,7 @@ class rnn_statefull_parallel(object):
             if rank==0: self.saveResults()
 
     def testingOnTrainingSet(self):
-        num_test_ICS = self.num_test_ICS
+        n_tests = self.n_tests
         with open(self.worker_test_data_path, "rb") as file:
             data = pickle.load(file)
             testing_ic_indexes = data["testing_ic_indexes"]
@@ -658,7 +667,7 @@ class rnn_statefull_parallel(object):
         return 0
 
     def testingOnTestingSet(self):
-        num_test_ICS = self.num_test_ICS
+        n_tests = self.n_tests
         with open(self.worker_test_data_path, "rb") as file:
             data = pickle.load(file)
             testing_ic_indexes = data["testing_ic_indexes"]
@@ -673,18 +682,18 @@ class rnn_statefull_parallel(object):
         return 0
 
     def predictIndexes(self, input_sequence, ic_indexes, dt, set_name):
-        num_test_ICS = self.num_test_ICS
+        n_tests = self.n_tests
         input_sequence = self.scaler.scaleData(input_sequence, reuse=1)
         local_predictions = []
         local_truths = []
-        for ic_num in range(num_test_ICS):
+        for ic_num in range(n_tests):
             if self.parallel_group_num == 0:
-                print("IC {:}/{:}, {:2.3f}%".format(ic_num, num_test_ICS, ic_num/num_test_ICS*100))
+                print("IC {:}/{:}, {:2.3f}%".format(ic_num, n_tests, ic_num/n_tests*100))
             ic_idx = ic_indexes[ic_num]
-            input_sequence_ic = input_sequence[ic_idx-self.sequence_length-self.n_warmup:ic_idx+self.iterative_prediction_length]
+            input_sequence_ic = input_sequence[ic_idx-self.sequence_length-self.n_warmup:ic_idx+self.it_pred_length]
             prediction, target, _, _ = self.predictSequence(input_sequence_ic)
-            prediction = self.scaler.descaleDataParallel(prediction, self.parallel_group_interaction_length)
-            target = self.scaler.descaleDataParallel(target, self.parallel_group_interaction_length)
+            prediction = self.scaler.descaleDataParallel(prediction, self.group_interaction_length)
+            target = self.scaler.descaleDataParallel(target, self.group_interaction_length)
             local_predictions.append(prediction)
             local_truths.append(target)
 
@@ -692,17 +701,17 @@ class rnn_statefull_parallel(object):
         local_truths = np.array(local_truths)
         comm.Barrier()
 
-        predictions_all_proxy = np.zeros((self.num_test_ICS, self.iterative_prediction_length, self.RDIM))
-        truths_all_proxy = np.zeros((self.num_test_ICS, self.iterative_prediction_length, self.RDIM))
+        predictions_all_proxy = np.zeros((self.n_tests, self.it_pred_length, self.RDIM))
+        truths_all_proxy = np.zeros((self.n_tests, self.it_pred_length, self.RDIM))
         scaler_std_proxy = np.zeros((self.RDIM))
 
         # SETTING THE LOCAL VALUES
         predictions_all_proxy[:,:,self.parallel_group_num*self.parallel_group_size:(self.parallel_group_num+1)*self.parallel_group_size] = local_predictions
         truths_all_proxy[:,:,self.parallel_group_num*self.parallel_group_size:(self.parallel_group_num+1)*self.parallel_group_size] = local_truths
-        scaler_std_proxy[self.parallel_group_num*self.parallel_group_size:(self.parallel_group_num+1)*self.parallel_group_size] = self.scaler.data_std[getFirstActiveIndex(self.parallel_group_interaction_length):getLastActiveIndex(self.parallel_group_interaction_length)]
+        scaler_std_proxy[self.parallel_group_num*self.parallel_group_size:(self.parallel_group_num+1)*self.parallel_group_size] = self.scaler.data_std[getFirstActiveIndex(self.group_interaction_length):getLastActiveIndex(self.group_interaction_length)]
 
-        predictions_all = np.zeros((self.num_test_ICS, self.iterative_prediction_length, self.RDIM)) if(self.parallel_group_num == 0) else None
-        truths_all = np.zeros((self.num_test_ICS, self.iterative_prediction_length, self.RDIM)) if(self.parallel_group_num == 0) else None
+        predictions_all = np.zeros((self.n_tests, self.it_pred_length, self.RDIM)) if(self.parallel_group_num == 0) else None
+        truths_all = np.zeros((self.n_tests, self.it_pred_length, self.RDIM)) if(self.parallel_group_num == 0) else None
         scaler_std = np.zeros((self.RDIM)) if(self.parallel_group_num == 0) else None
 
         comm.Reduce([predictions_all_proxy, MPI.DOUBLE], [predictions_all, MPI.DOUBLE], MPI.SUM, root=0)
@@ -718,7 +727,7 @@ class rnn_statefull_parallel(object):
             rmnse_all = []
             num_accurate_pred_005_all = []
             num_accurate_pred_050_all = []
-            for ic_num in range(num_test_ICS):
+            for ic_num in range(n_tests):
                 prediction = predictions_all[ic_num]
                 target = truths_all[ic_num]
                 rmse, rmnse, num_accurate_pred_005, num_accurate_pred_050, abserror = computeErrors(target, prediction, scaler_std)
@@ -761,7 +770,7 @@ class rnn_statefull_parallel(object):
 
         N = np.shape(input_sequence)[0]
         # PREDICTION LENGTH
-        if N - self.sequence_length - self.n_warmup != self.iterative_prediction_length: raise ValueError("Error! N - self.sequence_length - self.n_warmup != iterative_prediction_length")
+        if N - self.sequence_length - self.n_warmup != self.it_pred_length: raise ValueError("Error! N - self.sequence_length - self.n_warmup != it_pred_length")
 
         # PREPARING THE HIDDEN STATES
         zero_ihs = []
@@ -774,11 +783,11 @@ class rnn_statefull_parallel(object):
                 zero_ihs.append(np.zeros((1, self.rnn_size_layers)))
 
         warmup_data_input = np.reshape(input_sequence[:self.sequence_length + self.n_warmup-1], (1, -1, self.input_dim))
-        warmup_data_target = np.reshape(input_sequence[1:self.sequence_length + self.n_warmup, getFirstActiveIndex(self.parallel_group_interaction_length):getLastActiveIndex(self.parallel_group_interaction_length)], (1, -1, self.output_dim))
+        warmup_data_target = np.reshape(input_sequence[1:self.sequence_length + self.n_warmup, getFirstActiveIndex(self.group_interaction_length):getLastActiveIndex(self.group_interaction_length)], (1, -1, self.output_dim))
         # print(np.shape(warmup_data_input))
         # print(np.shape(warmup_data_target))
 
-        target = input_sequence[self.sequence_length+self.n_warmup:, getFirstActiveIndex(self.parallel_group_interaction_length):getLastActiveIndex(self.parallel_group_interaction_length)]
+        target = input_sequence[self.sequence_length+self.n_warmup:, getFirstActiveIndex(self.group_interaction_length):getLastActiveIndex(self.group_interaction_length)]
         input_t = np.reshape(input_sequence[self.sequence_length+self.n_warmup-1], (1, -1, self.input_dim))
 
         # print(np.shape(target))
@@ -796,8 +805,8 @@ class rnn_statefull_parallel(object):
 
         # print(ark)
         prediction = []
-        for t in range(self.iterative_prediction_length):
-            if self.display_output and self.parallel_group_num == 0: print("PREDICTION: T {:}/{:}, {:2.3f}%".format(t, self.iterative_prediction_length, t/(self.iterative_prediction_length*100), end="\r"))
+        for t in range(self.it_pred_length):
+            if self.display_output and self.parallel_group_num == 0: print("PREDICTION: T {:}/{:}, {:2.3f}%".format(t, self.it_pred_length, t/(self.it_pred_length*100), end="\r"))
             hidden_state_dict = {i: d for i, d in zip(self.initial_hidden_states, last_states)}
             feed_dict = dict({self.input:input_t, self._dropout_keep_prob:1.0, self._zoneout_keep_prob:1.0, self._is_training:False, })
             feed_dict.update(hidden_state_dict)
@@ -815,7 +824,7 @@ class rnn_statefull_parallel(object):
             state_list = Circ(list(global_state.copy()))
             group_start = self.parallel_group_num * self.parallel_group_size
             group_end = group_start + self.parallel_group_size
-            pgil = self.parallel_group_interaction_length
+            pgil = self.group_interaction_length
             input_t = []
             for i in range(group_start-pgil, group_end+pgil):
                 input_t.append(state_list[i].copy())
@@ -838,7 +847,7 @@ class rnn_statefull_parallel(object):
             exec("data['{:s}_TEST'] = self.{:s}_TEST".format(var_name, var_name))
             exec("data['{:s}_TRAIN'] = self.{:s}_TRAIN".format(var_name, var_name))
         data["model_name"] = self.model_name
-        data["num_test_ICS"] = self.num_test_ICS
+        data["n_tests"] = self.n_tests
         data_path = self.saving_path + self.results_dir + self.model_name + "/results.pickle"
         with open(data_path, "wb") as file:
             # Pickle the "data" dictionary using the highest protocol available.

@@ -3,14 +3,14 @@
 
 """
 	Created by: Vlachas Pantelis, CSE-lab, ETH Zurich
-	Adapted to Higher-order quantum reservori computing by Quoc Hoan Tran, Nakajima-Lab, The University of Tokyo
+	Adapted to Higher-order quantum reservori computing by Anonymous authors in submitting to NeurIPS2020
 
 	Implemented in the framework created by Vlachas Pantelis, CSE-lab, ETH Zurich
-		https://github.com/pvlachas/RNN-RC-Chaos
-		[1] P.R. Vlachas, J. Pathak, B.R. Hunt et al., 
-		Backpropagation algorithms and Reservoir Computing in Recurrent Neural Networks 
-		for the forecasting of complex spatiotemporal dynamics. Neural Networks (2020), 
-		doi: https://doi.org/10.1016/j.neunet.2020.02.016.
+        https://github.com/pvlachas/RNN-RC-Chaos
+        [1] P.R. Vlachas, J. Pathak, B.R. Hunt et al., 
+        Backpropagation algorithms and Reservoir Computing in Recurrent Neural Networks 
+        for the forecasting of complex spatiotemporal dynamics. Neural Networks (2020), 
+        doi: https://doi.org/10.1016/j.neunet.2020.02.016.
 """
 #!/usr/bin/env python
 import numpy as np
@@ -49,7 +49,7 @@ def writeToTrainLogFile(logfile_train, model):
 def writeToTestLogFile(logfile_test, model):
 	with io.open(logfile_test, 'a+') as f:
 		f.write("model_name:" + str(model.model_name)
-			+ ":num_test_ICS:" + "{:.2f}".format(model.num_test_ICS)
+			+ ":n_tests:" + "{:.2f}".format(model.n_tests)
 			+ ":num_accurate_pred_005_avg_TEST:" + "{:.2f}".format(model.num_accurate_pred_005_avg_TEST)
 			+ ":num_accurate_pred_050_avg_TEST:" + "{:.2f}".format(model.num_accurate_pred_050_avg_TEST) \
 			+ ":num_accurate_pred_005_avg_TRAIN:" + "{:.2f}".format(model.num_accurate_pred_005_avg_TRAIN)
@@ -267,10 +267,10 @@ def stackSequenceData(sequence_data, sequence_length, prediction_length, subsamp
 	return stacked_input_data, stacked_target_data
 
 
-def stackParallelSequenceData(sequence_data, sequence_length, prediction_length, subsample_seq, parallel_group_interaction_length):
+def stackParallelSequenceData(sequence_data, sequence_length, prediction_length, subsample_seq, group_interaction_length):
 	stacked_input_data = []
 	stacked_target_data = []
-	pgil = parallel_group_interaction_length
+	pgil = group_interaction_length
 	if(subsample_seq!=1): print("SEQUENTIALL SUBSAMPLING, ONLY USE IT IN STATE-LESS RNNs WITH LARGE DATA-SETS")
 	n = getFirstDataDimension(sequence_data)
 	for i in range(0, n - sequence_length - prediction_length, subsample_seq):
@@ -281,15 +281,15 @@ def stackParallelSequenceData(sequence_data, sequence_length, prediction_length,
 	return stacked_input_data, stacked_target_data
 
 
-def getFirstActiveIndex(parallel_group_interaction_length):
-	if parallel_group_interaction_length > 0:
-		return parallel_group_interaction_length
+def getFirstActiveIndex(group_interaction_length):
+	if group_interaction_length > 0:
+		return group_interaction_length
 	else:
 		return 0
 
-def getLastActiveIndex(parallel_group_interaction_length):
-	if parallel_group_interaction_length > 0:
-		return -parallel_group_interaction_length
+def getLastActiveIndex(group_interaction_length):
+	if group_interaction_length > 0:
+		return -group_interaction_length
 	else:
 		return None
 
@@ -341,23 +341,23 @@ def getHQRCParser(parser):
 	parser.add_argument("--RDIM", help="RDIM", type=int, required=True)
 
 	parser.add_argument("--nqrc", help="number of reservoirs", type=int, required=True)
-	parser.add_argument("--layer_strength", help="layer_strength", type=float, required=True)
-	parser.add_argument("--max_coupling_energy", help="max_coupling_energy", type=float, required=True)
+	parser.add_argument("--alpha", help="alpha", type=float, required=True)
+	parser.add_argument("--max_energy", help="max_energy", type=float, required=True)
 	parser.add_argument("--fix_coupling", help="fix_coupling", type=int, default=0)
 	parser.add_argument("--virtual_nodes", help="virtual_nodes", type=int, required=True)
-	parser.add_argument("--tau_delta", help="tau_delta", type=float, required=True)
+	parser.add_argument("--tau", help="tau", type=float, required=True)
 	parser.add_argument("--one_input", help="one_input", type=int, default=0)
 	parser.add_argument("--scale_input", help="scale_input", type=float, default=1.0)
 	parser.add_argument("--trans_input", help="trans_input", type=float, default=0.0)
 	parser.add_argument("--bias", help="bias", type=float, default=1.0)
 	parser.add_argument("--deep", help="use deep connection", type=int, default=0)
-	parser.add_argument("--hidden_unit_count", help="hidden unit count", type=int, required=True)
+	parser.add_argument("--n_units", help="hidden unit count", type=int, required=True)
 
-	parser.add_argument("--regularization", help="regularization", type=float, required=True)
+	parser.add_argument("--reg", help="reg", type=float, required=True)
 	parser.add_argument("--dynamics_length", help="dynamics_length", type=int, required=True)
-	parser.add_argument("--iterative_prediction_length", help="iterative_prediction_length", type=int, required=True)
+	parser.add_argument("--it_pred_length", help="it_pred_length", type=int, required=True)
 	parser.add_argument("--iterative_update_length", help="iterative_update_length", type=int, default=0)
-	parser.add_argument("--num_test_ICS", help="num_test_ICS", type=int, required=True)
+	parser.add_argument("--n_tests", help="n_tests", type=int, required=True)
 	parser.add_argument("--scaler", help="scaler", type=str, required=True)
 	parser.add_argument("--trans", help="scaler translation", type=float, default=0.0)
 	parser.add_argument("--ratio", help="scaler ratio", type=float, default=1.0)
@@ -382,14 +382,14 @@ def getESNParser(parser):
 	parser.add_argument("--N", help="N", type=int, required=True)
 	parser.add_argument("--N_used", help="N_used", type=int, required=True)
 	parser.add_argument("--RDIM", help="RDIM", type=int, required=True)
-	parser.add_argument("--approx_reservoir_size", help="approx_reservoir_size", type=int, required=True)
+	parser.add_argument("--n_nodes", help="n_nodes", type=int, required=True)
 	parser.add_argument("--degree", help="degree", type=float, required=True)
 	parser.add_argument("--radius", help="radius", type=float, required=True)
 	parser.add_argument("--sigma_input", help="sigma_input", type=float, required=True)
-	parser.add_argument("--regularization", help="regularization", type=float, required=True)
+	parser.add_argument("--reg", help="reg", type=float, required=True)
 	parser.add_argument("--dynamics_length", help="dynamics_length", type=int, required=True)
-	parser.add_argument("--iterative_prediction_length", help="iterative_prediction_length", type=int, required=True)
-	parser.add_argument("--num_test_ICS", help="num_test_ICS", type=int, required=True)
+	parser.add_argument("--it_pred_length", help="it_pred_length", type=int, required=True)
+	parser.add_argument("--n_tests", help="n_tests", type=int, required=True)
 	parser.add_argument("--scaler", help="scaler", type=str, required=True)
 	parser.add_argument("--noise_level", help="noise level per mille in the training data", type=int, default=0, required=True)
 	parser.add_argument("--display_output", help="control the verbosity level of output , default True", type=int, required=False, default=1)
@@ -427,13 +427,13 @@ def getMLPParser(parser):
 	parser.add_argument("--training_min_epochs", help="training_min_epochs", type=int, required=True)
 	parser.add_argument("--max_epochs", help="max_epochs", type=int, required=True)
 	parser.add_argument("--num_rounds", help="num_rounds", type=int, required=True)
-	parser.add_argument("--regularization", help="regularization", type=float, required=True)
+	parser.add_argument("--reg", help="reg", type=float, required=True)
 	parser.add_argument("--keep_prob", help="keep_prob", type=float, required=True)
 	parser.add_argument("--train_val_ratio", help="train_val_ratio", type=float, required=True)
 	parser.add_argument("--retrain", help="retrain", type=int, required=True)
 	parser.add_argument("--subsample", help="subsample", type=int, required=True)
-	parser.add_argument("--num_test_ICS", help="num_test_ICS", type=int, required=True)
-	parser.add_argument("--iterative_prediction_length", help="iterative_prediction_length", type=int, required=True)
+	parser.add_argument("--n_tests", help="n_tests", type=int, required=True)
+	parser.add_argument("--it_pred_length", help="it_pred_length", type=int, required=True)
 	parser.add_argument("--display_output", help="control the verbosity level of output , default True", type=int, required=False, default=1)
 	return parser
 
@@ -465,11 +465,11 @@ def getRNNStatefullParser(parser):
 	parser.add_argument("--training_min_epochs", help="training_min_epochs", type=int, required=True)
 	parser.add_argument("--max_epochs", help="max_epochs", type=int, required=True)
 	parser.add_argument("--num_rounds", help="num_rounds", type=int, required=True)
-	parser.add_argument("--regularization", help="regularization", type=float, required=True)
+	parser.add_argument("--reg", help="reg", type=float, required=True)
 	parser.add_argument("--retrain", help="retrain", type=int, required=True)
 	parser.add_argument("--subsample", help="subsample", type=int, required=True)
-	parser.add_argument("--num_test_ICS", help="num_test_ICS", type=int, required=True)
-	parser.add_argument("--iterative_prediction_length", help="iterative_prediction_length", type=int, required=True)
+	parser.add_argument("--n_tests", help="n_tests", type=int, required=True)
+	parser.add_argument("--it_pred_length", help="it_pred_length", type=int, required=True)
 	parser.add_argument("--rnn_cell_type", help="type of the rnn cell", type=str, required=True)
 	parser.add_argument("--unitary_capacity", help="unitary_capacity", type=int, required=False)
 	parser.add_argument("--unitary_cplex", help="unitary_cplex", type=int, required=False)
@@ -483,26 +483,26 @@ def getRNNStatefullParser(parser):
 
 def getMLPParallelParser(parser):
 	parser = getMLPParser(parser)
-	parser.add_argument("--num_parallel_groups", help="groups in the output for parallelization in the spatiotemporal domain. must be divisor of the input dimension", type=int, required=True)
-	parser.add_argument("--parallel_group_interaction_length", help="The interaction length of each group. 0-rdim/2", type=int, required=True)
+	parser.add_argument("--n_groups", help="groups in the output for parallelization in the spatiotemporal domain. must be divisor of the input dimension", type=int, required=True)
+	parser.add_argument("--group_interaction_length", help="The interaction length of each group. 0-rdim/2", type=int, required=True)
 	return parser
 
 def getESNParallelParser(parser):
 	parser = getESNParser(parser)
-	parser.add_argument("--num_parallel_groups", help="groups in the output for parallelization in the spatiotemporal domain. must be divisor of the input dimension", type=int, required=True)
-	parser.add_argument("--parallel_group_interaction_length", help="The interaction length of each group. 0-rdim/2", type=int, required=True)
+	parser.add_argument("--n_groups", help="groups in the output for parallelization in the spatiotemporal domain. must be divisor of the input dimension", type=int, required=True)
+	parser.add_argument("--group_interaction_length", help="The interaction length of each group. 0-rdim/2", type=int, required=True)
 	return parser
 
 def getHQRCParallelParser(parser):
 	parser = getHQRCParser(parser)
-	parser.add_argument("--num_parallel_groups", help="groups in the output for parallelization in the spatiotemporal domain. must be divisor of the input dimension", type=int, required=True)
-	parser.add_argument("--parallel_group_interaction_length", help="The interaction length of each group. 0-rdim/2", type=int, required=True)
+	parser.add_argument("--n_groups", help="groups in the output for parallelization in the spatiotemporal domain. must be divisor of the input dimension", type=int, required=True)
+	parser.add_argument("--group_interaction_length", help="The interaction length of each group. 0-rdim/2", type=int, required=True)
 	return parser
 
 def getRNNStatefullParallelParser(parser):
 	parser = getRNNStatefullParser(parser)
-	parser.add_argument("--num_parallel_groups", help="groups in the output for parallelization in the spatiotemporal domain. must be divisor of the input dimension", type=int, required=True)
-	parser.add_argument("--parallel_group_interaction_length", help="The interaction length of each group. 0-rdim/2", type=int, required=True)
+	parser.add_argument("--n_groups", help="groups in the output for parallelization in the spatiotemporal domain. must be divisor of the input dimension", type=int, required=True)
+	parser.add_argument("--group_interaction_length", help="The interaction length of each group. 0-rdim/2", type=int, required=True)
 	return parser
 
 
@@ -512,7 +512,7 @@ def createParallelTrainingData(model):
 	group_num = model.parallel_group_num
 	group_start = group_num * model.parallel_group_size
 	group_end = group_start + model.parallel_group_size
-	pgil = model.parallel_group_interaction_length
+	pgil = model.group_interaction_length
 	training_path_group = reformatParallelGroupDataPath(model, model.main_train_data_path, group_num, pgil)
 	testing_path_group = reformatParallelGroupDataPath(model, model.main_test_data_path, group_num, pgil)
 	if(not os.path.isfile(training_path_group)):
@@ -562,7 +562,7 @@ def createParallelGroupTrainingSequence(gn, gs, ge, ll, sequence):
 def reformatParallelGroupDataPath(model, path, gn, ll):
 	# Last 7 string objects are .pickle
 	last = 7
-	path_ = path[:-last] + "_G{:d}-from-{:d}_GS{:d}_GIL{:d}".format(gn, model.num_parallel_groups, model.parallel_group_size, ll) + path[-last:]
+	path_ = path[:-last] + "_G{:d}-from-{:d}_GS{:d}_GIL{:d}".format(gn, model.n_groups, model.parallel_group_size, ll) + path[-last:]
 	return path_
 
 class Circ(list):

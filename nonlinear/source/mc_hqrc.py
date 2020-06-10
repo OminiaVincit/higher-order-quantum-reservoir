@@ -40,7 +40,7 @@ if __name__  == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--units', type=int, default=5, help='Number of the hidden units')
     parser.add_argument('--rho', type=int, default=0, help='Flag for initializing the density matrix')
-    parser.add_argument('--beta', type=float, default=1e-14, help='regularization term')
+    parser.add_argument('--beta', type=float, default=1e-14, help='reg term')
     parser.add_argument('--solver', type=str, default=LINEAR_PINV, \
         help='regression solver by linear_pinv,ridge_pinv,auto,svd,cholesky,lsqr,sparse_cg,sag')
 

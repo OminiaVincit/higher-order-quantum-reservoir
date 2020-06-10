@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 # # -*- coding: utf-8 -*-
 
-"""Created by: Vlachas Pantelis, CSE-lab, ETH Zurich
+"""
+	Created by: Vlachas Pantelis, CSE-lab, ETH Zurich
+	Adapted to Higher-order quantum reservori computing by Anonymous authors in submitting to NeurIPS2020
 
-    Implemented in the framework created by Vlachas Pantelis, CSE-lab, ETH Zurich
+	Implemented in the framework created by Vlachas Pantelis, CSE-lab, ETH Zurich
         https://github.com/pvlachas/RNN-RC-Chaos
         [1] P.R. Vlachas, J. Pathak, B.R. Hunt et al., 
         Backpropagation algorithms and Reservoir Computing in Recurrent Neural Networks 
@@ -113,9 +115,9 @@ class rnn_statefull(object):
         'dropout_keep_prob':'DKP',
         'zoneout_keep_prob':'ZKP',
         'hidden_state_propagation_length':'HSPL',
-        'iterative_prediction_length':'IPL',
+        'it_pred_length':'IPL',
         'noise_level':'NL',
-        'num_test_ICS':'NICS',
+        'n_tests':'NICS',
         #'worker_id':'WID', 
         }
         return keys
@@ -133,8 +135,8 @@ class rnn_statefull(object):
         print("Using GPU ? {}".format(self.GPU))
         self.trackHiddenState = params["trackHiddenState"]
 
-        self.num_test_ICS = params["num_test_ICS"]
-        self.iterative_prediction_length = params["iterative_prediction_length"]
+        self.n_tests = params["n_tests"]
+        self.it_pred_length = params["it_pred_length"]
         self.hidden_state_propagation_length = params["hidden_state_propagation_length"]
 
         self.rnn_activation_str = params['rnn_activation_str']
@@ -157,7 +159,7 @@ class rnn_statefull(object):
         self.scaler = scaler(self.scaler_tt)
         self.noise_level = params["noise_level"]
 
-        self.regularization =  params['regularization']
+        self.reg =  params['reg']
         self.retrain =  params['retrain']
         self.subsample =  params['subsample']
         self.train_val_ratio = params['train_val_ratio']
@@ -272,22 +274,22 @@ class rnn_statefull(object):
         os.makedirs(self.saving_path + self.results_dir + self.model_name, exist_ok=True)
         os.makedirs(self.saving_path + self.logfile_dir + self.model_name, exist_ok=True)
 
-    def regularizationLoss(self):
-        if not isZeroOrNone(self.regularization):
-            print("#### List of variables where regularization is applied: ####")
+    def regLoss(self):
+        if not isZeroOrNone(self.reg):
+            print("#### List of variables where reg is applied: ####")
             vars_ = self.trainable_variables
             for var in vars_:
                 if "bias" not in var.name and "_b_" not in var.name:
                     print(var.name)
             print("###########################################")
-            lossL2 = tf.add_n([ tf.nn.l2_loss(v) for v in vars_ if "bias" not in v.name and "_b_" not in v.name]) * self.regularization
+            lossL2 = tf.add_n([ tf.nn.l2_loss(v) for v in vars_ if "bias" not in v.name and "_b_" not in v.name]) * self.reg
             return lossL2
         else:
             return 0.0
 
     def defineLoss(self):
         with tf.name_scope('Losses'):
-            loss = self.rmse_loss + self.regularizationLoss()
+            loss = self.rmse_loss + self.regLoss()
         return loss
 
     def clip_grad_norms(self, gradients_to_variables, max_norm=5):
@@ -621,7 +623,7 @@ class rnn_statefull(object):
         return 0
 
     def testingOnTrainingSet(self):
-        num_test_ICS = self.num_test_ICS
+        n_tests = self.n_tests
         with open(self.test_data_path, "rb") as file:
             data = pickle.load(file)
             testing_ic_indexes = data["testing_ic_indexes"]
@@ -640,7 +642,7 @@ class rnn_statefull(object):
         return 0
 
     def testingOnTestingSet(self):
-        num_test_ICS = self.num_test_ICS
+        n_tests = self.n_tests
         with open(self.test_data_path, "rb") as file:
             data = pickle.load(file)
             testing_ic_indexes = data["testing_ic_indexes"]
@@ -656,7 +658,7 @@ class rnn_statefull(object):
 
 
     def predictIndexes(self, input_sequence, ic_indexes, dt, set_name):
-        num_test_ICS = self.num_test_ICS
+        n_tests = self.n_tests
         input_sequence = self.scaler.scaleData(input_sequence, reuse=1)
         predictions_all = []
         truths_all = []
@@ -665,11 +667,11 @@ class rnn_statefull(object):
         rmnse_all = []
         num_accurate_pred_005_all = []
         num_accurate_pred_050_all = []
-        for ic_num in range(num_test_ICS):
+        for ic_num in range(n_tests):
             if self.display_output:
-                print("IC {:}/{:}, {:2.3f}%".format(ic_num, num_test_ICS, ic_num/num_test_ICS*100))
+                print("IC {:}/{:}, {:2.3f}%".format(ic_num, n_tests, ic_num/n_tests*100))
             ic_idx = ic_indexes[ic_num]
-            input_sequence_ic = input_sequence[ic_idx-self.sequence_length-self.n_warmup:ic_idx+self.iterative_prediction_length]
+            input_sequence_ic = input_sequence[ic_idx-self.sequence_length-self.n_warmup:ic_idx+self.it_pred_length]
             prediction, target, prediction_augment, target_augment, hidden_states = self.predictSequence(input_sequence_ic)
             prediction = self.scaler.descaleData(prediction)
             target = self.scaler.descaleData(target)
@@ -716,7 +718,7 @@ class rnn_statefull(object):
     def predictSequence(self, input_sequence):
         N = np.shape(input_sequence)[0]
         # PREDICTION LENGTH
-        if N - self.sequence_length - self.n_warmup != self.iterative_prediction_length: raise ValueError("Error! N - self.sequence_length - self.n_warmup != iterative_prediction_length")
+        if N - self.sequence_length - self.n_warmup != self.it_pred_length: raise ValueError("Error! N - self.sequence_length - self.n_warmup != it_pred_length")
         # PREPARING THE HIDDEN STATES
         zero_ihs = []
         # initial_hidden_states size is [nl, nb, bs, nh]
@@ -746,8 +748,8 @@ class rnn_statefull(object):
         else:
             hidden_states = None
 
-        for t in range(self.iterative_prediction_length):
-            if self.display_output: print("PREDICTION: T {:}/{:}, {:2.3f}%".format(t, self.iterative_prediction_length, t/(self.iterative_prediction_length*100), end="\r"))
+        for t in range(self.it_pred_length):
+            if self.display_output: print("PREDICTION: T {:}/{:}, {:2.3f}%".format(t, self.it_pred_length, t/(self.it_pred_length*100), end="\r"))
             hidden_state_dict = {i: d for i, d in zip(self.initial_hidden_states, last_states)}
             feed_dict = dict({self.input:input_t, self._dropout_keep_prob:1.0, self._zoneout_keep_prob:1.0, self._is_training:False})
             feed_dict.update(hidden_state_dict)
@@ -774,7 +776,7 @@ class rnn_statefull(object):
             exec("data['{:s}_TEST'] = self.{:s}_TEST".format(var_name, var_name))
             exec("data['{:s}_TRAIN'] = self.{:s}_TRAIN".format(var_name, var_name))
         data["model_name"] = self.model_name
-        data["num_test_ICS"] = self.num_test_ICS
+        data["n_tests"] = self.n_tests
         data_path = self.saving_path + self.results_dir + self.model_name + "/results.pickle"
         with open(data_path, "wb") as file:
             # Pickle the "data" dictionary using the highest protocol available.

@@ -3,7 +3,7 @@
 
 """
 	Created by: Vlachas Pantelis, CSE-lab, ETH Zurich
-	Adapted to Higher-order quantum reservori computing by Quoc Hoan Tran, Nakajima-Lab, The University of Tokyo
+	Adapted to Higher-order quantum reservori computing by Anonymous authors in submitting to NeurIPS2020
 
 	Implemented in the framework created by Vlachas Pantelis, CSE-lab, ETH Zurich
         https://github.com/pvlachas/RNN-RC-Chaos
@@ -46,13 +46,13 @@ class esn(object):
 		self.worker_id = params["worker_id"]
 		self.input_dim = params["RDIM"]
 		self.N_used = params["N_used"]
-		self.approx_reservoir_size = params["approx_reservoir_size"]
+		self.n_nodes = params["n_nodes"]
 		self.degree = params["degree"]
 		self.radius = params["radius"]
 		self.sigma_input = params["sigma_input"]
 		self.dynamics_length = params["dynamics_length"]
-		self.iterative_prediction_length = params["iterative_prediction_length"]
-		self.num_test_ICS = params["num_test_ICS"]
+		self.it_pred_length = params["it_pred_length"]
+		self.n_tests = params["n_tests"]
 		self.train_data_path = params["train_data_path"]
 		self.test_data_path = params["test_data_path"]
 		self.fig_dir = params["fig_dir"]
@@ -61,7 +61,7 @@ class esn(object):
 		self.write_to_log = params["write_to_log"]
 		self.results_dir = params["results_dir"]
 		self.saving_path = params["saving_path"]
-		self.regularization = params["regularization"]
+		self.reg = params["reg"]
 		self.scaler_tt = params["scaler"]
 		self.learning_rate = params["learning_rate"]
 		self.number_of_epochs = params["number_of_epochs"]
@@ -85,15 +85,15 @@ class esn(object):
 		keys = {
 		'RDIM':'RDIM', 
 		'N_used':'N_used', 
-		'approx_reservoir_size':'SIZE', 
+		'n_nodes':'SIZE', 
 		'degree':'D', 
 		'radius':'RADIUS',
 		'sigma_input':'SIGMA',
 		'dynamics_length':'DL',
 		'noise_level':'NL',
-		'iterative_prediction_length':'IPL',
-		'regularization':'REG',
-		'num_test_ICS':'NICS',
+		'it_pred_length':'IPL',
+		'reg':'REG',
+		'n_tests':'NICS',
 		#'worker_id':'WID', 
 		#'norm_every':'NE',
 		#'augment':'AU',
@@ -170,7 +170,7 @@ class esn(object):
 
 		# Setting the reservoir size automatically to avoid overfitting
 		print("Initializing the reservoir weights...")
-		nodes_per_input = int(np.ceil(self.approx_reservoir_size/input_dim))
+		nodes_per_input = int(np.ceil(self.n_nodes/input_dim))
 		self.reservoir_size = int(input_dim*nodes_per_input)
 		self.sparsity = self.degree/self.reservoir_size;
 		print("NETWORK SPARSITY: {:}".format(self.sparsity))
@@ -259,14 +259,14 @@ class esn(object):
 			Learns mapping H -> Y with Penrose Pseudo-Inverse
 			"""
 			I = np.identity(np.shape(HTH)[1])	
-			pinv_ = scipypinv2(HTH + self.regularization*I)
+			pinv_ = scipypinv2(HTH + self.reg*I)
 			W_out = YTH @ pinv_
 
 		elif self.solver in ["auto", "svd", "cholesky", "lsqr", "sparse_cg", "sag"]:
 			"""
 			Learns mapping H -> Y with Ridge Regression
 			"""
-			ridge = Ridge(alpha=self.regularization, fit_intercept=False, normalize=False, copy_X=True, solver=self.solver)
+			ridge = Ridge(alpha=self.reg, fit_intercept=False, normalize=False, copy_X=True, solver=self.solver)
 			# print(np.shape(H))
 			# print(np.shape(Y))
 			# print("##")
@@ -302,13 +302,13 @@ class esn(object):
 		W_out = self.W_out
 		W_in = self.W_in
 		dynamics_length = self.dynamics_length
-		iterative_prediction_length = self.iterative_prediction_length
+		it_pred_length = self.it_pred_length
 
 		self.reservoir_size, _ = np.shape(W_h)
 		N = np.shape(input_sequence)[0]
 		
 		# PREDICTION LENGTH
-		if N != iterative_prediction_length + dynamics_length: raise ValueError("Error! N != iterative_prediction_length + dynamics_length")
+		if N != it_pred_length + dynamics_length: raise ValueError("Error! N != it_pred_length + dynamics_length")
 
 
 		prediction_warm_up = []
@@ -325,9 +325,9 @@ class esn(object):
 
 		target = input_sequence[dynamics_length:]
 		prediction = []
-		for t in range(iterative_prediction_length):
+		for t in range(it_pred_length):
 			if self.display_output == True:
-				print("PREDICTION: T {:}/{:}, {:2.3f}%".format(t, iterative_prediction_length, t/iterative_prediction_length*100), end="\r")
+				print("PREDICTION: T {:}/{:}, {:2.3f}%".format(t, it_pred_length, t/it_pred_length*100), end="\r")
 			out = W_out @ self.augmentHidden(h)
 			prediction.append(out)
 			i = out
@@ -347,13 +347,13 @@ class esn(object):
 		W_out = self.W_out
 		W_in = self.W_in
 		dynamics_length = self.dynamics_length
-		iterative_prediction_length = self.iterative_prediction_length
+		it_pred_length = self.it_pred_length
 
 		self.reservoir_size, _ = np.shape(W_h)
 		N = np.shape(input_sequence)[0]
 		
 		# PREDICTION LENGTH
-		if N != iterative_prediction_length + dynamics_length: raise ValueError("Error! N != iterative_prediction_length + dynamics_length")
+		if N != it_pred_length + dynamics_length: raise ValueError("Error! N != it_pred_length + dynamics_length")
 
 		h = np.zeros((self.reservoir_size, 1))
 		for t in range(dynamics_length):
@@ -366,9 +366,9 @@ class esn(object):
 		target = target_sequence
 		prediction = []
 		signal = []
-		for t in range(dynamics_length, dynamics_length+iterative_prediction_length):
+		for t in range(dynamics_length, dynamics_length+it_pred_length):
 			if self.display_output == True:
-				print("PREDICTION: T {:}/{:}, {:2.3f}%".format(t, iterative_prediction_length, t/iterative_prediction_length*100), end="\r")
+				print("PREDICTION: T {:}/{:}, {:2.3f}%".format(t, it_pred_length, t/it_pred_length*100), end="\r")
 			signal.append(i)
 			out = W_out @ self.augmentHidden(h)
 			prediction.append(out)
@@ -390,7 +390,7 @@ class esn(object):
 		return 0
 
 	def testingOnTrainingSet(self):
-		num_test_ICS = self.num_test_ICS
+		n_tests = self.n_tests
 		with open(self.test_data_path, "rb") as file:
 			data = pickle.load(file)
 			testing_ic_indexes = data["testing_ic_indexes"]
@@ -409,7 +409,7 @@ class esn(object):
 		return 0
 
 	def testingOnTestingSet(self):
-		num_test_ICS = self.num_test_ICS
+		n_tests = self.n_tests
 		with open(self.test_data_path, "rb") as file:
 			data = pickle.load(file)
 			testing_ic_indexes = data["testing_ic_indexes"]
@@ -425,7 +425,7 @@ class esn(object):
 
 
 	def predictIndexes(self, input_sequence, ic_indexes, dt, set_name):
-		num_test_ICS = self.num_test_ICS
+		n_tests = self.n_tests
 		input_sequence = self.scaler.scaleData(input_sequence, reuse=1)
 		predictions_all = []
 		truths_all = []
@@ -433,11 +433,11 @@ class esn(object):
 		rmnse_all = []
 		num_accurate_pred_005_all = []
 		num_accurate_pred_050_all = []
-		for ic_num in range(num_test_ICS):
+		for ic_num in range(n_tests):
 			if self.display_output == True:
-				print("IC {:}/{:}, {:2.3f}%".format(ic_num, num_test_ICS, ic_num/num_test_ICS*100))
+				print("IC {:}/{:}, {:2.3f}%".format(ic_num, n_tests, ic_num/n_tests*100))
 			ic_idx = ic_indexes[ic_num]
-			input_sequence_ic = input_sequence[ic_idx-self.dynamics_length:ic_idx+self.iterative_prediction_length]
+			input_sequence_ic = input_sequence[ic_idx-self.dynamics_length:ic_idx+self.it_pred_length]
 			prediction, target, prediction_augment, target_augment = self.predictSequence(input_sequence_ic)
 			prediction = self.scaler.descaleData(prediction)
 			target = self.scaler.descaleData(target)
@@ -484,7 +484,7 @@ class esn(object):
 			exec("data['{:s}_TEST'] = self.{:s}_TEST".format(var_name, var_name))
 			exec("data['{:s}_TRAIN'] = self.{:s}_TRAIN".format(var_name, var_name))
 		data["model_name"] = self.model_name
-		data["num_test_ICS"] = self.num_test_ICS
+		data["n_tests"] = self.n_tests
 		data_path = self.saving_path + self.results_dir + self.model_name + "/results.pickle"
 		with open(data_path, "wb") as file:
 			# Pickle the "data" dictionary using the highest protocol available.

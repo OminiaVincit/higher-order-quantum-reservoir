@@ -1,8 +1,11 @@
 #!/bin/bash
+#export OMP_NUM_THREADS=12
 
 cd ../../../Methods
 
 for UNITS in 500 1000
+do
+for BETA in 1e-7
 do
 python3 RUN.py esn \
 --mode all \
@@ -14,19 +17,20 @@ python3 RUN.py esn \
 --RDIM 1 \
 --noise_level 1 \
 --scaler Standard \
---approx_reservoir_size $UNITS \
+--n_nodes $UNITS \
 --degree 10 \
 --radius 0.9 \
 --sigma_input 1 \
---regularization 1e-9 \
---dynamics_length 200 \
---iterative_prediction_length 500 \
---num_test_ICS 1 \
+--reg $BETA \
+--dynamics_length 2000 \
+--it_pred_length 1000 \
+--n_tests 2 \
 --solver pinv \
 --number_of_epochs 1000000 \
 --learning_rate 0.001 \
 --reference_train_time 10 \
 --buffer_train_time 0.5
+done
 done
 
 

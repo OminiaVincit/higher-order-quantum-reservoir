@@ -2,9 +2,8 @@
 # # -*- coding: utf-8 -*-
 
 """
-    Created by:  Quoc Hoan Tran,
-                Nakajima-lab, The University of Tokyo
-    
+Created by:  Anonymous authors to submit NeurIPS 2020
+
     Implemented in the framework created by Vlachas Pantelis, CSE-lab, ETH Zurich
         https://github.com/pvlachas/RNN-RC-Chaos
         [1] P.R. Vlachas, J. Pathak, B.R. Hunt et al., 
@@ -21,7 +20,6 @@ from scipy.sparse import linalg as splinalg
 from scipy.linalg import pinv2 as scipypinv2
 # from scipy.linalg import lstsq as scipylstsq
 # from numpy.linalg import lstsq as numpylstsq
-from utils import *
 import os
 from plotting_utils import *
 from global_utils import *
@@ -43,17 +41,17 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 class QRCParams():
-    def __init__(self, hidden_unit_count, max_coupling_energy, beta, virtual_nodes, tau_delta):
-        self.hidden_unit_count = hidden_unit_count
-        self.max_coupling_energy = max_coupling_energy
+    def __init__(self, n_units, max_energy, beta, virtual_nodes, tau):
+        self.n_units = n_units
+        self.max_energy = max_energy
         self.beta = beta
         self.virtual_nodes = virtual_nodes
-        self.tau_delta = tau_delta
+        self.tau = tau
     
     def info(self):
         print('units={},Jdelta={},V={},taudelta={}'.format(\
-            self.hidden_unit_count, self.max_coupling_energy,
-            self.virtual_nodes, self.tau_delta))
+            self.n_units, self.max_energy,
+            self.virtual_nodes, self.tau))
 
 def generate_list_rho(dim, n):
     rho = np.zeros( [dim, dim], dtype=np.float64 )
@@ -83,8 +81,8 @@ class hqrc_parallel(object):
         return 0
     
     def __init__(self, params):
-        if params["RDIM"] % params["num_parallel_groups"]: raise ValueError("ERROR: The num_parallel_groups should divide RDIM.")
-        if size != params["num_parallel_groups"]: raise ValueError("ERROR: The num_parallel_groups is not equal to the number or ranks. Aborting...")
+        if params["RDIM"] % params["n_groups"]: raise ValueError("ERROR: The n_groups should divide RDIM.")
+        if size != params["n_groups"]: raise ValueError("ERROR: The n_groups is not equal to the number or ranks. Aborting...")
 
         self.display_output = params["display_output"]
         print("RANDOM SEED: {:}".format(params["worker_id"]))
@@ -102,42 +100,42 @@ class hqrc_parallel(object):
         self.saving_path = params["saving_path"]
         
         # FOR PARALLEL MODEL
-        self.num_parallel_groups = params["num_parallel_groups"]
+        self.n_groups = params["n_groups"]
         self.N_used = params["N_used"]
 
-        self.parallel_group_interaction_length = params["parallel_group_interaction_length"]
-        params["parallel_group_size"] = int(params["RDIM"]/params["num_parallel_groups"])
+        self.group_interaction_length = params["group_interaction_length"]
+        params["parallel_group_size"] = int(params["RDIM"]/params["n_groups"])
         self.parallel_group_size = params["parallel_group_size"]
 
         self.worker_id = rank
         self.parallel_group_num = rank
 
         self.RDIM = params["RDIM"]
-        self.input_dim = params["parallel_group_size"] + params["parallel_group_interaction_length"] * 2
+        self.input_dim = params["parallel_group_size"] + params["group_interaction_length"] * 2
         self.output_dim = params["parallel_group_size"]
 
         # Parameters for high-order model
         self.nqrc = params["nqrc"]
-        self.layer_strength = params["layer_strength"]
-        self.max_coupling_energy = params["max_coupling_energy"]
+        self.alpha = params["alpha"]
+        self.max_energy = params["max_energy"]
         self.fix_coupling = params["fix_coupling"]
         self.virtual_nodes = params["virtual_nodes"]
-        self.tau_delta = params["tau_delta"]
+        self.tau = params["tau"]
         self.one_input = params["one_input"]
         self.scale_input = params["scale_input"]
         self.trans_input = params["trans_input"]
         self.bias = params["bias"]
         self.deep = params["deep"]
-        self.hidden_unit_count = params["hidden_unit_count"]
-        self.qubit_count = self.hidden_unit_count
+        self.n_units = params["n_units"]
+        self.qubit_count = self.n_units
         self.dim = 2**self.qubit_count
         
         # Parameters for dynamics
         self.dynamics_length = params["dynamics_length"]
-        self.iterative_prediction_length = params["iterative_prediction_length"]
+        self.it_pred_length = params["it_pred_length"]
         self.iterative_update_length = params["iterative_update_length"]
-        self.num_test_ICS = params["num_test_ICS"]
-        self.regularization = params["regularization"]
+        self.n_tests = params["n_tests"]
+        self.reg = params["reg"]
         self.scaler_tt = params["scaler"]
         self.scaler_trans = params["trans"]
         self.scaler_ratio = params["ratio"]
@@ -168,7 +166,7 @@ class hqrc_parallel(object):
         self.Xop = [1]*self.qubit_count
         self.P0op = [1]
         self.P1op = [1]
-        self.layer_strength = self.layer_strength
+        self.alpha = self.alpha
 
         for cursor_index in range(self.qubit_count):
             for qubit_index in range(self.qubit_count):
@@ -194,7 +192,7 @@ class hqrc_parallel(object):
 
         # initialize connection to layer i
         connections = []
-        N_local_states = self.hidden_unit_count * self.virtual_nodes
+        N_local_states = self.n_units * self.virtual_nodes
         nqrc = self.nqrc
         if nqrc > 1:
             for i in range(nqrc):
@@ -229,16 +227,16 @@ class hqrc_parallel(object):
             # include input qubit for computation
             for qubit_index in range(self.qubit_count):
                 if self.fix_coupling > 0:
-                    coef = 2 * self.max_coupling_energy
+                    coef = 2 * self.max_energy
                 else:
-                    coef = (np.random.rand()-0.5) * 2 * self.max_coupling_energy
+                    coef = (np.random.rand()-0.5) * 2 * self.max_energy
                 hamiltonian += coef * self.Zop[qubit_index]
             for qubit_index1 in range(self.qubit_count):
                 for qubit_index2 in range(qubit_index1+1, self.qubit_count):
-                    coef = (np.random.rand()-0.5) * 2 * self.max_coupling_energy
+                    coef = (np.random.rand()-0.5) * 2 * self.max_energy
                     hamiltonian += coef * self.Xop[qubit_index1] @ self.Xop[qubit_index2]
                     
-            ratio = float(self.tau_delta) / float(self.virtual_nodes)        
+            ratio = float(self.tau) / float(self.virtual_nodes)        
             Uop = sp.linalg.expm(1.j * hamiltonian * ratio)
             tmp_uops.append(Uop)
         
@@ -252,30 +250,30 @@ class hqrc_parallel(object):
         keys = {
         #'RDIM':'RDIM', 
         'N_used':'N_used', 
-        'num_parallel_groups':'NG',
+        'n_groups':'NG',
         'nqrc':'Nq',
         'dynamics_length':'DL',
-        'parallel_group_interaction_length':'GIL',
+        'group_interaction_length':'GIL',
         'parallel_group_size':'GS',
-        'layer_strength':'A',
+        'alpha':'A',
         #'scaler':'SC',
         #'trans':'sT',
         #'ratio':'sR',
         #'scale_input':'sI',
         #'trans_input':'tI',
-        'max_coupling_energy':'J',
+        'max_energy':'J',
         'fix_coupling':'fJ',
         'virtual_nodes':'V',
-        'tau_delta':'T',
-        #'hidden_unit_count':'UNIT',
+        'tau':'T',
+        #'n_units':'UNIT',
         #'bias':'B',
         'noise_level':'NL',
-        'iterative_prediction_length':'IPL',
+        'it_pred_length':'IPL',
         #'iterative_update_length':'IUL',
-        'regularization':'REG',
+        'reg':'REG',
         #'norm_every':'NE',
         'augment':'AU',
-        'num_test_ICS':'NICS',
+        'n_tests':'NICS',
         #'worker_id':'WID', 
         }
         return keys
@@ -309,7 +307,7 @@ class hqrc_parallel(object):
             #print('Size of prev states', len(prev_states))
             if nqrc > 1 and prev_states[0] is not None:
                 #value = softmax_linear_combine(value, previous_states, self.coeffs[i])
-                scaled_coeffs = self.coeffs[i] * self.layer_strength
+                scaled_coeffs = self.coeffs[i] * self.alpha
                 value = scale_linear_combine(value, prev_states, scaled_coeffs, self.bias)
             
             # Replace the density matrix
@@ -385,7 +383,7 @@ class hqrc_parallel(object):
         print('Training input, output shape', input_sequence.shape, output_sequence.shape)
         assert(input_sequence.shape[0] == output_sequence.shape[0])
         Nout = output_sequence.shape[1]
-        self.W_out = np.random.rand(self.hidden_unit_count * self.virtual_nodes * self.nqrc, Nout)
+        self.W_out = np.random.rand(self.n_units * self.virtual_nodes * self.nqrc, Nout)
 
         # After washing out, use last density matrix to update
         _, state_list = self.__feed_forward(input_sequence, predict=False, use_lastrho=True)
@@ -404,7 +402,7 @@ class hqrc_parallel(object):
             Y = np.reshape(output_sequence, [output_sequence.shape[0], -1])
             if self.parallel_group_num==0:
                 print('TEACHER FORCING ENDED; direct mapping X Y shape', X.shape, Y.shape)
-            W_out = np.linalg.pinv(X, rcond = self.regularization) @ Y
+            W_out = np.linalg.pinv(X, rcond = self.reg) @ Y
         else:
             X, Y = [], []
             # Augment data and using batch normalization
@@ -436,13 +434,13 @@ class hqrc_parallel(object):
                 
             if self.solver == "pinv":
                 I = np.identity(np.shape(XTX)[1])	
-                pinv_ = scipypinv2(XTX + self.regularization * I)
+                pinv_ = scipypinv2(XTX + self.reg * I)
                 W_out = pinv_ @ XTY
             elif self.solver in ["auto", "svd", "cholesky", "lsqr", "sparse_cg", "sag"]:
                 """
                 Learns mapping V to S with Ridge Regression
                 """
-                ridge = Ridge(alpha=self.regularization, fit_intercept=False, normalize=False, copy_X=True, solver=self.solver)
+                ridge = Ridge(alpha=self.reg, fit_intercept=False, normalize=False, copy_X=True, solver=self.solver)
                 ridge.fit(XTX, XTY) 
                 # ridge.fit(A, B) -> A: n_samples x n_features, B: n_samples x n_targets
                 # ridge.coef_ -> ndarray of shape (n_features,) or (n_targets, n_features)
@@ -505,7 +503,7 @@ class hqrc_parallel(object):
         # TRAINING LENGTH
         tl = N - dynamics_length
         if self.parallel_group_num==0:
-            print("TRAINING: Dynamics prerun...with layer strength={}".format(self.layer_strength))
+            print("TRAINING: Dynamics prerun...with layer strength={}".format(self.alpha))
         self.__feed_forward(rep_train_input_seq[:dynamics_length], predict=False, use_lastrho=False)
         
         if self.parallel_group_num==0:
@@ -514,7 +512,7 @@ class hqrc_parallel(object):
         # Create output
         Y = []
         for t in range(tl - 1):
-            target = np.reshape(train_input_sequence[t + dynamics_length + 1, getFirstActiveIndex(self.parallel_group_interaction_length):getLastActiveIndex(self.parallel_group_interaction_length)], (-1,1))
+            target = np.reshape(train_input_sequence[t + dynamics_length + 1, getFirstActiveIndex(self.group_interaction_length):getLastActiveIndex(self.group_interaction_length)], (-1,1))
             Y.append(target[:, 0])
         train_output_sequence = np.array(Y, dtype=np.float64)
         out_length, out_dim = train_output_sequence.shape
@@ -544,19 +542,19 @@ class hqrc_parallel(object):
         return hs_aug
 
     def getReservoirSize(self): 
-        return self.hidden_unit_count * self.virtual_nodes * self.nqrc
+        return self.n_units * self.virtual_nodes * self.nqrc
 
     def predictSequence(self, input_sequence):
         dynamics_length = self.dynamics_length
-        iterative_prediction_length = self.iterative_prediction_length
+        it_pred_length = self.it_pred_length
         iterative_update_length = self.iterative_update_length
         
         N, input_dim = np.shape(input_sequence)
         if self.parallel_group_num==0:
             print('Shape of predict sequence:', input_sequence.shape)
         # PREDICTION LENGTH
-        if N != iterative_prediction_length + dynamics_length: 
-            raise ValueError("Error! N != iterative_prediction_length + dynamics_length")
+        if N != it_pred_length + dynamics_length: 
+            raise ValueError("Error! N != it_pred_length + dynamics_length")
         
         nqrc = self.nqrc
         if int(nqrc) % int(input_dim) != 0:
@@ -569,7 +567,7 @@ class hqrc_parallel(object):
             self.__feed_forward(rep_train_input_seq[:dynamics_length], predict=False, use_lastrho=False)
         if self.parallel_group_num==0: print("\n")
 
-        target = input_sequence[dynamics_length:, getFirstActiveIndex(self.parallel_group_interaction_length):getLastActiveIndex(self.parallel_group_interaction_length)]
+        target = input_sequence[dynamics_length:, getFirstActiveIndex(self.group_interaction_length):getLastActiveIndex(self.group_interaction_length)]
         prediction = []
 
         if True:
@@ -577,7 +575,7 @@ class hqrc_parallel(object):
                 print('Closed loop to generate chaotic signals')
             local_rhos = self.last_rhos.copy()
             nqrc = self.nqrc
-            for t in range(iterative_prediction_length):
+            for t in range(it_pred_length):
                 state = np.array(self.current_states, dtype=np.float64)
                 stacked_state = self.augmentHidden(state).reshape((1, -1))
                 #stacked_state = np.hstack( [state_aug, np.ones([1, 1])])
@@ -602,7 +600,7 @@ class hqrc_parallel(object):
                     state_list = Circ(list(global_state.copy()))
                     group_start = self.parallel_group_num * self.parallel_group_size
                     group_end = group_start + self.parallel_group_size
-                    pgil = self.parallel_group_interaction_length
+                    pgil = self.group_interaction_length
                     new_input = []
                     for i in range(group_start-pgil, group_end+pgil):
                         new_input.append(state_list[i].copy())
@@ -610,7 +608,7 @@ class hqrc_parallel(object):
 
                 #out = out.reshape(1, -1)
                 #if np.max(np.abs(out)) > 10:
-                #    print('out signal, t={}/{}'.format(t, iterative_prediction_length))
+                #    print('out signal, t={}/{}'.format(t, it_pred_length))
                 #    print(out)
                 # out[out < 0] = 0.0
                 # out[out > 1.0] = 1.0
@@ -621,14 +619,14 @@ class hqrc_parallel(object):
                 local_rhos = self.__step_forward(local_rhos, input_val)
             self.last_rhos = local_rhos.copy()
         else:
-            # Because restart_layer_strength is set to 1.0
+            # Because restart_alpha is set to 1.0
             # It means that, not need input signals
-            print('Restart layer strength from {} to 1.0'.format(self.layer_strength))
-            self.layer_strength = 1.0
+            print('Restart layer strength from {} to 1.0'.format(self.alpha))
+            self.alpha = 1.0
             prediction, _ = \
                 self.__feed_forward(rep_train_input_seq[dynamics_length:], predict=True, use_lastrho=True)
         print("\n")
-        prediction = np.array(prediction, dtype=np.float64).reshape((iterative_prediction_length,-1))
+        prediction = np.array(prediction, dtype=np.float64).reshape((it_pred_length,-1))
         #prediction_warm_up = np.array(prediction_warm_up, dtype=np.float64)
         if self.parallel_group_num==0:
             print('shape prediction', prediction.shape)
@@ -643,7 +641,7 @@ class hqrc_parallel(object):
         return 0
     
     def testingOnTrainingSet(self):
-        num_test_ICS = self.num_test_ICS
+        n_tests = self.n_tests
         with open(self.worker_test_data_path, "rb") as file:
             data = pickle.load(file)
             testing_ic_indexes = data["testing_ic_indexes"]
@@ -662,7 +660,7 @@ class hqrc_parallel(object):
         return 0
 
     def testingOnTestingSet(self):
-        num_test_ICS = self.num_test_ICS
+        n_tests = self.n_tests
         with open(self.worker_test_data_path, "rb") as file:
             data = pickle.load(file)
             testing_ic_indexes = data["testing_ic_indexes"]
@@ -679,21 +677,21 @@ class hqrc_parallel(object):
         return 0
 
     def predictIndexes(self, input_sequence, ic_indexes, dt, set_name):
-        num_test_ICS = self.num_test_ICS
+        n_tests = self.n_tests
         input_sequence = self.scaler.scaleData(input_sequence, reuse=1)
         local_predictions = []
         local_truths = []
-        for ic_num in range(num_test_ICS):
+        for ic_num in range(n_tests):
             ic_idx = ic_indexes[ic_num]
             if self.parallel_group_num == 0:
-                print("IC {:}/{:}, {:2.3f}%, (ic_idx={:d})".format(ic_num, num_test_ICS, ic_num/num_test_ICS*100, ic_idx))
+                print("IC {:}/{:}, {:2.3f}%, (ic_idx={:d})".format(ic_num, n_tests, ic_num/n_tests*100, ic_idx))
 
-            input_sequence_ic = input_sequence[ic_idx-self.dynamics_length:ic_idx+self.iterative_prediction_length]
+            input_sequence_ic = input_sequence[ic_idx-self.dynamics_length:ic_idx+self.it_pred_length]
             if self.parallel_group_num == 0: print(np.shape(input_sequence_ic))
             prediction, target = self.predictSequence(input_sequence_ic)
             if self.parallel_group_num == 0: print("SEQUENCE PREDICTED...")
-            prediction = self.scaler.descaleDataParallel(prediction, self.parallel_group_interaction_length)
-            target = self.scaler.descaleDataParallel(target, self.parallel_group_interaction_length)
+            prediction = self.scaler.descaleDataParallel(prediction, self.group_interaction_length)
+            target = self.scaler.descaleDataParallel(target, self.group_interaction_length)
             local_predictions.append(prediction)
             local_truths.append(target)
 
@@ -701,18 +699,18 @@ class hqrc_parallel(object):
         local_truths = np.array(local_truths)
         comm.Barrier()
 
-        predictions_all_proxy = np.zeros((self.num_test_ICS, self.iterative_prediction_length, self.RDIM))
-        truths_all_proxy = np.zeros((self.num_test_ICS, self.iterative_prediction_length, self.RDIM))
+        predictions_all_proxy = np.zeros((self.n_tests, self.it_pred_length, self.RDIM))
+        truths_all_proxy = np.zeros((self.n_tests, self.it_pred_length, self.RDIM))
         scaler_std_proxy = np.zeros((self.RDIM))
 
         # SETTING THE LOCAL VALUES
         predictions_all_proxy[:,:,self.parallel_group_num*self.parallel_group_size:(self.parallel_group_num+1)*self.parallel_group_size] = local_predictions
         truths_all_proxy[:,:,self.parallel_group_num*self.parallel_group_size:(self.parallel_group_num+1)*self.parallel_group_size] = local_truths
-        scaler_std_proxy[self.parallel_group_num*self.parallel_group_size:(self.parallel_group_num+1)*self.parallel_group_size] = self.scaler.data_std[getFirstActiveIndex(self.parallel_group_interaction_length):getLastActiveIndex(self.parallel_group_interaction_length)]
+        scaler_std_proxy[self.parallel_group_num*self.parallel_group_size:(self.parallel_group_num+1)*self.parallel_group_size] = self.scaler.data_std[getFirstActiveIndex(self.group_interaction_length):getLastActiveIndex(self.group_interaction_length)]
 
 
-        predictions_all = np.zeros((self.num_test_ICS, self.iterative_prediction_length, self.RDIM)) if(self.parallel_group_num == 0) else None
-        truths_all = np.zeros((self.num_test_ICS, self.iterative_prediction_length, self.RDIM)) if(self.parallel_group_num == 0) else None
+        predictions_all = np.zeros((self.n_tests, self.it_pred_length, self.RDIM)) if(self.parallel_group_num == 0) else None
+        truths_all = np.zeros((self.n_tests, self.it_pred_length, self.RDIM)) if(self.parallel_group_num == 0) else None
         scaler_std = np.zeros((self.RDIM)) if(self.parallel_group_num == 0) else None
 
         comm.Reduce([predictions_all_proxy, MPI.DOUBLE], [predictions_all, MPI.DOUBLE], MPI.SUM, root=0)
@@ -727,7 +725,7 @@ class hqrc_parallel(object):
             rmnse_all = []
             num_accurate_pred_005_all = []
             num_accurate_pred_050_all = []
-            for ic_num in range(num_test_ICS):
+            for ic_num in range(n_tests):
                 prediction = predictions_all[ic_num]
                 target = truths_all[ic_num]
                 rmse, rmnse, num_accurate_pred_005, num_accurate_pred_050, abserror = computeErrors(target, prediction, scaler_std)
@@ -777,7 +775,7 @@ class hqrc_parallel(object):
             exec("data['{:s}_TEST'] = self.{:s}_TEST".format(var_name, var_name))
             exec("data['{:s}_TRAIN'] = self.{:s}_TRAIN".format(var_name, var_name))
         data["model_name"] = self.model_name
-        data["num_test_ICS"] = self.num_test_ICS
+        data["n_tests"] = self.n_tests
         data_path = self.saving_path + self.results_dir + self.model_name + "/results.pickle"
         with open(data_path, "wb") as file:
             # Pickle the "data" dictionary using the highest protocol available.
