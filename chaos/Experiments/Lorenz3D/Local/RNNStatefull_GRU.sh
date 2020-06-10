@@ -23,7 +23,7 @@ do
     --rnn_cell_type gru \
     --unitary_cplex 1 \
     --unitary_capacity 2 \
-    --regularization 0.0 \
+    --reg 0.0 \
     --scaler standard \
     --initializer xavier \
     --sequence_length $SL \
@@ -42,8 +42,8 @@ do
     --training_min_epochs 1 \
     --learning_rate 0.001 \
     --train_val_ratio 0.8 \
-    --iterative_prediction_length 1000 \
-    --num_test_ICS 2 \
+    --it_pred_length 1000 \
+    --n_tests 2 \
     --retrain 0
 done
 done

@@ -17,16 +17,16 @@ mpiexec -n $NR python3 RUN.py esn_parallel \
 --N_used 10000 \
 --RDIM 64 \
 --scaler Standard \
---approx_reservoir_size $AR \
+--n_nodes $AR \
 --degree 10 \
 --radius 0.6 \
 --sigma_input 1 \
---regularization $BETA \
+--reg $BETA \
 --dynamics_length 2000 \
---num_parallel_groups $NR \
---parallel_group_interaction_length 4 \
---iterative_prediction_length 400 \
---num_test_ICS 2 \
+--n_groups $NR \
+--group_interaction_length 4 \
+--it_pred_length 400 \
+--n_tests 2 \
 --noise_level 1
 done
 done
