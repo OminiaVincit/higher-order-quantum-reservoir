@@ -16,7 +16,7 @@ import utils
 
 def eff_job(qparams, buffer, length, P, Ntrials, send_end):
     esp_ls = []
-    print('Start process taudelta={}, virtual={}, Jdelta={}'.format(qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy))
+    print('Start process taudelta={}, virtual={}, Jdelta={}'.format(qparams.tau_delta, qparams.virtual_nodes, qparams.max_energy))
     for n in range(Ntrials):
          esp_val = qrc.effective_dim(qparams, buffer, length, ranseed=n, P=P)
          esp_ls.append(esp_val)
@@ -24,7 +24,7 @@ def eff_job(qparams, buffer, length, P, Ntrials, send_end):
     mean_esp = np.mean(esp_ls)
 
     rstr = '{} {} {} {}'.format(\
-        qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy, mean_esp)
+        qparams.tau_delta, qparams.virtual_nodes, qparams.max_energy, mean_esp)
     print('Finish process {}'.format(rstr))
     send_end.send(rstr)
 
@@ -48,7 +48,7 @@ if __name__  == '__main__':
     args = parser.parse_args()
     print(args)
 
-    hidden_unit_count, max_coupling_energy, trotter_step, beta =\
+    n_units, max_energy, trotter_step, beta =\
         args.units, args.coupling, args.trotter, args.beta
     length, pindex, buffer = args.length, args.pindex, args.buffer
     Ntrials = args.ntrials
@@ -77,7 +77,7 @@ if __name__  == '__main__':
             for tdelta in tdeltas:
                 for V in virtuals:
                     recv_end, send_end = multiprocessing.Pipe(False)
-                    qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
+                    qparams = qrc.QRCParams(n_units=n_units, max_energy=max_energy,\
                         trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tdelta, init_rho=0)
                     
                     p = multiprocessing.Process(target=eff_job, args=(qparams, buffer, length, pindex, Ntrials, send_end))

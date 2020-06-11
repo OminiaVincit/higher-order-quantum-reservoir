@@ -25,7 +25,7 @@ from loginit import get_module_logger
 def nmse_job(qparams, nqrc, deep, layer_strength, buffer, train_input_seq, train_output_seq, \
         val_input_seq, val_output_seq, Ntrials, send_end):
     train_loss_ls, val_loss_ls = [], []
-    print('Start process strength={}, taudelta={}, virtual={}, Jdelta={}'.format(layer_strength, qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy))
+    print('Start process strength={}, taudelta={}, virtual={}, Jdelta={}'.format(layer_strength, qparams.tau_delta, qparams.virtual_nodes, qparams.max_energy))
     for n in range(Ntrials):
         _, train_loss, _, val_loss = hqrc.get_loss(qparams, buffer, train_input_seq, train_output_seq, \
             val_input_seq, val_output_seq, nqrc, layer_strength, ranseed=n, deep=deep)
@@ -73,7 +73,7 @@ if __name__  == '__main__':
     args = parser.parse_args()
     print(args)
 
-    hidden_unit_count, max_coupling_energy, trotter_step, beta =\
+    n_units, max_energy, trotter_step, beta =\
         args.units, args.coupling, args.trotter, args.beta
     train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
     nproc, taudelta, V = args.nproc, args.taudelta, args.virtuals
@@ -119,7 +119,7 @@ if __name__  == '__main__':
             val_input_seq = np.tile(val_input_seq_org, (nqrc, 1))
             for layer_strength in strengths:
                 recv_end, send_end = multiprocessing.Pipe(False)
-                qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
+                qparams = qrc.QRCParams(n_units=n_units, max_energy=max_energy,\
                     trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=taudelta, init_rho=init_rho)
                 p = multiprocessing.Process(target=nmse_job, args=(qparams, nqrc, deep, layer_strength, buffer, train_input_seq, train_output_seq, \
                     val_input_seq, val_output_seq, Ntrials, send_end))
@@ -145,8 +145,8 @@ if __name__  == '__main__':
         # save experiments setting
         with open('{}_setting.txt'.format(outbase), 'w') as sfile:
             sfile.write('train_len={}, val_len={}, buffer={}\n'.format(train_len, val_len, buffer))
-            sfile.write('hidden_unit_count={}\n'.format(hidden_unit_count))
-            sfile.write('max_coupling_energy={}\n'.format(max_coupling_energy))
+            sfile.write('n_units={}\n'.format(n_units))
+            sfile.write('max_energy={}\n'.format(max_energy))
             sfile.write('trotter_step={}\n'.format(trotter_step))
             sfile.write('beta={}\n'.format(beta))
             sfile.write('layer_strength={}\n'.format(' '.join([str(v) for v in strengths])))

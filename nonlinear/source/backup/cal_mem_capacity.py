@@ -47,7 +47,7 @@ if __name__  == '__main__':
     args = parser.parse_args()
     print(args)
 
-    hidden_unit_count, trotter_step, beta = args.units, args.trotter, args.beta
+    n_units, trotter_step, beta = args.units, args.trotter, args.beta
     train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
     V, init_rho = args.virtuals, args.rho
     nproc = args.nproc
@@ -75,7 +75,7 @@ if __name__  == '__main__':
         datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
 
         for J in Js:
-            qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=J,\
+            qparams = qrc.QRCParams(n_units=n_units, max_energy=J,\
             trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tau_delta, init_rho=init_rho)
 
             # Multi-process
@@ -128,8 +128,8 @@ if __name__  == '__main__':
         outbase = os.path.join(savedir, '{}_{}'.format(basename, datestr, '_'.join([str(v) for v in Vs])))
         with open('{}_setting.txt'.format(outbase), 'w') as sfile:
             sfile.write('train_len={}, val_len={}, buffer={}\n'.format(train_len, val_len, buffer))
-            sfile.write('hidden_unit_count={}\n'.format(qparams.hidden_unit_count))
-            sfile.write('max_coupling_energy={}\n'.format(qparams.max_coupling_energy))
+            sfile.write('n_units={}\n'.format(qparams.n_units))
+            sfile.write('max_energy={}\n'.format(qparams.max_energy))
             sfile.write('trotter_step={}\n'.format(qparams.trotter_step))
             sfile.write('beta={}\n'.format(qparams.beta))
             sfile.write('virtual nodes={}\n'.format(' '.join([str(v) for v in Vs])))

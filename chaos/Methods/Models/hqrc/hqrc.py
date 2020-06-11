@@ -218,7 +218,7 @@ class hqrc(object):
                     hamiltonian += coef * self.Xop[qubit_index1] @ self.Xop[qubit_index2]
                     
             ratio = float(self.tau) / float(self.virtual_nodes)        
-            Uop = sp.linalg.expm(1.j * hamiltonian * ratio)
+            Uop = sp.linalg.expm(-1.j * hamiltonian * ratio)
             tmp_uops.append(Uop)
         
         self.Uops = tmp_uops.copy()

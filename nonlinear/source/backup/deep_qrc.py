@@ -29,12 +29,12 @@ class DeepQuantumReservoirComputing(object):
         X = [[0,1],[1,0]]
         P0 = [[1,0],[0,0]]
         P1 = [[0,0],[0,1]]
-        self.hidden_unit_count = qparams.hidden_unit_count
+        self.n_units = qparams.n_units
         self.trotter_step = qparams.trotter_step
         self.virtual_nodes = qparams.virtual_nodes
         self.tau_delta = qparams.tau_delta
         self.nqrc = nqrc
-        self.qubit_count = self.hidden_unit_count
+        self.qubit_count = self.n_units
         self.dim = 2**self.qubit_count
         self.Zop = [1]*self.qubit_count
         self.Xop = [1]*self.qubit_count
@@ -64,7 +64,7 @@ class DeepQuantumReservoirComputing(object):
             alpha = self.layer_strength
             if alpha < 0 or alpha > 1:
                 alpha = np.random.rand()
-            cs = np.random.rand(self.hidden_unit_count * self.virtual_nodes)
+            cs = np.random.rand(self.n_units * self.virtual_nodes)
             cs = alpha * cs / np.sum(cs)
             connections.append(cs)
         self.coeffs = connections
@@ -89,11 +89,11 @@ class DeepQuantumReservoirComputing(object):
 
             # include input qubit for computation
             for qubit_index in range(self.qubit_count):
-                coef = (np.random.rand()-0.5) * 2 * qparams.max_coupling_energy
+                coef = (np.random.rand()-0.5) * 2 * qparams.max_energy
                 hamiltonian += coef * self.Zop[qubit_index]
             for qubit_index1 in range(self.qubit_count):
                 for qubit_index2 in range(qubit_index1+1, self.qubit_count):
-                    coef = (np.random.rand()-0.5) * 2 * qparams.max_coupling_energy
+                    coef = (np.random.rand()-0.5) * 2 * qparams.max_energy
                     hamiltonian += coef * self.Xop[qubit_index1] @ self.Xop[qubit_index2]
                     
             ratio = float(self.tau_delta) / float(self.virtual_nodes)        
@@ -169,7 +169,7 @@ class DeepQuantumReservoirComputing(object):
         print('shape', input_sequence.shape, output_sequence.shape)
         assert(input_sequence.shape[1] == output_sequence.shape[0])
         Nout = output_sequence.shape[1]
-        self.W_out = np.random.rand(self.hidden_unit_count * self.virtual_nodes + 1, Nout)
+        self.W_out = np.random.rand(self.n_units * self.virtual_nodes + 1, Nout)
 
         _, state_list = self.__feed_forward(input_sequence, predict=False)
 
@@ -180,7 +180,7 @@ class DeepQuantumReservoirComputing(object):
         print('after washingout state list shape', state_list.shape)
 
         # discard the transitient state for training
-        V = np.reshape(state_list, [-1, self.hidden_unit_count * self.virtual_nodes])
+        V = np.reshape(state_list, [-1, self.n_units * self.virtual_nodes])
         V = np.hstack( [state_list, np.ones([V.shape[0], 1]) ] )
 
         print('output seq', output_sequence.shape)

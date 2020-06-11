@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 """
-Quoc Hoan Tran, Nakajima-Lab, The University of Tokyo
     Calculate NMSE for NARMA tasks
     See run_hqrc_nmse_narma.sh for an example to run the script
 """

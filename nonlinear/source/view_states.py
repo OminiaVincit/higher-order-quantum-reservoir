@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 """
-Quoc Hoan Tran, Nakajima-Lab, The University of Tokyo
     View bifurcation diagrams and dynamics for higher-order quantum reservoir
     See run_view_states.sh for an example of the running script
 """

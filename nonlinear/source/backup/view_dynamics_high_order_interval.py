@@ -37,7 +37,7 @@ if __name__  == '__main__':
     args = parser.parse_args()
     print(args)
 
-    hidden_unit_count, max_coupling_energy, trotter_step, beta =\
+    n_units, max_energy, trotter_step, beta =\
         args.units, args.coupling, args.trotter, args.beta
     length, buffer = args.length, args.buffer
     layer_strength, V = args.strength, args.virtuals
@@ -78,7 +78,7 @@ if __name__  == '__main__':
         ax = axs[i]
         tau_delta = taudeltas[i]
 
-        qparams = QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
+        qparams = QRCParams(n_units=n_units, max_energy=max_energy,\
             trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tau_delta, init_rho=init_rho)
     
         model = hqrc.HighorderQuantumReservoirComputing(nqrc, layer_strength)
@@ -86,10 +86,10 @@ if __name__  == '__main__':
         print(x0_state_list.shape)
 
         #ts = list(range(bg, ed))
-        Ntot = hidden_unit_count * V
+        Ntot = n_units * V
         # State of the first QR
         tmp_state_list = x0_state_list[:, 0:Ntot]
-        for j in range(hidden_unit_count):
+        for j in range(n_units):
             ys = tmp_state_list[bg:ed, j::V].ravel()
             lst = "solid"
             if j == 0:

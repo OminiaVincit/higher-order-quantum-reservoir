@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 """
-Quoc Hoan Tran, Nakajima-Lab, The University of Tokyo
     View predicted time series for NARMA tasks
     See run_view_narma.sh for an example of the running script
 """
