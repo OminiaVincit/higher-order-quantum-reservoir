@@ -220,7 +220,7 @@ python sort_model_test_vpt.py --sysname KuramotoSivashinskyGP64 --tag N_used_100
 
 The above commands will produce the text file, which sorts all models from the highest average VPT to the lowest average VPT (see folder Eval_Figures for these files).
 
-You can download the evaluation files here:
+You can download the evaluation files of our experiments:
 - [My evaluation files for Lorenz3D](https://www.dropbox.com/s/g9589zdalk8qm8c/Evaluation_Data_Lorenz3D.zip?dl=0)
 - [My evaluation files for KuramotoSivashinskyGP64](https://www.dropbox.com/s/qrx5ojttn05zxko/Evaluation_Data_KuramotoSivashinskyGP64.zip?dl=0)
 
