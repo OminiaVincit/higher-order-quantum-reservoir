@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 """
-Quoc Hoan Tran, Nakajima-Lab, The University of Tokyo
     Higher-order reservoir class
 """
 
@@ -94,7 +93,7 @@ class HQRC(object):
             rho[0, 0] = 1
             if qparams.init_rho != 0:
                 # initialize random density matrix
-                rho = gen_random.random_density_matrix(self.dim)
+                rho = random_density_matrix(self.dim)
             tmp_rhos.append(rho)
 
             # generate hamiltonian
@@ -129,7 +128,7 @@ class HQRC(object):
             np.random.seed(seed=ranseed)
         tmp_rhos = []
         for i in range(self.nqrc):
-            rho = gen_random.random_density_matrix(self.dim)
+            rho = random_density_matrix(self.dim)
             tmp_rhos.append(rho)
         self.init_rhos = tmp_rhos.copy()
 

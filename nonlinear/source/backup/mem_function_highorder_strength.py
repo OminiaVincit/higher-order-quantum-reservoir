@@ -62,7 +62,7 @@ if __name__  == '__main__':
     args = parser.parse_args()
     print(args)
 
-    hidden_unit_count, max_coupling_energy, trotter_step, beta =\
+    n_units, max_energy, trotter_step, beta =\
         args.units, args.coupling, args.trotter, args.beta
     train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
     nproc, tau_delta, V = args.nproc, args.taudelta, args.virtuals
@@ -101,7 +101,7 @@ if __name__  == '__main__':
         logger.info(log_filename)
 
         for layer_strength in strengths:
-            qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
+            qparams = qrc.QRCParams(n_units=n_units, max_energy=max_energy,\
         trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tau_delta, init_rho=init_rho)
             local_sum = []
             for n in range(Ntrials):
@@ -147,8 +147,8 @@ if __name__  == '__main__':
         # save experiments setting
         with open('{}_setting.txt'.format(outbase), 'w') as sfile:
             sfile.write('train_len={}, val_len={}, buffer={}\n'.format(train_len, val_len, buffer))
-            sfile.write('hidden_unit_count={}\n'.format(hidden_unit_count))
-            sfile.write('max_coupling_energy={}\n'.format(max_coupling_energy))
+            sfile.write('n_units={}\n'.format(n_units))
+            sfile.write('max_energy={}\n'.format(max_energy))
             sfile.write('trotter_step={}\n'.format(trotter_step))
             sfile.write('beta={}\n'.format(beta))
             sfile.write('strengths={}\n'.format(' '.join([str(v) for v in strengths])))

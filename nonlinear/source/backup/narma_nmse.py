@@ -19,7 +19,7 @@ virtuals.insert(0, 1)
 
 def nmse_job(qparams, buffer, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls, Ntrials, send_end):
     train_loss_ls, val_loss_ls = [], []
-    print('Start process taudelta={}, virtual={}, Jdelta={}'.format(qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy))
+    print('Start process taudelta={}, virtual={}, Jdelta={}'.format(qparams.tau_delta, qparams.virtual_nodes, qparams.max_energy))
     for n in range(Ntrials):
          _, train_loss, _, val_loss = qrc.get_loss(qparams, buffer, train_input_seq_ls, train_output_seq_ls, val_input_seq_ls, val_output_seq_ls, ranseed=n)
          train_loss_ls.append(train_loss)
@@ -29,7 +29,7 @@ def nmse_job(qparams, buffer, train_input_seq_ls, train_output_seq_ls, val_input
     #mean_train, mean_val = np.random.rand(), np.random.rand()
 
     rstr = '{} {} {} {} {}'.format(\
-        qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy, mean_train, mean_val)
+        qparams.tau_delta, qparams.virtual_nodes, qparams.max_energy, mean_train, mean_val)
     print('Finish process {}'.format(rstr))
     send_end.send(rstr)
 
@@ -57,7 +57,7 @@ if __name__  == '__main__':
     args = parser.parse_args()
     print(args)
 
-    hidden_unit_count, max_coupling_energy, trotter_step, beta =\
+    n_units, max_energy, trotter_step, beta =\
         args.units, args.coupling, args.trotter, args.beta
     train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
     nproc, virtual_nodes, tau_delta = args.nproc, args.virtuals, args.taudelta
@@ -91,7 +91,7 @@ if __name__  == '__main__':
 
         for V in virtuals:
             recv_end, send_end = multiprocessing.Pipe(False)
-            qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
+            qparams = qrc.QRCParams(n_units=n_units, max_energy=max_energy,\
                 trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tau_delta, init_rho=init_rho)
             p = multiprocessing.Process(target=nmse_job, args=(qparams, buffer, train_input_seq_ls, train_output_seq_ls, \
                 val_input_seq_ls, val_output_seq_ls, Ntrials, send_end))

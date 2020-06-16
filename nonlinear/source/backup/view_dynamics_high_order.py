@@ -38,7 +38,7 @@ if __name__  == '__main__':
     args = parser.parse_args()
     print(args)
 
-    hidden_unit_count, max_coupling_energy, trotter_step, beta =\
+    n_units, max_energy, trotter_step, beta =\
         args.units, args.coupling, args.trotter, args.beta
     length, buffer = args.length, args.buffer
     layer_strength, V = args.strength, args.virtuals
@@ -79,7 +79,7 @@ if __name__  == '__main__':
         ax = axs[i]
         tau_delta = taudeltas[i]
 
-        qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
+        qparams = qrc.QRCParams(n_units=n_units, max_energy=max_energy,\
             trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tau_delta, init_rho=init_rho)
     
         model = hqrc.HighorderQuantumReservoirComputing(nqrc, layer_strength)
@@ -88,7 +88,7 @@ if __name__  == '__main__':
         ts = list(range(bg, ed))
         for j in range(x0_state_list.shape[1]):
             ys = x0_state_list[bg:ed, j].ravel()
-            if j % hidden_unit_count != 0:
+            if j % n_units != 0:
                 ax.plot(ts, ys)
         ax.set_title('$\\alpha$ = {}, $\\tau$ = {}'.format(layer_strength, tau_delta))
     outbase = os.path.join(savedir, '{}_layers_{}_V_{}_strength_{}_rho_{}'.format(basename, \

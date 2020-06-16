@@ -11,10 +11,10 @@
     # --virtual_nodes $V \ # Number of virtual nodes
     # --tau 4.0 \ # Interval between inputs
     # --n_units 6 \ # Number of hidden units =qubits in our setting
-    # --regularization $BETA \ # Ridge parameter
+    # --reg $BETA \ # Ridge parameter
     # --dynamics_length 2000 \ # Transient time steps
-    # --iterative_prediction_length 1000 \ # Predicted length
-    # --num_test_ICS 2 \ # Number of tests
+    # --it_pred_length 1000 \ # Predicted length
+    # --n_tests 2 \ # Number of tests
     # --solver pinv \ # Ridge by pseudo inverse
     # --augment 0 \ # Augment the hidden states
 # End of the script to emulate chaos by using hqrc
@@ -44,10 +44,10 @@ python3 RUN.py hqrc \
     --virtual_nodes $V \
     --tau 4.0 \
     --n_units 6 \
-    --regularization $BETA \
+    --reg $BETA \
     --dynamics_length 200 \
-    --iterative_prediction_length 100 \
-    --num_test_ICS 2 \
+    --it_pred_length 100 \
+    --n_tests 2 \
     --solver pinv \
     --augment 0
 done

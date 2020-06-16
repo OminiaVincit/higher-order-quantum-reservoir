@@ -32,12 +32,12 @@ class QuantumReservoirComputing(object):
         X = [[0,1],[1,0]]
         P0 = [[1,0],[0,0]]
         P1 = [[0,0],[0,1]]
-        self.hidden_unit_count = qparams.hidden_unit_count
+        self.n_units = qparams.n_units
         self.trotter_step = qparams.trotter_step
         self.virtual_nodes = qparams.virtual_nodes
         self.tau_delta = qparams.tau_delta
         
-        self.qubit_count = self.hidden_unit_count
+        self.qubit_count = self.n_units
         self.dim = 2**self.qubit_count
         self.Zop = [1]*self.qubit_count
         self.Xop = [1]*self.qubit_count
@@ -78,11 +78,11 @@ class QuantumReservoirComputing(object):
 
         # include input qubit for computation
         for qubit_index in range(self.qubit_count):
-            coef = (np.random.rand()-0.5) * 2 * qparams.max_coupling_energy
+            coef = (np.random.rand()-0.5) * 2 * qparams.max_energy
             self.hamiltonian += coef * self.Zop[qubit_index]
         for qubit_index1 in range(self.qubit_count):
             for qubit_index2 in range(qubit_index1+1, self.qubit_count):
-                coef = (np.random.rand()-0.5) * 2 * qparams.max_coupling_energy
+                coef = (np.random.rand()-0.5) * 2 * qparams.max_energy
                 self.hamiltonian += coef * self.Xop[qubit_index1] @ self.Xop[qubit_index2]
                 
         ratio = float(self.tau_delta) / float(self.virtual_nodes)        
@@ -162,7 +162,7 @@ class QuantumReservoirComputing(object):
         assert(input_sequence_list.shape[0] == output_sequence_list.shape[0])
         assert(input_sequence_list.shape[1] == output_sequence_list.shape[1])
         Nout = output_sequence_list[0].shape[1]
-        self.W_out = np.random.rand(self.hidden_unit_count * self.virtual_nodes + 1, Nout)
+        self.W_out = np.random.rand(self.n_units * self.virtual_nodes + 1, Nout)
 
         _, state_list = self.__feed_forward(input_sequence_list, predict=False)
 
@@ -174,7 +174,7 @@ class QuantumReservoirComputing(object):
 
         # discard the transitient state for training
 
-        V = np.reshape(state_list, [-1, self.hidden_unit_count * self.virtual_nodes])
+        V = np.reshape(state_list, [-1, self.n_units * self.virtual_nodes])
         V = np.hstack( [V, np.ones([V.shape[0], 1]) ] )
 
         # print('output seq list', output_sequence_list.shape)
@@ -243,8 +243,8 @@ def evaluation(outbase, qrcparams, buffer, train_input_seq_ls, train_output_seq_
     with open('{}_results.txt'.format(outbase), 'w') as sfile:
         sfile.write('train_loss={}\n'.format(train_loss))
         sfile.write('val_loss={}\n'.format(val_loss))
-        sfile.write('hidden_unit_count={}\n'.format(qrcparams.hidden_unit_count))
-        sfile.write('max_coupling_energy={}\n'.format(qrcparams.max_coupling_energy))
+        sfile.write('n_units={}\n'.format(qrcparams.n_units))
+        sfile.write('max_energy={}\n'.format(qrcparams.max_energy))
         sfile.write('trotter_step={}\n'.format(qrcparams.trotter_step))
         sfile.write('beta={}\n'.format(qrcparams.beta))
         sfile.write('virtual nodes={}\n'.format(qrcparams.virtual_nodes))
@@ -255,8 +255,8 @@ def evaluation(outbase, qrcparams, buffer, train_input_seq_ls, train_output_seq_
     rstrls = []
     rstrls.append('train_loss={}'.format(train_loss))
     rstrls.append('val_loss={}'.format(val_loss))
-    rstrls.append('hidden_unit={},virtual={}'.format(qrcparams.hidden_unit_count, qrcparams.virtual_nodes))
-    rstrls.append('Jdelta={},tau_delta={}'.format(qrcparams.max_coupling_energy, qrcparams.tau_delta))
+    rstrls.append('hidden_unit={},virtual={}'.format(qrcparams.n_units, qrcparams.virtual_nodes))
+    rstrls.append('Jdelta={},tau_delta={}'.format(qrcparams.max_energy, qrcparams.tau_delta))
     #rstrls.append('trotter_step={}'.format(qrcparams.trotter_step))
     #rstrls.append('beta={}'.format(qparams.beta))
     #rstrls.append('init_rho={}'.format(qparams.init_rho))

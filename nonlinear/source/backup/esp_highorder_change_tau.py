@@ -23,7 +23,7 @@ from loginit import get_module_logger
 # strengths = [0.0 0.1 0.3 0.5 0.7 0.9 1.0]
 
 def esp_job(qparams, nqrc, layer_strength, buffer, length, state_trials, net_trials, send_end):
-    print('Start process layer={}, taudelta={}, virtual={}, Jdelta={}'.format(nqrc, qparams.tau_delta, qparams.virtual_nodes, qparams.max_coupling_energy))
+    print('Start process layer={}, taudelta={}, virtual={}, Jdelta={}'.format(nqrc, qparams.tau_delta, qparams.virtual_nodes, qparams.max_energy))
     btime = int(time.time() * 1000.0)
     dPs, ldas = [], []
     for n in range(net_trials):
@@ -67,7 +67,7 @@ if __name__  == '__main__':
     args = parser.parse_args()
     print(args)
 
-    hidden_unit_count, max_coupling_energy, trotter_step, beta =\
+    n_units, max_energy, trotter_step, beta =\
         args.units, args.coupling, args.trotter, args.beta
     length, buffer = args.length, args.buffer
     layer_strength, V = args.strength, args.virtuals
@@ -95,7 +95,7 @@ if __name__  == '__main__':
         for nqrc in layers:
             for tau_delta in taudeltas:
                 recv_end, send_end = multiprocessing.Pipe(False)
-                qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
+                qparams = qrc.QRCParams(n_units=n_units, max_energy=max_energy,\
                     trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tau_delta, init_rho=init_rho)
                 p = multiprocessing.Process(target=esp_job, \
                     args=(qparams, nqrc, layer_strength, buffer, length, net_trials, state_trials, send_end))
@@ -121,8 +121,8 @@ if __name__  == '__main__':
         # save experiments setting
         with open('{}_setting.txt'.format(outbase), 'w') as sfile:
             sfile.write('length={}, buffer={}\n'.format(length, buffer))
-            sfile.write('hidden_unit_count={}\n'.format(hidden_unit_count))
-            sfile.write('max_coupling_energy={}\n'.format(max_coupling_energy))
+            sfile.write('n_units={}\n'.format(n_units))
+            sfile.write('max_energy={}\n'.format(max_energy))
             sfile.write('trotter_step={}\n'.format(trotter_step))
             sfile.write('beta={}\n'.format(beta))
             sfile.write('taudeltas={}\n'.format(' '.join([str(v) for v in taudeltas])))

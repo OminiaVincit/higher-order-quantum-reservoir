@@ -62,7 +62,7 @@ if __name__  == '__main__':
     args = parser.parse_args()
     print(args)
 
-    hidden_unit_count, max_coupling_energy, trotter_step, beta =\
+    n_units, max_energy, trotter_step, beta =\
         args.units, args.coupling, args.trotter, args.beta
     train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
     nproc, layer_strength, V = args.nproc, args.strength, args.virtuals
@@ -85,7 +85,7 @@ if __name__  == '__main__':
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
     outbase = os.path.join(savedir, '{}_{}_J_{}_strength_{}_V_{}_layers_{}_capacity_ntrials_{}'.format(\
-        taskname, datestr, max_coupling_energy, layer_strength, V, '_'.join([str(o) for o in layers]), Ntrials))
+        taskname, datestr, max_energy, layer_strength, V, '_'.join([str(o) for o in layers]), Ntrials))
     
     if os.path.isfile(savedir) == False:
         log_filename = '{}.log'.format(outbase)
@@ -95,7 +95,7 @@ if __name__  == '__main__':
         global_rs = []
         for nqrc in layers:
             for tau_delta in taudeltas:
-                qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
+                qparams = qrc.QRCParams(n_units=n_units, max_energy=max_energy,\
             trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tau_delta, init_rho=init_rho)
                 local_sum = []
                 for n in range(Ntrials):
@@ -128,16 +128,16 @@ if __name__  == '__main__':
                     local_rsarr = [float(x.recv()) for x in pipels]
                     local_sum.append(np.sum(local_rsarr))
                 local_avg, local_std = np.mean(local_sum), np.std(local_sum)
-                global_rs.append([nqrc, tau_delta, max_coupling_energy, local_avg, local_std])
-                logger.debug('layers={},taudelta={},J={},capa_avg={},capa_std={}'.format(nqrc, tau_delta, max_coupling_energy, local_avg, local_std))
+                global_rs.append([nqrc, tau_delta, max_energy, local_avg, local_std])
+                logger.debug('layers={},taudelta={},J={},capa_avg={},capa_std={}'.format(nqrc, tau_delta, max_energy, local_avg, local_std))
         rsarr = np.array(global_rs)
         np.savetxt('{}_capacity.txt'.format(outbase), rsarr, delimiter=' ')
         
         # save experiments setting
         with open('{}_setting.txt'.format(outbase), 'w') as sfile:
             sfile.write('train_len={}, val_len={}, buffer={}\n'.format(train_len, val_len, buffer))
-            sfile.write('hidden_unit_count={}\n'.format(hidden_unit_count))
-            sfile.write('max_coupling_energy={}\n'.format(max_coupling_energy))
+            sfile.write('n_units={}\n'.format(n_units))
+            sfile.write('max_energy={}\n'.format(max_energy))
             sfile.write('trotter_step={}\n'.format(trotter_step))
             sfile.write('beta={}\n'.format(beta))
             sfile.write('taudeltas={}\n'.format(' '.join([str(v) for v in taudeltas])))

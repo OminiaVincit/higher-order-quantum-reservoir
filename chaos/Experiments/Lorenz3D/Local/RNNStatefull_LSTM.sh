@@ -22,7 +22,7 @@ do
     --rnn_cell_type lstm \
     --unitary_cplex 1 \
     --unitary_capacity 2 \
-    --regularization 0.0 \
+    --reg 0.0 \
     --scaler standard \
     --initializer xavier \
     --sequence_length $SL \
@@ -41,8 +41,8 @@ do
     --training_min_epochs 1 \
     --learning_rate 0.001 \
     --train_val_ratio 0.8 \
-    --iterative_prediction_length 500 \
-    --num_test_ICS 2 \
+    --it_pred_length 500 \
+    --n_tests 2 \
     --reference_train_time 1 \
     --buffer_train_time 0.2 \
     --retrain 0

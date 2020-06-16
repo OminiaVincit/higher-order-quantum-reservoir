@@ -17,12 +17,12 @@ input_sequence_list, output_sequence_list = \
 
 
 # この値は量子ビットに相当するため、大きくすると容易にOut of Memoryを起こすので注意
-hidden_unit_count = 5
-max_coupling_energy = 1.0
+n_units = 5
+max_energy = 1.0
 trotter_step = 10
 beta = 1e-14
 model = qrc.QuantumReservoirComputing()
-model.train(input_sequence_list, output_sequence_list, hidden_unit_count, max_coupling_energy, trotter_step, beta)
+model.train(input_sequence_list, output_sequence_list, n_units, max_energy, trotter_step, beta)
 
 prediction_sequence_list, loss = model.predict(input_sequence_list, output_sequence_list)
 print("loss=%f"%loss)

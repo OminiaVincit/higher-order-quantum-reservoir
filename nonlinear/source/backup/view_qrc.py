@@ -32,7 +32,7 @@ if __name__  == '__main__':
     args = parser.parse_args()
     print(args)
 
-    hidden_unit_count, max_coupling_energy, trotter_step, beta =\
+    n_units, max_energy, trotter_step, beta =\
         args.units, args.coupling, args.trotter, args.beta
     val_len, buffer = args.vallen, args.buffer
     basename, savedir = args.basename, args.savedir
@@ -46,7 +46,7 @@ if __name__  == '__main__':
     
     # Evaluation
     model = qrc.QuantumReservoirComputing()
-    qparams = qrc.QRCParams(hidden_unit_count=hidden_unit_count, max_coupling_energy=max_coupling_energy,\
+    qparams = qrc.QRCParams(n_units=n_units, max_energy=max_energy,\
             trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tdelta, init_rho=0)
     state_list = model.init_forward(qparams, input_seq_ls, ranseed=-1, init_rs=True)
     N, L, D = state_list.shape

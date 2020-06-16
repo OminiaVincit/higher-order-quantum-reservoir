@@ -12,14 +12,14 @@
     # --virtual_nodes $V \ # Number of virtual nodes
     # --tau 4.0 \ # Interval between inputs
     # --n_units 6 \ # Number of hidden units =qubits in our setting
-    # --regularization $BETA \ # Ridge parameter
+    # --reg $BETA \ # Ridge parameter
     # --dynamics_length 2000 \ # Transient time steps
-    # --iterative_prediction_length 400 \ # Predicted length
-    # --num_test_ICS 2 \ # Number of tests
+    # --it_pred_length 400 \ # Predicted length
+    # --n_tests 2 \ # Number of tests
     # --solver pinv \ # Ridge by pseudo inverse
     # --augment 0 \ # Augment the hidden states
-    # --num_parallel_groups 32 \ # Number of groups 
-    # --parallel_group_interaction_length 4 \ # Interaction length between groups
+    # --n_groups 32 \ # Number of groups 
+    # --group_interaction_length 4 \ # Interaction length between groups
     #
 # End of the script to emulate chaos by using hqrc
 # 
@@ -50,17 +50,17 @@ mpiexec -n $NR python3 RUN.py hqrc_parallel \
 --virtual_nodes $V \
 --tau 4.0 \
 --n_units 6 \
---regularization $BETA \
+--reg $BETA \
 --solver pinv \
 --norm_every 0 \
 --augment 1 \
 --nqrc 10 \
---num_parallel_groups $NR \
---parallel_group_interaction_length 4 \
+--n_groups $NR \
+--group_interaction_length 4 \
 --dynamics_length 2000 \
---iterative_prediction_length 400 \
+--it_pred_length 400 \
 --iterative_update_length 0 \
---num_test_ICS 2
+--n_tests 2
 done
 done
 done

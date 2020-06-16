@@ -15,7 +15,7 @@ mpiexec -n 32 python3 RUN.py rnn_statefull_parallel \
 --rnn_cell_type gru \
 --unitary_cplex 1 \
 --unitary_capacity 2 \
---regularization 0.0 \
+--reg 0.0 \
 --scaler standard \
 --initializer xavier \
 --sequence_length 4 \
@@ -34,10 +34,10 @@ mpiexec -n 32 python3 RUN.py rnn_statefull_parallel \
 --training_min_epochs 1 \
 --learning_rate 0.001 \
 --train_val_ratio 0.8 \
---num_parallel_groups 32 \
---parallel_group_interaction_length 4 \
---iterative_prediction_length 400 \
---num_test_ICS 10 \
+--n_groups 32 \
+--group_interaction_length 4 \
+--it_pred_length 400 \
+--n_tests 10 \
 --reference_train_time 1 \
 --buffer_train_time 0 \
 --retrain 0 \
