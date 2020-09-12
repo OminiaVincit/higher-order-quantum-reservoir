@@ -22,13 +22,12 @@ from loginit import get_module_logger
 import pickle
 
 UNITS=5
-J=1.0
 BETA=1e-14
 INIT_RHO=0
 V=1
 INTERVAL=0.05
 
-def dumpstates_job(savedir, basename, input_seq, nqrc, layer_strength, xs, idx, send_end):
+def dumpstates_job(savedir, basename, input_seq, nqrc, layer_strength, J, xs, idx, send_end):
     """
     Dump raw data of states
     """
@@ -36,14 +35,15 @@ def dumpstates_job(savedir, basename, input_seq, nqrc, layer_strength, xs, idx, 
     results = dict()
     for x in xs:
         tau = 2**x
-        qparams = QRCParams(n_units=UNITS, max_energy=J,\
+        Jtau = J / tau
+        qparams = QRCParams(n_units=UNITS, max_energy=Jtau,\
             beta=BETA, virtual_nodes=V, tau=tau, init_rho=INIT_RHO)
         model = hqrc.HQRC(nqrc, layer_strength)
         state_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = 0)
         results[x] = state_list
     
-    outbase = os.path.join(savedir, '{}_layers_{}_V_{}_strength_{}'.format(basename, \
-        nqrc, V, layer_strength))
+    outbase = os.path.join(savedir, '{}_layers_{}_V_{}_J_{}_strength_{}'.format(basename, \
+        nqrc, V, J, layer_strength))
     filename = '{}_states_id_{}.binaryfile'.format(outbase, idx)
     with open(filename, 'wb') as wrs:
         pickle.dump(results, wrs)
@@ -59,6 +59,7 @@ if __name__  == '__main__':
     parser.add_argument('--const', type=int, default=0, help='flag to set constant input')
     parser.add_argument('--nqrc', type=int, default=5, help='Number of reservoirs')
     parser.add_argument('--strength', type=float, default=0.5, help='The connection strength')
+    parser.add_argument('--coupling', type=float, default=1.0, help='The coupling magnitude')
     parser.add_argument('--nproc', type=int, default=50)
 
     parser.add_argument('--interval', type=float, default=INTERVAL, help='tau-interval')
@@ -69,7 +70,7 @@ if __name__  == '__main__':
 
     length, nqrc, nproc = args.length, args.nqrc, args.nproc
     bg, ed = args.bg, args.ed
-    layer_strength = args.strength
+    layer_strength, J = args.strength, args.coupling
     const_input = args.const
 
     basename = '{}_const_input_{}'.format(args.basename, args.const)
@@ -97,7 +98,7 @@ if __name__  == '__main__':
             xs = lst[pid]
             recv_end, send_end = multiprocessing.Pipe(False)
             p = multiprocessing.Process(target=dumpstates_job, args=(savedir, basename, input_seq, \
-                nqrc, layer_strength, xs, pid, send_end))
+                nqrc, layer_strength, J, xs, pid, send_end))
             jobs.append(p)
             pipels.append(recv_end)
         # Start the process

@@ -11,7 +11,6 @@ import multiprocessing
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import ticker
-import tqdm
 import time
 import datetime
 import hqrc as hqrc

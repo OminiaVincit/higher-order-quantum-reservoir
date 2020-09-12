@@ -12,3 +12,4 @@ ALPHA=0.5
 PROC=24
 
 python $BIN --savedir $SAVE --length $LENGTH --bg $BG --ed $ED --nqrc $QR --strength $ALPHA --nproc $PROC
+
