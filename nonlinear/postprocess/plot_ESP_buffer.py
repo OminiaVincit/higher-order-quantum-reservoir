@@ -30,7 +30,7 @@ if __name__  == '__main__':
     #plt.style.use('seaborn-colorblind')
     plt.rc('font', family='serif')
     plt.rc('mathtext', fontset='cm')
-    plt.rcParams['font.size']=12
+    plt.rcParams['font.size']=14
 
     ntitle = ''
 
@@ -53,7 +53,7 @@ if __name__  == '__main__':
     ax.set_xscale("log", basex=2)
     ax.set_xlim([2**(-7),2**5])
     ax.set_yscale("log", basey=10)
-    #ax.set_xticks([2**x for x in np.arange(-7,7.1,1.0)])
+    ax.set_xticks([2**x for x in np.arange(-7,5.01,1.0)])
     #ax.set_xticks([2**x for x in np.arange(0,14.1,1.0)])
     
     ax.minorticks_on()
