@@ -288,10 +288,6 @@ class hqrc(object):
             # rho = (1+value)/2 * rho + (1-value)/2 *self.Xop[0] @ rho @ self.Xop[0]
             
             # for input in [0, 1]
-            # print(len(prev_states), value, rho.shape)
-            #if np.isnan(value):
-            #    print('input val', input_val)
-            #    print('prev states', prev_states)
             rho = (1 - value) * rho + value * self.Xop[0] @ rho @ self.Xop[0]
             current_state = []
             for v in range(self.virtual_nodes):
