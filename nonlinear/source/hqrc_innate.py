@@ -11,6 +11,8 @@ from scipy.linalg import pinv2 as scipypinv2
 
 from utils import *
 
+SEL = 0
+
 class HQRC(object):
     def __init__(self, nqrc, alpha):
         self.nqrc = nqrc
@@ -153,7 +155,7 @@ class HQRC(object):
             #print('X.shape={}'.format(X.shape))
             # Innate training
             for i in range(nqrc):
-                error = (X[i*N_local] - innate_target[i])
+                error = (X[SEL + i*N_local] - innate_target[i])
                 # error = 0.0
                 # for v in range(self.virtual_nodes):
                 #     error += np.abs(X[i*N_local + v * self.n_qubits] - innate_target[i + v])
@@ -187,18 +189,20 @@ class HQRC(object):
         # Update the input
         new_input = external_input
         if X[0] is not None:
-            #X_noise = X + np.random.normal(loc=0.0, scale=noise_amp, size=len(X))
-            noise = (np.random.rand(len(X)) - 0.5) * 2.0
-            #print('noise max={}, min={}'.format(np.max(noise), np.min(noise)))
+            #noise = np.random.normal(loc=0.0, scale=noise_amp, size=len(X))
+            noise = (np.random.rand(len(X)) - 0.5) * 2.0 * noise_amp
+            # print('Xmax={}, Xmin={}, noise max={}, min={}'.format(\
+            #     np.max(X), np.min(X),\
+            #     np.max(noise), np.min(noise)))
 
             #X_noise = X + noise_amp * noise
             #X_noise = X * np.random.rand(len(X)) * noise_amp
-            X_noise = X
+            X_noise = X + noise
             feed_noise = self.W_feed @ X_noise
-            feed_noise = feed_noise/len(feed_noise)
+            feed_noise = feed_noise/(2*len(feed_noise))
             
             #feed_noise = 1.0 / (1.0 + np.exp(-feed_noise * gamma))
-            #print('noise, max={}, min={}'.format(np.max(feed_noise), np.min(feed_noise)))
+            #print('ext={}, noise={}'.format(external_input, feed_noise))
             # feed_noise  = self.W_feed @ X + noise_amp * (np.random.rand(len(new_input)) - 0.5) * 2
             # To ensure that new_input in [0, 1]
             # print('shape Wfeed={}, cur states={}'.format(self.W_feed.shape, self.cur_states.shape))
@@ -282,7 +286,7 @@ class HQRC(object):
         for k in range(train_loops):
             print('{} Train loop'.format(k))
             self.__reset_states()
-            self.__init_rhos(ranseed=ranseed + k, rand_rho=False)
+            self.__init_rhos(ranseed=ranseed + k, rand_rho=True)
 
             # Stage 1: Transient regime
             _, state_list = self.__feed_forward(input_seq[:, :buffer], predict=False, \
@@ -307,7 +311,7 @@ class HQRC(object):
             # RMSE values
             for i in range(self.nqrc):
                 target_state = innate_seq[buffer:(buffer + train_len), i]
-                diff_state = state_list[buffer:(buffer + train_len), N_local * i] - innate_seq[buffer:(buffer + train_len), i]
+                diff_state = state_list[buffer:(buffer + train_len), SEL + N_local * i] - innate_seq[buffer:(buffer + train_len), i]
                 #nmse = np.mean(diff_state**2) / np.mean(target_state**2)
                 loss = np.sqrt(np.mean(diff_state**2))
                 loss_dict[i].append(loss)
