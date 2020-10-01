@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 from matplotlib import ticker
 import time
 import datetime
+from scipy.special import legendre
 import hqrc_innate as hqrc
 import utils
 from utils import *
@@ -103,33 +104,27 @@ if __name__  == '__main__':
             # For PRE Training
             innate_buffer = 100
             innate_train_len = 200
-            innate_val_len = 200
+            innate_val_len = 100
 
             pre_input_seq_org = np.array(data[: innate_buffer + innate_train_len + innate_val_len])
             pre_input_seq_org = pre_input_seq_org.reshape(1, pre_input_seq_org.shape[0])
             pre_input_seq = np.tile(pre_input_seq_org, (nqrc, 1))
             
             # Create innate target activity
-            target_state_list = model.init_forward(qparams, pre_input_seq, ranseed=new_ranseed, noise_amp=0.0, scale_input=scale_input)
+            state_list = model.init_forward(qparams, pre_input_seq, ranseed=new_ranseed, noise_amp=0.0, scale_input=scale_input)
             N_local = model.get_local_nodes()
             n_qubits = model.n_qubits
+            innate_seq = state_list[:, sel::N_local]
 
-            target_innate_seq = target_state_list[:, sel::N_local]
-            print('target_state_list={}, target_innate_seq={}'.format(target_state_list.shape, target_innate_seq.shape))
-
-            # noise signals
-            target_snr_db = 10
-            noise_signal_ls = []
-            for i in range(target_innate_seq.shape[1]):
-                s = target_innate_seq[i].ravel()
-                sig_avg_power = np.mean(s**2)
-                sig_avg_db = 10 * np.log10(sig_avg_power)
-                noise_avg_db = sig_avg_db - target_snr_db
-                noise_avg_power = 10 ** (noise_avg_db / 10)
-                #noise_signal = (np.random.rand(len(s)) - 0.5)*2*np.sqrt(noise_avg_power)
-                noise_signal = np.random.normal(0, np.sqrt(noise_avg_power), len(s))
-                noise_signal_ls.append(noise_signal)
-                print(i, sig_avg_db, noise_avg_power, np.mean(noise_signal**2))
+            # Create target activity from legendre polynomial
+            target_innate_seq = []
+            for d in range(nqrc):
+                input_lg = legendre(d+1)(pre_input_seq_org.reshape(-1)) 
+                input_lg = (input_lg - np.min(input_lg)) / (np.max(input_lg) - np.min(input_lg))
+                mi, ma = np.min(innate_seq[:, d]), np.max(innate_seq[:, d])
+                input_lg = input_lg * (ma - mi) + mi
+                target_innate_seq.append(input_lg)
+            target_innate_seq = np.array(target_innate_seq).T
 
             # Pre training
             trained_state_list, dW_recurr_ls, loss_dict \
@@ -147,10 +142,10 @@ if __name__  == '__main__':
 
             for i in range(nqrc):
                 ax = fig.add_subplot(nqrc+3, 1, i+2)
-                ax.plot(target_state_list[bg:, N_local * i], label='target')
+                ax.plot(target_innate_seq[bg:, i], label='target')
                 ax.plot(trained_state_list[bg:, N_local * i], label='trained')
-                diff_state = target_state_list[(innate_buffer + innate_train_len):, sel + N_local * i] - trained_state_list[(innate_buffer + innate_train_len):, sel + N_local * i]
-                target_state = target_state_list[(innate_buffer + innate_train_len):, sel + N_local * i] 
+                diff_state = target_innate_seq[(innate_buffer + innate_train_len):, i] - trained_state_list[(innate_buffer + innate_train_len):, sel + N_local * i]
+                target_state = target_innate_seq[(innate_buffer + innate_train_len):, i] 
                 #nmse = np.mean(diff_state**2) / np.mean(target_state**2)
                 loss = np.sqrt(np.mean(diff_state**2))
                 print('QR {}, Loss={}'.format(i, loss))

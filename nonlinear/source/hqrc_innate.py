@@ -85,31 +85,36 @@ class HQRC(object):
         self.init_rhos = tmp_rhos.copy()
         self.last_rhos = tmp_rhos.copy()
 
-    def __init_w_feed(self, ranseed):
-        np.random.seed(seed=ranseed)
+    def __init_w_feed(self, ranseed, reset_zero=False):
         nqrc  = self.nqrc
         N_local = self.n_units * self.virtual_nodes
         N_tot = nqrc * N_local
-        W_feed = np.random.rand(nqrc, N_tot)
-        for i in range(nqrc):
-            bg = i * N_local
-            # skip self-connection
-            W_feed[i, bg:(bg + N_local)] = 0
-            
-            # normalize the row sum
-            # rowsum = np.sum(W_feed[i, :])
-            # if rowsum != 0:
-            #     W_feed[i, :] = self.alpha * W_feed[i, :] / rowsum
-        #W_feed = W_feed * (1/(N_tot - N_local))
-        if self.W_feed is not None:
-            print('W_feed diff:', np.sum(np.abs(W_feed - self.W_feed)))
+        if reset_zero == True:
+            self.W_feed = np.zeros((nqrc, N_tot))
+        else:
+            np.random.seed(seed=ranseed)
+            W_feed = np.random.rand(nqrc, N_tot)
+            for i in range(nqrc):
+                bg = i * N_local
+                # skip self-connection
+                W_feed[i, bg:(bg + N_local)] = 0
+                
+                # normalize the row sum
+                # rowsum = np.sum(W_feed[i, :])
+                # if rowsum != 0:
+                #     W_feed[i, :] = self.alpha * W_feed[i, :] / rowsum
+            #W_feed = W_feed * (1/(N_tot - N_local))
+            if self.W_feed is not None:
+                print('W_feed diff:', np.sum(np.abs(W_feed - self.W_feed)))
+            self.W_feed = W_feed
+        
         # else:
         #     # normalize the row sum
         #     rowsum = np.sum(W_feed[i, :])
         #     if rowsum != 0:
         #         W_feed[i, :] = self.alpha * W_feed[i, :] / rowsum
         #    self.W_feed = np.zeros(W_feed.shape)
-        self.W_feed = W_feed
+        
 
     def __init_spins(self, ranseed):
         np.random.seed(seed=ranseed)
@@ -190,14 +195,15 @@ class HQRC(object):
         new_input = external_input
         if X[0] is not None:
             #noise = np.random.normal(loc=0.0, scale=noise_amp, size=len(X))
-            noise = (np.random.rand(len(X)) - 0.5) * 2.0 * noise_amp
+            #noise = (np.random.rand(len(X)) - 0.5) * 2.0 * noise_amp
             # print('Xmax={}, Xmin={}, noise max={}, min={}'.format(\
             #     np.max(X), np.min(X),\
             #     np.max(noise), np.min(noise)))
 
             #X_noise = X + noise_amp * noise
             #X_noise = X * np.random.rand(len(X)) * noise_amp
-            X_noise = X + noise
+            #X_noise = X + noise
+            X_noise = X
             feed_noise = self.W_feed @ X_noise
             feed_noise = feed_noise/(2*len(feed_noise))
             
@@ -245,6 +251,10 @@ class HQRC(object):
             self.last_rhos[i] = rho
 
         self.cur_states = np.array(cur_states).ravel()
+        
+        noise = np.random.normal(loc=0.0, scale=np.sqrt(noise_amp), size=len(self.cur_states))
+        #noise = (np.random.rand(len(self.cur_states)) - 0.5) * 2.0 * noise_amp
+        self.cur_states += noise
         return dW_recurr_mag
 
     def __feed_forward(self, input_seq, predict, noise_amp, scale_input):
@@ -270,7 +280,10 @@ class HQRC(object):
 
     def innate_train(self, input_seq, innate_seq, buffer, train_len, ranseed, \
             learn_every=1, noise_amp=0.0, learning_rate=10.0, scale_input=0.4, train_loops=1):
-        self.__init_w_feed(ranseed=ranseed)
+        
+        #reset_zero = (learning_rate > 0.0)
+        self.__init_w_feed(ranseed=ranseed, reset_zero=False)
+
         # Initialize P_recurr
         Plist = []
         nqrc = self.nqrc
@@ -374,3 +387,7 @@ class HQRC(object):
         self.__init_reservoir(qparams, ranseed)
         _, state_list =  self.__feed_forward(input_seq, predict=False, noise_amp=noise_amp, scale_input=scale_input)
         return state_list
+    
+    def init_model(self, qparams, ranseed):
+        self.__reset_states()
+        self.__init_reservoir(qparams, ranseed)

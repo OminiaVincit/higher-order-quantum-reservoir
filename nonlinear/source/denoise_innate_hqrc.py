@@ -40,8 +40,8 @@ if __name__  == '__main__':
     parser.add_argument('--nqrc', type=int, default=5, help='Number of reservoirs')
 
     parser.add_argument('--orders', type=str, default='10')
-    parser.add_argument('--basename', type=str, default='qrc_narma_innate')
-    parser.add_argument('--savedir', type=str, default='resnarma_innate')
+    parser.add_argument('--basename', type=str, default='qrc_innate')
+    parser.add_argument('--savedir', type=str, default='denoise')
     parser.add_argument('--ranseed', type=int, default=1)
     parser.add_argument('--trainloops', type=int, default=1)
     parser.add_argument('--noise', type=float, default=0.1)
@@ -70,7 +70,7 @@ if __name__  == '__main__':
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
 
     sel = 0
-    bg = 50
+    bg = 100
     for order in orders:
         outbase = os.path.join(savedir, '{}_{}_{}_units_{}_V_{}_a_{}_QRs_{}_narma_{}_n_{}_loops_{}_noise_{}_r_{}_sc_{}_sd_{}'.format(\
             basename, solver, datestr, n_units, V, alpha, nqrc, order, Ntrials, train_loops, noise_amp, learning_rate, scale_input, ranseed))
@@ -103,7 +103,7 @@ if __name__  == '__main__':
             # For PRE Training
             innate_buffer = 100
             innate_train_len = 200
-            innate_val_len = 200
+            innate_val_len = 100
 
             pre_input_seq_org = np.array(data[: innate_buffer + innate_train_len + innate_val_len])
             pre_input_seq_org = pre_input_seq_org.reshape(1, pre_input_seq_org.shape[0])
@@ -172,7 +172,7 @@ if __name__  == '__main__':
             ax.set_xlabel('Train loops')
             ax.legend()
 
-            for ftype in ['png']:
+            for ftype in ['png', 'svg']:
                 plt.savefig('{}.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
             plt.show()
             #print(np.sum(target_innate_seq[:, :] - test_state_list[:, ::N_local]))
