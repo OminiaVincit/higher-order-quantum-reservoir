@@ -18,6 +18,7 @@ import datetime
 import hqrc_innate as hqrc
 import utils
 from utils import *
+from loginit import get_module_logger
 
 if __name__  == '__main__':
     # Check for command line arguments
@@ -41,12 +42,13 @@ if __name__  == '__main__':
 
     parser.add_argument('--orders', type=str, default='10')
     parser.add_argument('--basename', type=str, default='qrc_innate')
-    parser.add_argument('--savedir', type=str, default='denoise')
+    parser.add_argument('--savedir', type=str, default='de-narma')
     parser.add_argument('--ranseed', type=int, default=1)
     parser.add_argument('--trainloops', type=int, default=1)
     parser.add_argument('--noise', type=float, default=0.1)
     parser.add_argument('--learning_rate', type=float, default=10.0)
     parser.add_argument('--scale_input', type=float, default=0.4)
+    parser.add_argument('--plot', type=int, default=0)
     args = parser.parse_args()
     print(args)
 
@@ -61,6 +63,11 @@ if __name__  == '__main__':
     basename, savedir = args.basename, args.savedir
     if os.path.isdir(savedir) == False:
         os.mkdir(savedir)
+    
+    logdir = os.path.join(savedir, 'log')
+    if os.path.isdir(logdir) == False:
+        os.mkdir(logdir)
+
     tau, alpha, nqrc = args.taudelta, args.strength, args.nqrc
     orders = [int(x) for x in args.orders.split(',')]
 
@@ -72,20 +79,34 @@ if __name__  == '__main__':
     sel = 0
     bg = 100
     for order in orders:
-        outbase = os.path.join(savedir, '{}_{}_{}_units_{}_V_{}_a_{}_QRs_{}_narma_{}_n_{}_loops_{}_noise_{}_r_{}_sc_{}_sd_{}'.format(\
-            basename, solver, datestr, n_units, V, alpha, nqrc, order, Ntrials, train_loops, noise_amp, learning_rate, scale_input, ranseed))
+        tmpbase = '{}_{}_{}_units_{}_V_{}_a_{}_QRs_{}_narma_{}_n_{}_loops_{}_noise_{}_r_{}_sc_{}_sd_{}'.format(\
+            basename, solver, datestr, n_units, V, alpha, nqrc, order, Ntrials, train_loops, noise_amp, learning_rate, scale_input, ranseed)
+        outbase = os.path.join(savedir, tmpbase)
+        
+        log_filename = os.path.join(logdir, '{}.log'.format(tmpbase))
+        logger = get_module_logger(__name__, log_filename)
+        
+        # # save experiments setting
+        # with open('{}_setting.txt'.format(outbase), 'w') as sfile:
+        #     sfile.write('train_len={}, val_len={}, buffer={}\n'.format(train_len, val_len, buffer))
+        #     sfile.write('n_units={}\n'.format(n_units))
+        #     sfile.write('max_energy={}\n'.format(max_energy))
+        #     sfile.write('beta={}\n'.format(beta))
+        #     sfile.write('taudelta={}\n'.format(tau))
+        #     sfile.write('layers={}\n'.format(nqrc))
+        #     sfile.write('V={}\n'.format(V))
+        #     sfile.write('alpha={}, Ntrials={}\n'.format(alpha, Ntrials))
+        #     sfile.write('noise={}, learning rate={},scale_input={}\n'.format(noise_amp, learning_rate, scale_input))
 
-            # save experiments setting
-        with open('{}_setting.txt'.format(outbase), 'w') as sfile:
-            sfile.write('train_len={}, val_len={}, buffer={}\n'.format(train_len, val_len, buffer))
-            sfile.write('n_units={}\n'.format(n_units))
-            sfile.write('max_energy={}\n'.format(max_energy))
-            sfile.write('beta={}\n'.format(beta))
-            sfile.write('taudelta={}\n'.format(tau))
-            sfile.write('layers={}\n'.format(nqrc))
-            sfile.write('V={}\n'.format(V))
-            sfile.write('alpha={}, Ntrials={}\n'.format(alpha, Ntrials))
-            sfile.write('noise={}, learning rate={},scale_input={}\n'.format(noise_amp, learning_rate, scale_input))
+        logger.info('train_len={}, val_len={}, buffer={}'.format(train_len, val_len, buffer))
+        logger.info('n_units={}'.format(n_units))
+        logger.info('max_energy={}'.format(max_energy))
+        logger.info('beta={}'.format(beta))
+        logger.info('taudelta={}'.format(tau))
+        logger.info('layers={}'.format(nqrc))
+        logger.info('V={}'.format(V))
+        logger.info('alpha={}, Ntrials={}'.format(alpha, Ntrials))
+        logger.info('noise={}, learning rate={},scale_input={}'.format(noise_amp, learning_rate, scale_input))
 
         val_loss_ls = []
         for n in range(Ntrials):
@@ -101,8 +122,8 @@ if __name__  == '__main__':
             new_ranseed = ranseed + n * 100
 
             # For PRE Training
-            innate_buffer = 100
-            innate_train_len = 200
+            innate_buffer = 500
+            innate_train_len = 1000
             innate_val_len = 100
 
             pre_input_seq_org = np.array(data[: innate_buffer + innate_train_len + innate_val_len])
@@ -115,21 +136,22 @@ if __name__  == '__main__':
             n_qubits = model.n_qubits
 
             target_innate_seq = target_state_list[:, sel::N_local]
-            print('target_state_list={}, target_innate_seq={}'.format(target_state_list.shape, target_innate_seq.shape))
+            logger.info('innate_buffer={}, innate_train_len={}, innate_val_len={}'.format(innate_buffer, innate_train_len, innate_val_len))
+            logger.info('target_state_list={}, target_innate_seq={}'.format(target_state_list.shape, target_innate_seq.shape))
 
-            # noise signals
-            target_snr_db = 10
-            noise_signal_ls = []
-            for i in range(target_innate_seq.shape[1]):
-                s = target_innate_seq[i].ravel()
-                sig_avg_power = np.mean(s**2)
-                sig_avg_db = 10 * np.log10(sig_avg_power)
-                noise_avg_db = sig_avg_db - target_snr_db
-                noise_avg_power = 10 ** (noise_avg_db / 10)
-                #noise_signal = (np.random.rand(len(s)) - 0.5)*2*np.sqrt(noise_avg_power)
-                noise_signal = np.random.normal(0, np.sqrt(noise_avg_power), len(s))
-                noise_signal_ls.append(noise_signal)
-                print(i, sig_avg_db, noise_avg_power, np.mean(noise_signal**2))
+            # # noise signals
+            # target_snr_db = 10
+            # noise_signal_ls = []
+            # for i in range(target_innate_seq.shape[1]):
+            #     s = target_innate_seq[i].ravel()
+            #     sig_avg_power = np.mean(s**2)
+            #     sig_avg_db = 10 * np.log10(sig_avg_power)
+            #     noise_avg_db = sig_avg_db - target_snr_db
+            #     noise_avg_power = 10 ** (noise_avg_db / 10)
+            #     #noise_signal = (np.random.rand(len(s)) - 0.5)*2*np.sqrt(noise_avg_power)
+            #     noise_signal = np.random.normal(0, np.sqrt(noise_avg_power), len(s))
+            #     noise_signal_ls.append(noise_signal)
+            #     print(i, sig_avg_db, noise_avg_power, np.mean(noise_signal**2))
 
             # Pre training
             trained_state_list, dW_recurr_ls, loss_dict \
@@ -138,47 +160,47 @@ if __name__  == '__main__':
                     noise_amp=noise_amp, learning_rate=learning_rate, \
                     scale_input=scale_input, train_loops=train_loops)
 
-            fig = plt.figure(figsize=(16, 16))
-            plt.subplots_adjust(wspace=0.4, hspace=0.5)
-            ax = fig.add_subplot(nqrc+3, 1, 1)
-            ax.plot(pre_input_seq[0, bg:])
-            ax.set_ylabel('Input')
-            ax.set_title(outbase)
+            if args.plot > 0:
+                fig = plt.figure(figsize=(16, 16))
+                plt.subplots_adjust(wspace=0.4, hspace=0.5)
+                ax = fig.add_subplot(nqrc+3, 1, 1)
+                ax.plot(pre_input_seq[0, bg:])
+                ax.set_ylabel('Input')
+                ax.set_title(outbase)
 
-            for i in range(nqrc):
-                ax = fig.add_subplot(nqrc+3, 1, i+2)
-                ax.plot(target_state_list[bg:, N_local * i], label='target')
-                ax.plot(trained_state_list[bg:, N_local * i], label='trained')
-                diff_state = target_state_list[(innate_buffer + innate_train_len):, sel + N_local * i] - trained_state_list[(innate_buffer + innate_train_len):, sel + N_local * i]
-                target_state = target_state_list[(innate_buffer + innate_train_len):, sel + N_local * i] 
-                #nmse = np.mean(diff_state**2) / np.mean(target_state**2)
-                loss = np.sqrt(np.mean(diff_state**2))
-                print('QR {}, Loss={}'.format(i, loss))
-                ax.set_title('Val loss={}'.format(loss))
-                #ax.plot(trained_state_list[:, N_local * i] - target_state_list[:, N_local * i])
-                ax.set_ylabel('QR_{}'.format(i))
+                for i in range(nqrc):
+                    ax = fig.add_subplot(nqrc+3, 1, i+2)
+                    ax.plot(target_state_list[bg:, N_local * i], label='target')
+                    ax.plot(trained_state_list[bg:, N_local * i], label='trained')
+                    diff_state = target_state_list[(innate_buffer + innate_train_len):, sel + N_local * i] - trained_state_list[(innate_buffer + innate_train_len):, sel + N_local * i]
+                    target_state = target_state_list[(innate_buffer + innate_train_len):, sel + N_local * i] 
+                    #nmse = np.mean(diff_state**2) / np.mean(target_state**2)
+                    loss = np.sqrt(np.mean(diff_state**2))
+                    logger.debug('QR {}, Loss={}'.format(i, loss))
+                    ax.set_title('Val loss={}'.format(loss))
+                    #ax.plot(trained_state_list[:, N_local * i] - target_state_list[:, N_local * i])
+                    ax.set_ylabel('QR_{}'.format(i))
+                    ax.legend()
+                
+                ax = fig.add_subplot(nqrc+3, 1, nqrc+2)
+                ax.plot(dW_recurr_ls[bg:])
+                ax.set_ylabel('dW')
+                ax.set_xlabel('Time step')
+
+                # Plot for NMSE of Pre-training
+                ax = fig.add_subplot(nqrc+3, 1, nqrc+3)
+                for i in range(nqrc):
+                    ax.plot(loss_dict[i], 'o--', label='QR-{}'.format(i))
+                ax.set_ylabel('Train loss')
+                ax.set_xlabel('Train loops')
                 ax.legend()
-            
-            ax = fig.add_subplot(nqrc+3, 1, nqrc+2)
-            ax.plot(dW_recurr_ls[bg:])
-            ax.set_ylabel('dW')
-            ax.set_xlabel('Time step')
 
-            # Plot for NMSE of Pre-training
-            ax = fig.add_subplot(nqrc+3, 1, nqrc+3)
-            for i in range(nqrc):
-                ax.plot(loss_dict[i], 'o--', label='QR-{}'.format(i))
-            ax.set_ylabel('Train loss')
-            ax.set_xlabel('Train loops')
-            ax.legend()
-
-            for ftype in ['png', 'svg']:
-                plt.savefig('{}.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
-            plt.show()
-            #print(np.sum(target_innate_seq[:, :] - test_state_list[:, ::N_local]))
+                for ftype in ['png']:
+                    plt.savefig('{}.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
+                plt.show()
 
             # Training NARMA
-            if False:
+            if True:
                 train_input_seq_org = np.array(data[: buffer + train_len])
                 train_input_seq_org = train_input_seq_org.reshape(1, train_input_seq_org.shape[0])
                 train_output_seq = target[  : buffer + train_len] 
@@ -194,6 +216,7 @@ if __name__  == '__main__':
                     ranseed=new_ranseed + 2000, noise_amp=noise_amp, scale_input=scale_input)
                 val_pred_seq, val_loss = model.predict(val_input_seq, val_output_seq, buffer=0, \
                     noise_amp=noise_amp, scale_input=scale_input)
-                print('n={}, val_loss={}'.format(n, val_loss))
+                logger.debug('n={}, val_loss={}'.format(n, val_loss))
                 val_loss_ls.append(val_loss)
-        #print('Ntrials={}, avg loss={}'.format(Ntrials, np.mean(val_loss_ls)))
+        logger.info('Ntrials={}, total loss avg={}, std={}'.format(Ntrials, np.mean(val_loss_ls), np.std(val_loss_ls)))
+
