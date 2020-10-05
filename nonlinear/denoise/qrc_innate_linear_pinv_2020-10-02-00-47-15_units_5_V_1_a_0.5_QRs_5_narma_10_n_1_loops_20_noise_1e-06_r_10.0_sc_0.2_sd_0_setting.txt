@@ -1,9 +1,0 @@
-train_len=2000, val_len=2000, buffer=2000
-n_units=5
-max_energy=1.0
-beta=1e-14
-taudelta=4.0
-layers=5
-V=1
-alpha=0.5, Ntrials=1
-noise=1e-06, learning rate=10.0,scale_input=0.2

@@ -1,0 +1,18 @@
+2020-10-05 12:18:04,693 - __main__ - INFO - train_len=2000, val_len=2000, buffer=2000
+2020-10-05 12:18:04,693 - __main__ - INFO - n_units=5
+2020-10-05 12:18:04,693 - __main__ - INFO - max_energy=1.0
+2020-10-05 12:18:04,693 - __main__ - INFO - beta=1e-14
+2020-10-05 12:18:04,693 - __main__ - INFO - taudelta=2.0
+2020-10-05 12:18:04,693 - __main__ - INFO - layers=5
+2020-10-05 12:18:04,693 - __main__ - INFO - V=1
+2020-10-05 12:18:04,693 - __main__ - INFO - alpha=0.5, Ntrials=1
+2020-10-05 12:18:04,693 - __main__ - INFO - noise=1e-05, learning rate=10.0,scale_input=0.3,select_qubit=0
+2020-10-05 12:18:11,546 - __main__ - INFO - innate_buffer=2000, innate_train_len=2000, innate_val_len=2000
+2020-10-05 12:18:11,547 - __main__ - INFO - target_state_list=(6000, 25), target_innate_seq=(6000, 5)
+2020-10-05 12:20:30,194 - __main__ - DEBUG - QR 0, Loss=0.0031500218263774233
+2020-10-05 12:20:30,203 - __main__ - DEBUG - QR 1, Loss=0.003756008597305119
+2020-10-05 12:20:30,212 - __main__ - DEBUG - QR 2, Loss=0.0033528915755310497
+2020-10-05 12:20:30,221 - __main__ - DEBUG - QR 3, Loss=0.004088469321089405
+2020-10-05 12:20:30,230 - __main__ - DEBUG - QR 4, Loss=0.0031192581224064055
+2020-10-05 12:20:43,099 - __main__ - DEBUG - n=0, val_loss=0.002935076527675748
+2020-10-05 12:20:43,099 - __main__ - INFO - Ntrials=1, total loss avg=0.002935076527675748, std=0.0

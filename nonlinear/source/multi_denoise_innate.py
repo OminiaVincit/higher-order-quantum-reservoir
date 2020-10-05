@@ -22,7 +22,7 @@ from loginit import get_module_logger
 
 def narma_with_pre_train_job(logdir, tmpbase, qparams, nqrc, \
     order, train_len, val_len, buffer, \
-    alpha, Ntrials, noise_amp, learning_rate, scale_input, train_loops, sel):
+    alpha, Ntrials, noise_amp, learning_rate, scale_input, train_loops, sel, do_narma):
         
     log_filename = os.path.join(logdir, '{}.log'.format(tmpbase))
     logger = get_module_logger(__name__, log_filename)
@@ -49,9 +49,9 @@ def narma_with_pre_train_job(logdir, tmpbase, qparams, nqrc, \
         new_ranseed = ranseed + n * 100
         
         model.init_model(qparams, ranseed=new_ranseed)
-        
+
         # Pre training
-        if learning_rate > 0.0:
+        if learning_rate > 0.0 or do_narma == 0:
             # For PRE Training
             innate_buffer = buffer
             innate_train_len = train_len
@@ -74,26 +74,38 @@ def narma_with_pre_train_job(logdir, tmpbase, qparams, nqrc, \
                 = model.innate_train(pre_input_seq, target_innate_seq, innate_buffer, innate_train_len, \
                     ranseed=new_ranseed + 1000, learn_every=1, \
                     noise_amp=noise_amp, learning_rate=learning_rate, \
-                    scale_input=scale_input, train_loops=train_loops)
+                    scale_input=scale_input, train_loops=train_loops, sel=sel)
+            
+            local_loss = []
+            for i in range(nqrc):
+                diff_state = target_state_list[(innate_buffer + innate_train_len):, sel + N_local * i] - trained_state_list[(innate_buffer + innate_train_len):, sel + N_local * i]
+                target_state = target_state_list[(innate_buffer + innate_train_len):, sel + N_local * i] 
+                #nmse = np.mean(diff_state**2) / np.mean(target_state**2)
+                loss = np.sqrt(np.mean(diff_state**2))
+                local_loss.append(loss)
+                logger.debug('QR {}, Loss={}'.format(i, loss))
+            
+            val_loss_ls.append(np.mean(local_loss))
 
-        train_input_seq_org = np.array(data[: buffer + train_len])
-        train_input_seq_org = train_input_seq_org.reshape(1, train_input_seq_org.shape[0])
-        train_output_seq = target[  : buffer + train_len] 
+        if do_narma > 0:
+            train_input_seq_org = np.array(data[: buffer + train_len])
+            train_input_seq_org = train_input_seq_org.reshape(1, train_input_seq_org.shape[0])
+            train_output_seq = target[  : buffer + train_len] 
 
-        val_input_seq_org =  np.array(data[buffer + train_len : buffer + train_len + val_len])
-        val_input_seq_org = val_input_seq_org.reshape(1, val_input_seq_org.shape[0])
-        val_output_seq = target[buffer + train_len : buffer + train_len + val_len]
+            val_input_seq_org =  np.array(data[buffer + train_len : buffer + train_len + val_len])
+            val_input_seq_org = val_input_seq_org.reshape(1, val_input_seq_org.shape[0])
+            val_output_seq = target[buffer + train_len : buffer + train_len + val_len]
 
-        train_input_seq = np.tile(train_input_seq_org, (nqrc, 1))
-        val_input_seq = np.tile(val_input_seq_org, (nqrc, 1))
+            train_input_seq = np.tile(train_input_seq_org, (nqrc, 1))
+            val_input_seq = np.tile(val_input_seq_org, (nqrc, 1))
 
-        model.train(train_input_seq, train_output_seq, buffer=buffer, beta=beta, \
-            ranseed=new_ranseed + 2000, noise_amp=noise_amp, scale_input=scale_input)
-        val_pred_seq, val_loss = model.predict(val_input_seq, val_output_seq, buffer=0, \
-            noise_amp=noise_amp, scale_input=scale_input)
-        logger.debug('n={}, val_loss={}'.format(n, val_loss))
-        val_loss_ls.append(val_loss)
-    logger.info('Ntrials={}, total loss avg={}, std={}'.format(Ntrials, np.mean(val_loss_ls), np.std(val_loss_ls)))
+            model.train(train_input_seq, train_output_seq, buffer=buffer, beta=beta, \
+                ranseed=new_ranseed + 2000, noise_amp=noise_amp, scale_input=scale_input)
+            val_pred_seq, val_loss = model.predict(val_input_seq, val_output_seq, buffer=0, \
+                noise_amp=noise_amp, scale_input=scale_input)
+            logger.debug('n={}, val_loss={}'.format(n, val_loss))
+            val_loss_ls.append(val_loss)
+    logger.info('do_narma={}, Ntrials={}, total loss avg={}, std={}'.format(do_narma, Ntrials, np.mean(val_loss_ls), np.std(val_loss_ls)))
 
 if __name__  == '__main__':
     # Check for command line arguments
@@ -111,7 +123,7 @@ if __name__  == '__main__':
     
     parser.add_argument('--ntrials', type=int, default=1)
     parser.add_argument('--virtuals', type=int, default=1)
-    parser.add_argument('--taudelta', type=float, default=2.0, help='Interval between the inputs')
+    parser.add_argument('--taudelta', type=str, default='1.0,2.0,4.0', help='Interval between the inputs')
     parser.add_argument('--strength', type=float, default=0.5, help='Connection strengths')
     parser.add_argument('--nqrc', type=int, default=5, help='Number of reservoirs')
 
@@ -123,6 +135,7 @@ if __name__  == '__main__':
     parser.add_argument('--select_qubit', type=int, default=0)
     parser.add_argument('--learning_rate', type=float, default=10.0)
     parser.add_argument('--scale_input', type=float, default=0.4)
+    parser.add_argument('--do_narma', type=int, default=0)
     args = parser.parse_args()
     print(args)
 
@@ -134,7 +147,7 @@ if __name__  == '__main__':
     Ntrials, ranseed, train_loops = args.ntrials, args.ranseed, args.trainloops
     learning_rate, scale_input, sel = args.learning_rate, args.scale_input, args.select_qubit
 
-    basename, savedir = args.basename, args.savedir
+    basename, savedir, do_narma = args.basename, args.savedir, args.do_narma
     if os.path.isdir(savedir) == False:
         os.mkdir(savedir)
     
@@ -142,8 +155,9 @@ if __name__  == '__main__':
     if os.path.isdir(logdir) == False:
         os.mkdir(logdir)
 
-    tau, alpha, nqrc = args.taudelta, args.strength, args.nqrc
+    alpha, nqrc = args.strength, args.nqrc
     orders = [int(x) for x in args.orders.split(',')]
+    taus = [float(x) for x in args.taudelta.split(',')]
 
     # Evaluation
     timestamp = int(time.time() * 1000.0)
@@ -157,20 +171,20 @@ if __name__  == '__main__':
             noise_ls.append(j * (10**i))
     noise_ls.append(1e-2)
 
-    # Create qparams and model
-    qparams = QRCParams(n_units=n_units, max_energy=max_energy,\
-        beta=beta, virtual_nodes=V, tau=tau, init_rho=False)
-
     jobs = []
     for order in orders:
-        for noise_amp in noise_ls:
-            tmpbase = '{}_{}_{}_units_{}_V_{}_a_{}_QR_{}_narma_{}_n_{}_lo_{}_no_{}_r_{}_sc_{}_sd_{}'.format(\
-                basename, solver, datestr, n_units, V, alpha, nqrc, order, Ntrials, train_loops, noise_amp, learning_rate, scale_input, ranseed)
-            p = multiprocessing.Process(target=narma_with_pre_train_job, \
-                args=(logdir, tmpbase, qparams, nqrc, \
-                    order, train_len, val_len, buffer, \
-                    alpha, Ntrials, noise_amp, learning_rate, scale_input, train_loops, sel))
-            jobs.append(p)
+        for tau in taus:
+            # Create qparams and model
+            qparams = QRCParams(n_units=n_units, max_energy=max_energy,\
+                beta=beta, virtual_nodes=V, tau=tau, init_rho=False)
+            for noise_amp in noise_ls:
+                tmpbase = '{}_{}_{}_units_{}_V_{}_a_{}_QR_{}_narma_{}_n_{}_lo_{}_no_{}_r_{}_sc_{}_sd_{}'.format(\
+                    basename, solver, datestr, n_units, V, alpha, nqrc, order, Ntrials, train_loops, noise_amp, learning_rate, scale_input, ranseed)
+                p = multiprocessing.Process(target=narma_with_pre_train_job, \
+                    args=(logdir, tmpbase, qparams, nqrc, \
+                        order, train_len, val_len, buffer, \
+                        alpha, Ntrials, noise_amp, learning_rate, scale_input, train_loops, sel, do_narma))
+                jobs.append(p)
 
     # Start the process
     for p in jobs:

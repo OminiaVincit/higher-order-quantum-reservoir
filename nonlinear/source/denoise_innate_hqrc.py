@@ -45,9 +45,10 @@ if __name__  == '__main__':
     parser.add_argument('--savedir', type=str, default='de-narma')
     parser.add_argument('--ranseed', type=int, default=1)
     parser.add_argument('--trainloops', type=int, default=1)
-    parser.add_argument('--noise', type=float, default=0.1)
+    parser.add_argument('--noise', type=float, default=1e-5)
     parser.add_argument('--learning_rate', type=float, default=10.0)
     parser.add_argument('--scale_input', type=float, default=0.4)
+    parser.add_argument('--select_qubit', type=int, default=0)
     parser.add_argument('--plot', type=int, default=0)
     args = parser.parse_args()
     print(args)
@@ -58,7 +59,7 @@ if __name__  == '__main__':
     init_rho, solver = args.rho, args.solver
 
     Ntrials, ranseed, train_loops, noise_amp = args.ntrials, args.ranseed, args.trainloops, args.noise
-    learning_rate, scale_input = args.learning_rate, args.scale_input
+    learning_rate, scale_input, sel = args.learning_rate, args.scale_input, args.select_qubit
 
     basename, savedir = args.basename, args.savedir
     if os.path.isdir(savedir) == False:
@@ -76,28 +77,15 @@ if __name__  == '__main__':
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
 
-    sel = 0
-    bg = 100
     for order in orders:
-        tmpbase = '{}_{}_{}_units_{}_V_{}_a_{}_QRs_{}_narma_{}_n_{}_loops_{}_noise_{}_r_{}_sc_{}_sd_{}'.format(\
-            basename, solver, datestr, n_units, V, alpha, nqrc, order, Ntrials, train_loops, noise_amp, learning_rate, scale_input, ranseed)
+        tmpbase = '{}_{}_{}_units_{}_V_{}_a_{}_QRs_{}_narma_{}_n_{}_lo_{}_noise_{}_r_{}_sc_{}_sd_{}_sel_{}'.format(\
+            basename, solver, datestr, n_units, V, alpha, nqrc, order, Ntrials, \
+            train_loops, noise_amp, learning_rate, scale_input, ranseed, sel)
         outbase = os.path.join(savedir, tmpbase)
         
         log_filename = os.path.join(logdir, '{}.log'.format(tmpbase))
         logger = get_module_logger(__name__, log_filename)
         
-        # # save experiments setting
-        # with open('{}_setting.txt'.format(outbase), 'w') as sfile:
-        #     sfile.write('train_len={}, val_len={}, buffer={}\n'.format(train_len, val_len, buffer))
-        #     sfile.write('n_units={}\n'.format(n_units))
-        #     sfile.write('max_energy={}\n'.format(max_energy))
-        #     sfile.write('beta={}\n'.format(beta))
-        #     sfile.write('taudelta={}\n'.format(tau))
-        #     sfile.write('layers={}\n'.format(nqrc))
-        #     sfile.write('V={}\n'.format(V))
-        #     sfile.write('alpha={}, Ntrials={}\n'.format(alpha, Ntrials))
-        #     sfile.write('noise={}, learning rate={},scale_input={}\n'.format(noise_amp, learning_rate, scale_input))
-
         logger.info('train_len={}, val_len={}, buffer={}'.format(train_len, val_len, buffer))
         logger.info('n_units={}'.format(n_units))
         logger.info('max_energy={}'.format(max_energy))
@@ -106,7 +94,7 @@ if __name__  == '__main__':
         logger.info('layers={}'.format(nqrc))
         logger.info('V={}'.format(V))
         logger.info('alpha={}, Ntrials={}'.format(alpha, Ntrials))
-        logger.info('noise={}, learning rate={},scale_input={}'.format(noise_amp, learning_rate, scale_input))
+        logger.info('noise={}, learning rate={},scale_input={},select_qubit={}'.format(noise_amp, learning_rate, scale_input, sel))
 
         val_loss_ls = []
         for n in range(Ntrials):
@@ -122,9 +110,11 @@ if __name__  == '__main__':
             new_ranseed = ranseed + n * 100
 
             # For PRE Training
-            innate_buffer = 500
-            innate_train_len = 1000
-            innate_val_len = 100
+            innate_buffer = buffer
+            innate_train_len = train_len
+            innate_val_len = val_len
+            bg = innate_buffer + innate_train_len - 100
+            ed = innate_buffer + innate_train_len + 100
 
             pre_input_seq_org = np.array(data[: innate_buffer + innate_train_len + innate_val_len])
             pre_input_seq_org = pre_input_seq_org.reshape(1, pre_input_seq_org.shape[0])
@@ -158,20 +148,21 @@ if __name__  == '__main__':
                 = model.innate_train(pre_input_seq, target_innate_seq, innate_buffer, innate_train_len, \
                     ranseed=new_ranseed + 1000, learn_every=1, \
                     noise_amp=noise_amp, learning_rate=learning_rate, \
-                    scale_input=scale_input, train_loops=train_loops)
+                    scale_input=scale_input, train_loops=train_loops, sel=sel)
 
             if args.plot > 0:
                 fig = plt.figure(figsize=(16, 16))
                 plt.subplots_adjust(wspace=0.4, hspace=0.5)
-                ax = fig.add_subplot(nqrc+3, 1, 1)
-                ax.plot(pre_input_seq[0, bg:])
-                ax.set_ylabel('Input')
-                ax.set_title(outbase)
+
+                # ax = fig.add_subplot(nqrc+3, 1, 1)
+                # ax.plot(pre_input_seq[0, bg:])
+                # ax.set_ylabel('Input')
+                # ax.set_title(outbase)
 
                 for i in range(nqrc):
-                    ax = fig.add_subplot(nqrc+3, 1, i+2)
-                    ax.plot(target_state_list[bg:, N_local * i], label='target')
-                    ax.plot(trained_state_list[bg:, N_local * i], label='trained')
+                    ax = fig.add_subplot(nqrc+1, 1, i+1)
+                    ax.plot(target_state_list[bg:ed, sel + N_local * i], label='target', linewidth=2)
+                    ax.plot(trained_state_list[bg:ed, sel + N_local * i], label='trained', linewidth=2)
                     diff_state = target_state_list[(innate_buffer + innate_train_len):, sel + N_local * i] - trained_state_list[(innate_buffer + innate_train_len):, sel + N_local * i]
                     target_state = target_state_list[(innate_buffer + innate_train_len):, sel + N_local * i] 
                     #nmse = np.mean(diff_state**2) / np.mean(target_state**2)
@@ -182,20 +173,21 @@ if __name__  == '__main__':
                     ax.set_ylabel('QR_{}'.format(i))
                     ax.legend()
                 
-                ax = fig.add_subplot(nqrc+3, 1, nqrc+2)
-                ax.plot(dW_recurr_ls[bg:])
-                ax.set_ylabel('dW')
-                ax.set_xlabel('Time step')
+                # ax = fig.add_subplot(nqrc+2, 1, nqrc+1)
+                # ax.plot(dW_recurr_ls[bg:ed])
+                # ax.set_ylabel('dW')
+                # ax.set_xlabel('Time step')
 
                 # Plot for NMSE of Pre-training
-                ax = fig.add_subplot(nqrc+3, 1, nqrc+3)
+                ax = fig.add_subplot(nqrc+1, 1, nqrc+1)
                 for i in range(nqrc):
                     ax.plot(loss_dict[i], 'o--', label='QR-{}'.format(i))
                 ax.set_ylabel('Train loss')
                 ax.set_xlabel('Train loops')
+                ax.set_title(outbase)
                 ax.legend()
 
-                for ftype in ['png']:
+                for ftype in ['png', 'svg']:
                     plt.savefig('{}.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
                 plt.show()
 

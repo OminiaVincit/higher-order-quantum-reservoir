@@ -11,8 +11,6 @@ from scipy.linalg import pinv2 as scipypinv2
 
 from utils import *
 
-SEL = 0
-
 class HQRC(object):
     def __init__(self, nqrc, alpha):
         self.nqrc = nqrc
@@ -149,7 +147,7 @@ class HQRC(object):
         self.cur_states  = [None] * self.nqrc
 
     def __step_forward(self, external_input, innate_train=False, out_train=False, \
-            innate_target=None, out_target=None, noise_amp=0.0, learning_rate=10.0, scale_input=0.4):
+            innate_target=None, out_target=None, noise_amp=0.0, learning_rate=10.0, scale_input=0.4, sel=0):
         nqrc = self.nqrc
         alpha = self.alpha
         N_local = self.get_local_nodes()
@@ -160,7 +158,7 @@ class HQRC(object):
             #print('X.shape={}'.format(X.shape))
             # Innate training
             for i in range(nqrc):
-                error = (X[SEL + i*N_local] - innate_target[i])
+                error = (X[sel + i*N_local] - innate_target[i])
                 # error = 0.0
                 # for v in range(self.virtual_nodes):
                 #     error += np.abs(X[i*N_local + v * self.n_qubits] - innate_target[i + v])
@@ -257,7 +255,7 @@ class HQRC(object):
         self.cur_states += noise
         return dW_recurr_mag
 
-    def __feed_forward(self, input_seq, predict, noise_amp, scale_input):
+    def __feed_forward(self, input_seq, predict, noise_amp, scale_input, sel=0):
         input_dim, input_length = input_seq.shape
         nqrc = self.nqrc
         assert(input_dim == nqrc)
@@ -266,7 +264,7 @@ class HQRC(object):
         state_list = []
         for time_step in range(0, input_length):
             input_val = input_seq[:, time_step].ravel()
-            self.__step_forward(input_val, noise_amp=noise_amp, scale_input=scale_input)
+            self.__step_forward(input_val, noise_amp=noise_amp, scale_input=scale_input, sel=sel)
             state = np.array(self.cur_states.copy(), dtype=np.float64)
             state_list.append(state.flatten())
 
@@ -279,7 +277,8 @@ class HQRC(object):
         return predict_seq, state_list
 
     def innate_train(self, input_seq, innate_seq, buffer, train_len, ranseed, \
-            learn_every=1, noise_amp=0.0, learning_rate=10.0, scale_input=0.4, train_loops=1):
+            learn_every=1, noise_amp=0.0, learning_rate=10.0, \
+            scale_input=0.4, train_loops=1, sel=0):
         
         #reset_zero = (learning_rate > 0.0)
         self.__init_w_feed(ranseed=ranseed, reset_zero=False)
@@ -303,7 +302,7 @@ class HQRC(object):
 
             # Stage 1: Transient regime
             _, state_list = self.__feed_forward(input_seq[:, :buffer], predict=False, \
-                noise_amp=noise_amp, scale_input=scale_input)
+                noise_amp=noise_amp, scale_input=scale_input, sel=sel)
             dW_recurr_ls = [0] * buffer
 
             # Stage 2: Innate training for W_feed
@@ -314,7 +313,7 @@ class HQRC(object):
                 else:
                     innate_train = False
                 dW_recurr_mag = self.__step_forward(input_seq[:, i], innate_train=innate_train, innate_target=innate_seq[i-1],\
-                    learning_rate=learning_rate, noise_amp=noise_amp, scale_input=scale_input)
+                    learning_rate=learning_rate, noise_amp=noise_amp, scale_input=scale_input, sel=sel)
                 dW_recurr_ls.append(dW_recurr_mag)
                 state = np.array(self.cur_states.copy(), dtype=np.float64)
                 tmp_list.append(state.flatten())
@@ -324,7 +323,7 @@ class HQRC(object):
             # RMSE values
             for i in range(self.nqrc):
                 target_state = innate_seq[buffer:(buffer + train_len), i]
-                diff_state = state_list[buffer:(buffer + train_len), SEL + N_local * i] - innate_seq[buffer:(buffer + train_len), i]
+                diff_state = state_list[buffer:(buffer + train_len), sel + N_local * i] - innate_seq[buffer:(buffer + train_len), i]
                 #nmse = np.mean(diff_state**2) / np.mean(target_state**2)
                 loss = np.sqrt(np.mean(diff_state**2))
                 loss_dict[i].append(loss)
@@ -332,7 +331,7 @@ class HQRC(object):
             
             # Evaluation stage
             _, eval_state_list = self.__feed_forward(input_seq[:, (buffer+train_len):], predict=False, \
-                noise_amp=noise_amp, scale_input=scale_input)
+                noise_amp=noise_amp, scale_input=scale_input, sel=sel)
             state_list = np.concatenate([state_list, eval_state_list])
             dW_recurr_ls.extend([0] * (input_seq.shape[1] - len(dW_recurr_ls)))
 

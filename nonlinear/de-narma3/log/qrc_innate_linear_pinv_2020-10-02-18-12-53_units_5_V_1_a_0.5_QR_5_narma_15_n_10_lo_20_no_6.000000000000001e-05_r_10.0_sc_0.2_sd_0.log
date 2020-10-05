@@ -1,0 +1,40 @@
+2020-10-02 18:12:54,004 - __main__ - INFO - n_units=5
+2020-10-02 18:12:54,004 - __main__ - INFO - max_energy=1.0
+2020-10-02 18:12:54,004 - __main__ - INFO - beta=1e-14
+2020-10-02 18:12:54,004 - __main__ - INFO - taudelta=4.0
+2020-10-02 18:12:54,004 - __main__ - INFO - V=1
+2020-10-02 18:12:54,005 - __main__ - INFO - layers=5
+2020-10-02 18:12:54,005 - __main__ - INFO - train_len=2000, val_len=2000, buffer=2000
+2020-10-02 18:12:54,005 - __main__ - INFO - alpha=0.5, Ntrials=10
+2020-10-02 18:12:54,005 - __main__ - INFO - noise=6.000000000000001e-05, learning rate=10.0,scale_input=0.2
+2020-10-02 18:13:09,219 - __main__ - INFO - innate_buffer=2000, innate_train_len=2000, innate_val_len=2000
+2020-10-02 18:13:09,219 - __main__ - INFO - target_state_list=(6000, 25), target_innate_seq=(6000, 5)
+2020-10-02 18:17:23,111 - __main__ - DEBUG - n=0, val_loss=0.003189061896286709
+2020-10-02 18:17:34,402 - __main__ - INFO - innate_buffer=2000, innate_train_len=2000, innate_val_len=2000
+2020-10-02 18:17:34,402 - __main__ - INFO - target_state_list=(6000, 25), target_innate_seq=(6000, 5)
+2020-10-02 18:21:15,813 - __main__ - DEBUG - n=1, val_loss=0.003387891045708653
+2020-10-02 18:21:25,364 - __main__ - INFO - innate_buffer=2000, innate_train_len=2000, innate_val_len=2000
+2020-10-02 18:21:25,364 - __main__ - INFO - target_state_list=(6000, 25), target_innate_seq=(6000, 5)
+2020-10-02 18:25:23,708 - __main__ - DEBUG - n=2, val_loss=0.00320566341962719
+2020-10-02 18:25:39,230 - __main__ - INFO - innate_buffer=2000, innate_train_len=2000, innate_val_len=2000
+2020-10-02 18:25:39,230 - __main__ - INFO - target_state_list=(6000, 25), target_innate_seq=(6000, 5)
+2020-10-02 18:30:40,615 - __main__ - DEBUG - n=3, val_loss=0.0033288544074247394
+2020-10-02 18:30:55,572 - __main__ - INFO - innate_buffer=2000, innate_train_len=2000, innate_val_len=2000
+2020-10-02 18:30:55,572 - __main__ - INFO - target_state_list=(6000, 25), target_innate_seq=(6000, 5)
+2020-10-02 18:34:21,321 - __main__ - DEBUG - n=4, val_loss=0.0032425296177534565
+2020-10-02 18:34:30,920 - __main__ - INFO - innate_buffer=2000, innate_train_len=2000, innate_val_len=2000
+2020-10-02 18:34:30,920 - __main__ - INFO - target_state_list=(6000, 25), target_innate_seq=(6000, 5)
+2020-10-02 18:38:19,922 - __main__ - DEBUG - n=5, val_loss=0.0036685378733325186
+2020-10-02 18:38:30,511 - __main__ - INFO - innate_buffer=2000, innate_train_len=2000, innate_val_len=2000
+2020-10-02 18:38:30,512 - __main__ - INFO - target_state_list=(6000, 25), target_innate_seq=(6000, 5)
+2020-10-02 18:41:48,455 - __main__ - DEBUG - n=6, val_loss=0.00398450874084578
+2020-10-02 18:41:57,987 - __main__ - INFO - innate_buffer=2000, innate_train_len=2000, innate_val_len=2000
+2020-10-02 18:41:57,987 - __main__ - INFO - target_state_list=(6000, 25), target_innate_seq=(6000, 5)
+2020-10-02 18:45:28,645 - __main__ - DEBUG - n=7, val_loss=0.0034118931302014274
+2020-10-02 18:45:38,172 - __main__ - INFO - innate_buffer=2000, innate_train_len=2000, innate_val_len=2000
+2020-10-02 18:45:38,172 - __main__ - INFO - target_state_list=(6000, 25), target_innate_seq=(6000, 5)
+2020-10-02 18:48:54,885 - __main__ - DEBUG - n=8, val_loss=0.0034587316776529846
+2020-10-02 18:49:04,151 - __main__ - INFO - innate_buffer=2000, innate_train_len=2000, innate_val_len=2000
+2020-10-02 18:49:04,151 - __main__ - INFO - target_state_list=(6000, 25), target_innate_seq=(6000, 5)
+2020-10-02 18:52:09,083 - __main__ - DEBUG - n=9, val_loss=0.003381448081284158
+2020-10-02 18:52:09,083 - __main__ - INFO - Ntrials=10, total loss avg=0.0034259119890117616, std=0.00022874671789088478

@@ -50,11 +50,7 @@ if __name__  == '__main__':
             trotter_step=trotter_step, beta=beta, virtual_nodes=V, tau_delta=tdelta, init_rho=0)
     state_list = model.init_forward(qparams, input_seq_ls, ranseed=-1, init_rs=True)
     N, L, D = state_list.shape
-    # N = Number of input list
-    # L = Length of time series
-    # D = Number of virtual nodes x Number of qubits
-    xs = []
-    ts = range(buffer, buffer+5)
+
     nQ = args.units
 
     for q in range(args.units):

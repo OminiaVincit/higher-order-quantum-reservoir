@@ -31,6 +31,7 @@ class HQRC(object):
         self.virtual_nodes = qparams.virtual_nodes
         self.tau = qparams.tau
         self.max_energy = qparams.max_energy
+        self.non_diag = qparams.non_diag
         self.solver = qparams.solver
 
         self.n_qubits = self.n_units
@@ -39,7 +40,7 @@ class HQRC(object):
         self.Xop = [1]*self.n_qubits
         self.P0op = [1]
         self.P1op = [1]
-        
+
         # create operators from tensor product
         for cindex in range(self.n_qubits):
             for qindex in range(self.n_qubits):
@@ -60,7 +61,11 @@ class HQRC(object):
         # initialize connection to layer i
         connections = []
         N_local_states = self.n_units * self.virtual_nodes
+        
         nqrc = self.nqrc
+        Nspins = self.n_qubits
+        dynamic = qparams.dynamic
+
         if nqrc > 1:
             for i in range(nqrc):
                 local_cs = []
@@ -98,6 +103,36 @@ class HQRC(object):
 
             # generate hamiltonian
             hamiltonian = np.zeros( (self.dim,self.dim) )
+
+            # create coupling strength for ion trap
+            a = 0.2
+            bc = self.non_diag # bc = 0.42
+            J = 0
+            for qindex1 in range(Nspins):
+                for qindex2 in range(qindex1+1, Nspins):
+                    Jij = np.abs(qindex2-qindex1)**(-a)
+                    J += Jij / (Nspins-1)
+            B = J/bc # Magnetic field
+
+            for qindex in range(Nspins):
+                if dynamic == DYNAMIC_FULL_RANDOM:
+                    coef = (np.random.rand()-0.5) * 2 * self.max_energy
+                elif dynamic == DYNAMIC_ION_TRAP:
+                    coef = - B * self.max_energy
+                else:
+                    coef = - self.non_diag * self.max_energy
+                hamiltonian += coef * self.Zop[qindex]
+
+            for qindex1 in range(Nspins):
+                for qindex2 in range(qindex1+1, Nspins):
+                    if dynamic == DYNAMIC_FULL_CONST_COEFF:
+                        coef =  - self.max_energy
+                    elif dynamic == DYNAMIC_ION_TRAP:
+                        coef =  - np.abs(qindex2 - qindex1)**(-a) / J
+                        coef = 2 * self.max_energy * coef
+                    else:
+                        coef = (np.random.rand()-0.5) * 2 * self.max_energy
+                    hamiltonian += coef * self.Xop[qindex1] @ self.Xop[qindex2]
 
             # include input qubit for computation
             for qindex in range(self.n_qubits):
@@ -372,18 +407,20 @@ def effective_dim(qparams, buffer, length, nqrc, alpha, ranseed, Ntrials, deep=F
         state_list = model.init_forward(qparams, input_seq, init_rs=True, ranseed=ranseed_net)
         L, D = state_list.shape
         # L = Length of time series
-        # D = Number of virtual nodes x Number of qubits
+        # D = Nqrc x Number of virtual nodes x Number of qubits
         locls = []
         for i in range(D):
+            ri = state_list[buffer:, i].ravel()
+            ri = ri - np.mean(ri)
             for j in range(D):
-                ri = state_list[buffer:, i]
-                rj = state_list[buffer:, j]
+                rj = state_list[buffer:, j].ravel()
+                rj = rj - np.mean(rj)
                 locls.append(np.mean(ri*rj))
         locls = np.array(locls).reshape(D, D)
+        # effdims.append(np.linalg.matrix_rank(locls, tol=1e-10))
         w, v = LA.eig(locls)
-        #print(w)
         w = np.abs(w) / np.abs(w).sum()
-        effdims.append(1.0 / np.power(w, 2).sum())
+        effdims.append( 1.0 / np.power(w, 2).sum())
     return np.mean(effdims), np.std(effdims)
 
 def esp_index(qparams, buffer, length, nqrc, alpha, ranseed, state_trials, deep=False):
