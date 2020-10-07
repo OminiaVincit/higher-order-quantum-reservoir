@@ -31,6 +31,9 @@ def getModel(params):
 	elif params["model_name"] == "hqrc":
 		import hqrc as model
 		return model.hqrc(params)
+	elif params["model_name"] == "hqrc_innate":
+		import hqrc_innate as model
+		return model.hqrc_innate(params)
 	elif params["model_name"] == "hqrc_parallel":
 		import hqrc_parallel as model
 		return model.hqrc_parallel(params)
@@ -77,6 +80,9 @@ def defineParser():
 	
 	hqrc_parser = subparsers.add_parser("hqrc")
 	hqrc_parser = getHQRCParser(hqrc_parser)
+
+	hqrc_innate_parser = subparsers.add_parser("hqrc_innate")
+	hqrc_innate_parser = getHQRCInnateParser(hqrc_innate_parser)
 
 	esn_parallel_parser = subparsers.add_parser("esn_parallel")
 	esn_parallel_parser = getESNParallelParser(esn_parallel_parser)

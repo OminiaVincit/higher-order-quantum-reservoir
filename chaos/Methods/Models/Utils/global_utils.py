@@ -3,7 +3,7 @@
 
 """
 	Created by: Vlachas Pantelis, CSE-lab, ETH Zurich
-	Adapted to Higher-order quantum reservori computing by Anonymous authors in submitting to NeurIPS2020
+	Adapted to Higher-order quantum reservori computing by Quoc Hoan Tran
 
 	Implemented in the framework created by Vlachas Pantelis, CSE-lab, ETH Zurich
         https://github.com/pvlachas/RNN-RC-Chaos
@@ -17,7 +17,6 @@ import numpy as np
 import pickle
 import io
 import os
-
 
 def getNamesInterestingVars():
 	# THE MODEL SHOULD OUTPUT THE FOLLOWING VARIABLES:
@@ -373,6 +372,15 @@ def getHQRCParser(parser):
 	parser.add_argument("--reference_train_time", help="The reference train time in hours", type=float, default=24)
 	parser.add_argument("--buffer_train_time", help="The buffer train time to save the model in hours", type=float, default=0.5)
 
+	return parser
+
+def getHQRCInnateParser(parser):
+	parser = getHQRCParser(parser)
+	parser.add_argument("--output_noise", help="noise level add to output", type=float, default=0.0)
+	parser.add_argument("--innate_learning_rate", help="innate_learning_rate", type=float, default=0.0)
+	parser.add_argument("--innate_learning_loops", help="innate_learning_loops", type=int, default=1)
+	
+	parser.add_argument("--select_qubit", help="selected qubit for innate training", type=int, default=0)
 	return parser
 
 def getESNParser(parser):
