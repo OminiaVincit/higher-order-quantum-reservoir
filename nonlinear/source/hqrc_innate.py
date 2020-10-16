@@ -98,9 +98,10 @@ class HQRC(object):
                 W_feed[i, bg:(bg + N_local)] = 0
                 
                 # normalize the row sum
-                # rowsum = np.sum(W_feed[i, :])
-                # if rowsum != 0:
-                #     W_feed[i, :] = self.alpha * W_feed[i, :] / rowsum
+                # if self.W_feed is not None:
+                #     rowsum = np.sum(W_feed[i, :])
+                #     if rowsum != 0:
+                #         W_feed[i, :] = self.alpha * W_feed[i, :] / rowsum
             #W_feed = W_feed * (1/(N_tot - N_local))
             if self.W_feed is not None:
                 print('W_feed diff:', np.sum(np.abs(W_feed - self.W_feed)))
@@ -147,13 +148,14 @@ class HQRC(object):
         self.cur_states  = [None] * self.nqrc
 
     def __step_forward(self, external_input, innate_train=False, out_train=False, \
-            innate_target=None, out_target=None, noise_amp=0.0, learning_rate=10.0, scale_input=0.4, sel=0):
+            innate_target=None, out_target=None, noise_amp=0.0, learning_rate=0.0, scale_input=0.4, sel=0):
         nqrc = self.nqrc
         alpha = self.alpha
         N_local = self.get_local_nodes()
         N_tot = self.get_comput_nodes()
         X = self.cur_states
         dW_recurr_mag = 0
+        # Innate training
         if (X[0] is not None) and innate_train and (innate_target is not None) and learning_rate > 0.0:
             #print('X.shape={}'.format(X.shape))
             # Innate training
@@ -201,8 +203,8 @@ class HQRC(object):
             #X_noise = X + noise_amp * noise
             #X_noise = X * np.random.rand(len(X)) * noise_amp
             #X_noise = X + noise
-            X_noise = X
-            feed_noise = self.W_feed @ X_noise
+            #X_noise = X
+            feed_noise = self.W_feed @ X
             feed_noise = feed_noise/(2*len(feed_noise))
             
             #feed_noise = 1.0 / (1.0 + np.exp(-feed_noise * gamma))

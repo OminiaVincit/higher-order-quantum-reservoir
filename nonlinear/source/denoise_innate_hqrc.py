@@ -110,9 +110,9 @@ if __name__  == '__main__':
             new_ranseed = ranseed + n * 100
 
             # For PRE Training
-            innate_buffer = buffer
-            innate_train_len = train_len
-            innate_val_len = val_len
+            innate_buffer = 100
+            innate_train_len = 300
+            innate_val_len = 200
             bg = innate_buffer + innate_train_len - 100
             ed = innate_buffer + innate_train_len + 100
 
@@ -161,10 +161,18 @@ if __name__  == '__main__':
 
                 for i in range(nqrc):
                     ax = fig.add_subplot(nqrc+1, 1, i+1)
-                    ax.plot(target_state_list[bg:ed, sel + N_local * i], label='target', linewidth=2)
-                    ax.plot(trained_state_list[bg:ed, sel + N_local * i], label='trained', linewidth=2)
-                    diff_state = target_state_list[(innate_buffer + innate_train_len):, sel + N_local * i] - trained_state_list[(innate_buffer + innate_train_len):, sel + N_local * i]
+                    target_plot = target_state_list[bg:ed, sel + N_local * i]
+                    trained_plot = trained_state_list[bg:ed, sel + N_local * i]
+                    
+                    # Add noise to target for demo
+                    # trained_plot = target_plot + np.random.normal(loc=0.0, scale=np.sqrt(noise_amp), size=len(target_plot))
+
+                    ax.plot(target_plot, label='target', linewidth=2)
+                    ax.plot(trained_plot, label='trained', linewidth=2)
+                    
+                    trained_state = trained_state_list[(innate_buffer + innate_train_len):, sel + N_local * i]
                     target_state = target_state_list[(innate_buffer + innate_train_len):, sel + N_local * i] 
+                    diff_state = target_state - trained_state
                     #nmse = np.mean(diff_state**2) / np.mean(target_state**2)
                     loss = np.sqrt(np.mean(diff_state**2))
                     logger.debug('QR {}, Loss={}'.format(i, loss))
@@ -187,7 +195,7 @@ if __name__  == '__main__':
                 ax.set_title(outbase)
                 ax.legend()
 
-                for ftype in ['png', 'svg']:
+                for ftype in ['png']:
                     plt.savefig('{}.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
                 plt.show()
 

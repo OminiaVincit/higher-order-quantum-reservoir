@@ -78,8 +78,11 @@ def narma_with_pre_train_job(logdir, tmpbase, qparams, nqrc, \
             
             local_loss = []
             for i in range(nqrc):
-                diff_state = target_state_list[(innate_buffer + innate_train_len):, sel + N_local * i] - trained_state_list[(innate_buffer + innate_train_len):, sel + N_local * i]
+                trained_state = trained_state_list[(innate_buffer + innate_train_len):, sel + N_local * i]
                 target_state = target_state_list[(innate_buffer + innate_train_len):, sel + N_local * i] 
+
+                diff_state = target_state - trained_state
+                
                 #nmse = np.mean(diff_state**2) / np.mean(target_state**2)
                 loss = np.sqrt(np.mean(diff_state**2))
                 local_loss.append(loss)

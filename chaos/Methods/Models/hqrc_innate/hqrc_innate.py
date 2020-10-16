@@ -150,7 +150,7 @@ class hqrc_innate(object):
         self.current_states  = [None] * nqrc
 
         # initialize connection W_feed
-        self.__init_w_feed(self.ranseed, reset_zero=True)
+        self.__init_w_feed(self.ranseed, reset_zero=False)
         
         
         # Intialize evolution operators
@@ -224,7 +224,7 @@ class hqrc_innate(object):
         'alpha':'A',
         #'trans':'sT',
         #'ratio':'sR',
-        #'scale_input':'sI',
+        'scale_input':'sI',
         'max_energy':'J',
         'fix_coupling':'fJ',
         'virtual_nodes':'V',
@@ -233,12 +233,14 @@ class hqrc_innate(object):
         #'bias':'B',
         'noise_level':'NL',
         'output_noise':'ON',
+        'innate_learning_rate':'INR',
+        'innate_learning_loops':'INL',
         'it_pred_length':'IPL',
-        'iterative_update_length':'IUL',
+        #'iterative_update_length':'IUL',
         'reg':'REG',
         #'scaler':'SC',
         #'norm_every':'NE',
-        'augment':'AU',
+        #'augment':'AU',
         'n_tests':'NICS',
         #'worker_id':'WID', 
         }
@@ -246,7 +248,7 @@ class hqrc_innate(object):
     
     def createModelName(self, params):
         keys = self.getKeysInModelName()
-        str_ = "hqrc_" + self.solver
+        str_ = "hqrc_innate_" + self.solver
         for key in keys:
             str_ += "-" + keys[key] + "_{:}".format(params[key])
         return str_
@@ -267,6 +269,7 @@ class hqrc_innate(object):
         X = self.current_states
         dW_recurr_mag = 0
         learning_rate = self.innate_learning_rate
+        noise_amp = self.output_noise
 
         # Innate training
         if (X[0] is not None) and innate_train and (innate_target is not None) and learning_rate > 0.0:
@@ -305,9 +308,6 @@ class hqrc_innate(object):
                 print('feed_sigs={}, external_input={}'.format(feed_sigs, external_input))
             new_input = external_input + feed_sigs
         
-        if (X[0] is not None) and innate_train and (innate_target is not None):
-            noise = np.random.normal(loc=0.0, scale=np.sqrt(self.output_noise), size=len(new_input))
-            new_input += noise
         new_input = self.scale_input * new_input
         new_input = new_input.flatten()
         maxval, minval = np.max(new_input), np.min(new_input)
@@ -343,7 +343,10 @@ class hqrc_innate(object):
             local_rhos[i] = rho
         # update current states
         self.current_states = np.array(cur_states).ravel()
-        
+        noise = np.random.normal(loc=0.0, scale=np.sqrt(noise_amp), size=len(self.current_states))
+        #noise = (np.random.rand(len(self.cur_states)) - 0.5) * 2.0 * noise_amp
+        self.current_states += noise
+
         return local_rhos, dW_recurr_mag
 
     def __feed_forward(self, input_sequence, predict, use_lastrho, sel=0):
@@ -468,6 +471,8 @@ class hqrc_innate(object):
         dynamics_length = self.dynamics_length
         input_dim = self.input_dim
         N_used = self.N_used
+        N_local = self.get_local_nodes()
+        sel = self.select_qubit
 
         with open(self.train_data_path, "rb") as file:
             # Pickle the "data" dictionary using the highest protocol available.
@@ -500,11 +505,7 @@ class hqrc_innate(object):
         # TRAINING LENGTH
         tl = N - dynamics_length
 
-        print("TRAINING: Dynamics prerun...with layer strength={}".format(self.alpha))
-        self.__feed_forward(rep_train_input_seq[:dynamics_length], predict=False, use_lastrho=False)
-        print("\n")
 
-        print("TRAINING: Teacher forcing...")
         # Create output
         Y = []
         for t in range(tl - 1):
@@ -512,10 +513,30 @@ class hqrc_innate(object):
             Y.append(target[:, 0])
         train_output_sequence = np.array(Y, dtype=np.float64)
         out_length, out_dim = train_output_sequence.shape
+        
+        # Stage 1: Innate training with online learning
+        if self.innate_learning_rate > 0.0 and self.innate_learning_loops > 0:
+            print("Innate: Dynamics prerun...with layer strength={}".format(self.alpha))
+            innate_length = dynamics_length + out_length
+            _, innate_target_state_list = self.__feed_forward(rep_train_input_seq[:innate_length], predict=False, use_lastrho=False)
+            print("\n")
+            # Create innate target training
+            target_innate_seq = innate_target_state_list[:, sel::N_local]
+            self.innate_train(rep_train_input_seq[:innate_length], target_innate_seq, \
+                buffer=dynamics_length, train_len=out_length)
+        
+        # Stage 2: Readout Training
+        # Move dynamic again
+        self.__reset_states()
+        print("TRAINING: Dynamics prerun...with layer strength={}".format(self.alpha))
+        self.__feed_forward(rep_train_input_seq[:dynamics_length], predict=False, use_lastrho=False)
+        print("\n")
+
+        print("TRAINING: Teacher forcing...")
         print("TRAINING: Output shape", train_output_sequence.shape)
+        self.__train(rep_train_input_seq[dynamics_length:(dynamics_length + out_length)], train_output_sequence)
         print("TEACHER FORCING ENDED.")
         print("\n")
-        self.__train(rep_train_input_seq[dynamics_length:(dynamics_length + out_length)], train_output_sequence)
 
     def isWallTimeLimit(self):
         training_time = time.time() - self.start_time
@@ -613,18 +634,6 @@ class hqrc_innate(object):
             self.__feed_forward(rep_train_input_seq[:dynamics_length], predict=False, use_lastrho=False)
         print("\n")
 
-        # Innate training stage
-        if self.innate_flag and self.output_noise > 0.0:
-            sel = self.select_qubit
-            N_local = self.get_local_nodes()
-
-            buffer = int(dynamics_length / 4)
-            train_len = dynamics_length - buffer
-            target_innate_seq = innate_target_state_list[:, sel::N_local]
-            self.innate_train(rep_train_input_seq[:dynamics_length], target_innate_seq, \
-                buffer, train_len)
-            self.innate_flag = False
-
         # Move dynamic again
         self.__reset_states()
         prediction_warm_up, innate_target_state_list = \
@@ -646,10 +655,6 @@ class hqrc_innate(object):
                 stacked_state = np.hstack( [state_aug, np.ones([1, 1])])
                 #print('PREDICT stage: stacked state {}; Wout {}'.format(stacked_state.shape, self.W_out.shape))
                 out = stacked_state @ self.W_out
-                # Add output noise?
-                out = out.ravel()
-                noise = np.random.normal(loc=0.0, scale=np.sqrt(self.output_noise), size=len(out))
-                out += noise
                 prediction.append(out)
                 out = out.reshape(1, -1)
                 
