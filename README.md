@@ -2,6 +2,7 @@
 
 This repository is the official implementation of Higher-Order Quantum Reservoir Computing. 
 
+[*] Quoc Hoan Tran and Kohei Nakajima, Higher-Order Quantum Reservoir Computing, Preprint at https://arxiv.org/abs/2006.08999
 
 ## Code structures
 
