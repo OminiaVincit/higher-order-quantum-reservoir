@@ -1,7 +1,0 @@
-length=200
-n_units=5
-max_energy=1.0
-beta=1e-14
-taudelta=4.0
-layers=5
-V=50, alpha=0.0

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """
-    Calculate NMSE for NARMA tasks with quantum innate learning
-    See run_hqrc_innate_narma.sh for an example to run the script
+View timeseries from reservoir nodes
 """
 
 import sys

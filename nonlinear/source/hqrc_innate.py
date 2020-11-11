@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-    Higher-order reservoir class
+    Higher-order reservoir class for quantum innate learning
 """
 
 import sys
