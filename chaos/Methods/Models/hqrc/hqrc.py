@@ -2,7 +2,7 @@
 # # -*- coding: utf-8 -*-
 
 """
-Created by:  Anonymous authors to submit NeurIPS 2020
+Created by: Quoc Hoan Tran
 
     Implemented in the framework created by Vlachas Pantelis, CSE-lab, ETH Zurich
         https://github.com/pvlachas/RNN-RC-Chaos

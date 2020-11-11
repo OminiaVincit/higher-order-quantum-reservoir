@@ -1,0 +1,2 @@
+model_name:hqrc_innate_pinv-RDIM_1-N_used_1000-DL_100-Nqr_5-A_0.1-J_2.0-fJ_0-V_1-NL_1-ON_4.9999999999999996e-06-INR_10.0-INL_10-REG_1e-09-NICS_10:memory:94.34:total_training_time:111.76:n_model_parameters:20511:n_trainable_parameters:31
+model_name:hqrc_innate_pinv-RDIM_1-N_used_1000-DL_100-Nqr_5-A_0.1-J_2.0-fJ_0-V_1-NL_1-ON_4.9999999999999996e-06-INR_10.0-INL_10-REG_1e-09-NICS_10:memory:94.39:total_training_time:136.26:n_model_parameters:20511:n_trainable_parameters:31

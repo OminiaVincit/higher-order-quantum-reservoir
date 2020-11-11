@@ -1,0 +1,4 @@
+model_name:hqrc_innate_pinv-RDIM_1-N_used_10000-DL_1000-Nqr_5-A_0.1-J_2.0-fJ_0-V_1-NL_1-ON_7e-06-INR_0.0-INL_1-REG_1e-07-NICS_10:memory:103.49:total_training_time:107.55:n_model_parameters:20511:n_trainable_parameters:31
+model_name:hqrc_innate_pinv-RDIM_1-N_used_10000-DL_1000-Nqr_5-A_0.1-J_2.0-fJ_0-V_1-NL_1-ON_7e-06-INR_0.0-INL_1-REG_1e-07-NICS_10:memory:103.31:total_training_time:110.41:n_model_parameters:20511:n_trainable_parameters:31
+model_name:hqrc_innate_pinv-RDIM_1-N_used_10000-DL_1000-Nqr_5-A_0.1-J_2.0-fJ_0-V_1-NL_1-ON_7e-06-INR_0.0-INL_1-REG_1e-07-NICS_10:memory:102.88:total_training_time:108.99:n_model_parameters:20511:n_trainable_parameters:31
+model_name:hqrc_innate_pinv-RDIM_1-N_used_10000-DL_1000-Nqr_5-A_0.1-J_2.0-fJ_0-V_1-NL_1-ON_7e-06-INR_0.0-INL_1-REG_1e-07-NICS_10:memory:103.45:total_training_time:109.06:n_model_parameters:20511:n_trainable_parameters:31

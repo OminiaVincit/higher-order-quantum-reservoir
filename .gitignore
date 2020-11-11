@@ -133,4 +133,5 @@ nonlinear/test_states
 nonlinear/run_dynamics
 chaos/Data
 chaos/Results/**/Trained_Models
+chaos/Results/**/Figures
 *.binaryfile

@@ -34,6 +34,15 @@ def out_qslist_tofile(qslist, filepath):
     with open(filepath, mode='w') as fw:
         fw.write('\n'.join(strls))
 
+def rmse_out_qslist_tofile(qslist, filepath):
+    strls = ['#Rank #\t #Name #\t #Test_rmnse #\t #Test_vpt ']
+    for i in range(len(qslist)):
+        qs = qslist[i]
+        strls.append('#{} #\t #{} #\t #{:.3f} #\t #{:.3f}'.format(\
+            i, qs.model_name, qs.rmnse_avg_test, qs.avg_test_vpt
+        ))
+    with open(filepath, mode='w') as fw:
+        fw.write('\n'.join(strls))
 
 def calVPT(pred, truth, eps = 0.5, dt = 0.01, maxLyp = 0.9056):
     assert(pred.shape == truth.shape)

@@ -1,0 +1,9 @@
+model_name:hqrc_pinv-RDIM_1-N_used_1000-DL_200-Nqr_5-A_0.0-J_1.0-fJ_0-V_15-NL_1-ON_1e-06-IPL_100-IUL_0-REG_1e-07-AU_0-NICS_2:memory:114.32:total_training_time:31.48:n_model_parameters:20931:n_trainable_parameters:451
+model_name:hqrc_pinv-RDIM_1-N_used_1000-DL_200-Nqr_5-A_0.0-J_1.0-fJ_0-V_15-NL_1-ON_1e-06-IPL_100-IUL_0-REG_1e-07-AU_0-NICS_2:memory:113.89:total_training_time:31.57:n_model_parameters:20931:n_trainable_parameters:451
+model_name:hqrc_pinv-RDIM_1-N_used_1000-DL_200-Nqr_5-A_0.0-J_1.0-fJ_0-V_15-NL_1-ON_1e-06-IPL_100-IUL_0-REG_1e-07-AU_0-NICS_2:memory:114.75:total_training_time:31.35:n_model_parameters:20931:n_trainable_parameters:451
+model_name:hqrc_pinv-RDIM_1-N_used_1000-DL_200-Nqr_5-A_0.0-J_1.0-fJ_0-V_15-NL_1-ON_1e-06-IPL_100-IUL_0-REG_1e-07-AU_0-NICS_2:memory:113.84:total_training_time:31.37:n_model_parameters:20931:n_trainable_parameters:451
+model_name:hqrc_pinv-RDIM_1-N_used_1000-DL_200-Nqr_5-A_0.0-J_1.0-fJ_0-V_15-NL_1-ON_1e-06-IPL_100-IUL_0-REG_1e-07-AU_0-NICS_2:memory:113.85:total_training_time:31.65:n_model_parameters:20931:n_trainable_parameters:451
+model_name:hqrc_pinv-RDIM_1-N_used_1000-DL_200-Nqr_5-A_0.0-J_1.0-fJ_0-V_15-NL_1-ON_1e-06-IPL_100-IUL_0-REG_1e-07-AU_0-NICS_2:memory:113.89:total_training_time:31.71:n_model_parameters:20931:n_trainable_parameters:451
+model_name:hqrc_pinv-RDIM_1-N_used_1000-DL_200-Nqr_5-A_0.0-J_1.0-fJ_0-V_15-NL_1-ON_1e-06-IPL_100-IUL_0-REG_1e-07-AU_0-NICS_2:memory:113.85:total_training_time:31.52:n_model_parameters:20931:n_trainable_parameters:451
+model_name:hqrc_pinv-RDIM_1-N_used_1000-DL_200-Nqr_5-A_0.0-J_1.0-fJ_0-V_15-NL_1-ON_1e-06-IPL_100-IUL_0-REG_1e-07-AU_0-NICS_2:memory:113.88:total_training_time:31.34:n_model_parameters:20931:n_trainable_parameters:451
+model_name:hqrc_pinv-RDIM_1-N_used_1000-DL_200-Nqr_5-A_0.0-J_1.0-fJ_0-V_15-NL_1-ON_1e-06-IPL_100-IUL_0-REG_1e-07-AU_0-NICS_2:memory:114.38:total_training_time:31.19:n_model_parameters:20931:n_trainable_parameters:451

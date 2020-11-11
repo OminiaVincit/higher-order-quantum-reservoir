@@ -1,0 +1,1 @@
+model_name:hqrc_pinv-RDIM_1-N_used_500-DL_200-Nqr_5-A_0.1-J_1.0-fJ_0-V_1-NL_1-ON_1e-08-IPL_100-IUL_0-REG_1e-07-AU_0-NICS_2:memory:93.52:total_training_time:2.12:n_model_parameters:20511:n_trainable_parameters:31

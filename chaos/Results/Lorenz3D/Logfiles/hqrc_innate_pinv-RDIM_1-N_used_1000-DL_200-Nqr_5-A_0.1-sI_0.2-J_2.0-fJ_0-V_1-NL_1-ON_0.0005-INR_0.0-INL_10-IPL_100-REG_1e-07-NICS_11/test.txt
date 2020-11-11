@@ -1,0 +1,1 @@
+model_name:hqrc_innate_pinv-RDIM_1-N_used_1000-DL_200-Nqr_5-A_0.1-sI_0.2-J_2.0-fJ_0-V_1-NL_1-ON_0.0005-INR_0.0-INL_10-IPL_100-REG_1e-07-NICS_11:n_tests:11.00:num_accurate_pred_005_avg_TEST:0.18:num_accurate_pred_050_avg_TEST:1.73:num_accurate_pred_005_avg_TRAIN:0.00:num_accurate_pred_050_avg_TRAIN:1.82:error_freq_TRAIN:12.21:error_freq_TEST:11.50
