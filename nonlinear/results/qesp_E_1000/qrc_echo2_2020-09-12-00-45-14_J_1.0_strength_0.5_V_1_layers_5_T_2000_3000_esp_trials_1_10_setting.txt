@@ -1,0 +1,8 @@
+length=3000, buffer=2000
+n_units=5
+max_energy=1.0
+beta=1e-14
+layers=5
+Vs=1
+strengths=0.5
+net_trials=1, state_trials=10

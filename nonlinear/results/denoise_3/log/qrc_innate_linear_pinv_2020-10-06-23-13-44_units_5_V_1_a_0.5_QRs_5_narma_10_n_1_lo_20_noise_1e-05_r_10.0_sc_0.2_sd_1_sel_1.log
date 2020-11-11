@@ -1,0 +1,11 @@
+2020-10-06 23:13:44,601 - __main__ - INFO - train_len=2000, val_len=2000, buffer=2000
+2020-10-06 23:13:44,601 - __main__ - INFO - n_units=5
+2020-10-06 23:13:44,601 - __main__ - INFO - max_energy=1.0
+2020-10-06 23:13:44,601 - __main__ - INFO - beta=1e-14
+2020-10-06 23:13:44,601 - __main__ - INFO - taudelta=2.0
+2020-10-06 23:13:44,601 - __main__ - INFO - layers=5
+2020-10-06 23:13:44,601 - __main__ - INFO - V=1
+2020-10-06 23:13:44,601 - __main__ - INFO - alpha=0.5, Ntrials=1
+2020-10-06 23:13:44,602 - __main__ - INFO - noise=1e-05, learning rate=10.0,scale_input=0.2,select_qubit=1
+2020-10-06 23:13:51,388 - __main__ - INFO - innate_buffer=2000, innate_train_len=2000, innate_val_len=2000
+2020-10-06 23:13:51,388 - __main__ - INFO - target_state_list=(6000, 25), target_innate_seq=(6000, 5)
