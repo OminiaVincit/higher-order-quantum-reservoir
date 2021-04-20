@@ -1,0 +1,2 @@
+2021-04-20 12:07:12,166 - __main__ - INFO - ../test_mc/qrc_stm_linear_pinv_2021-04-20-12-07-12_J_1.0_strength_0.1_0.5_0.9_V_1_5_layers_5_capa_ntrials_2.log
+2021-04-20 12:07:46,204 - __main__ - DEBUG - J=1.0,tau=0.5,V=1,alpha=0.1,layers=5,capa_avg=13.999054411625178,capa_std=0.4157397845350399
