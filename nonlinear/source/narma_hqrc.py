@@ -81,7 +81,10 @@ if __name__  == '__main__':
     if os.path.isdir(savedir) == False:
         os.mkdir(savedir)
 
-    taudeltas = [float(x) for x in args.taudelta.split(',')]
+    if args.taudelta == 'default':
+        taudeltas = list(np.arange(-5, 7.1, 0.1))
+    else:
+        taudeltas = [float(x) for x in args.taudelta.split(',')]
     taudeltas = [2**x for x in taudeltas]
     
     layers = [int(x) for x in args.nqrc.split(',')]
@@ -94,11 +97,11 @@ if __name__  == '__main__':
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
 
     for order in orders:
-        outbase = os.path.join(savedir, '{}_{}_{}_units_{}_V_{}_alpha_{}_QRs_{}_narma_{}_ntrials_{}'.format(\
+        outbase = os.path.join(savedir, '{}_{}_{}_units_{}_V_{}_alpha_{}_QRs_{}_narma_{}_deep_{}_ntrials_{}'.format(\
             basename, solver, datestr, n_units, V,\
             '_'.join([str(o) for o in strengths]), \
             '_'.join([str(o) for o in layers]), \
-            order, Ntrials))
+            order, deep, Ntrials))
 
         jobs, pipels = [], []
         data, target = make_data_for_narma(train_len + val_len + buffer, orders=[order])

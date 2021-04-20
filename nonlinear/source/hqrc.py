@@ -277,7 +277,10 @@ class HQRC(object):
             predict=True, use_lastrho=use_lastrho)
         pred = prediction_seq[buffer:, :]
         out  = output_seq[buffer:, :]
-        loss = np.sum((pred - out)**2)/np.sum(pred**2)
+        # Use loss = NMSE
+        # loss = np.sum((pred - out)**2)/np.sum(pred**2)
+        # Use loss = NRMSE
+        loss = np.sqrt(np.mean((pred - out)**2)/(np.std(pred)**2))
         return prediction_seq, loss
 
     def init_forward(self, qparams, input_seq, init_rs, ranseed):
