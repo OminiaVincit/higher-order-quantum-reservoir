@@ -49,10 +49,15 @@ if __name__  == '__main__':
                     continue
                 if alpha == 0.0:
                     lb_conn = 'Spatial'
+                
                 if lb_conn == 'Forward':
                     linepat = 'dashed'
+                    dcl = 2*j-1
                 else:
                     linepat = 'solid'
+                    dcl = 2*j
+                
+                
                 ntitle = os.path.basename(rfile)
                 nidx = ntitle.find('V_20')
                 ntitle = ntitle[nidx:]
@@ -72,7 +77,7 @@ if __name__  == '__main__':
                     ax.plot(xa[sids], ya[sids], linestyle=linepat, alpha = 0.8, linewidth=3, markersize=0, mec='k', mew=0.5, \
                         color=putils.cycle[dcl], label='{}, $\\alpha$={}'.format(lb_conn, alpha))
                     ax.fill_between(xa[sids], ya[sids] - za[sids], ya[sids] + za[sids], facecolor=putils.cycle[dcl], alpha=0.2)
-                    dcl += 1
+                    
         #ax.set_xlabel('$\\tau$', fontsize=24)
         ax.set_ylabel('NRMSE', fontsize=24)
         ax.set_yscale('log', base=10)
