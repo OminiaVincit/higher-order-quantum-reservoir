@@ -143,7 +143,7 @@ if __name__  == '__main__':
         result_list = [np.array( [float(y) for y in x.recv().split(' ')]  ) for x in pipels]
         rsarr = np.array(result_list)
         # save the result
-        np.savetxt('{}_NMSE.txt'.format(outbase), rsarr, delimiter=' ')
+        np.savetxt('{}_NRMSE.txt'.format(outbase), rsarr, delimiter=' ')
 
         # save experiments setting
         with open('{}_setting.txt'.format(outbase), 'w') as sfile:

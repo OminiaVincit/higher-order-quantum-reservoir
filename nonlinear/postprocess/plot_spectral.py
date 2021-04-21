@@ -13,8 +13,8 @@ if __name__  == '__main__':
     parser.add_argument('--folder', type=str, required=True)
     parser.add_argument('--nspins', type=int, default=5, help='Number of spins')
     parser.add_argument('--tmin', type=float, default=-7.0, help='Minimum of tau')
-    parser.add_argument('--tmax', type=float, default=5.0, help='Maximum of tau')
-    parser.add_argument('--ntaus', type=int, default=121, help='Number of taus')
+    parser.add_argument('--tmax', type=float, default=7.0, help='Maximum of tau')
+    parser.add_argument('--ntaus', type=int, default=281, help='Number of taus')
     parser.add_argument('--basename', type=str, default='spec')
     
     args = parser.parse_args()
@@ -41,6 +41,8 @@ if __name__  == '__main__':
                 z = pickle.load(rrs)
             #print(z.keys())
             for taub in z.keys():
+                if taub > (2**tmax) or taub < (2**tmin):
+                    continue
                 egvals = z[taub]
                 egvals = sorted(egvals, key=abs, reverse=True)
                 la = 1.0/np.abs(egvals[1])
@@ -58,6 +60,7 @@ if __name__  == '__main__':
     ld23 = np.mean(np.array(ld23), axis=0)
     print(ild2.shape, ld23.shape)    
     
+    (nu, nt) = ild2.shape
     # Plot file
     cmap = plt.get_cmap('nipy_spectral')
     plt.rc('font', family='serif')
@@ -65,7 +68,7 @@ if __name__  == '__main__':
     plt.rcParams["font.size"] = 20 # 全体のフォントサイズが変更されます
     plt.rcParams['xtick.labelsize'] = 24 # 軸だけ変更されます
     plt.rcParams['ytick.labelsize'] = 24 # 軸だけ変更されます
-    fig = plt.figure(figsize=(24, 6), dpi=600)
+    fig = plt.figure(figsize=(24, 8), dpi=600)
     #fig.suptitle(basename, fontsize=16, horizontalalignment='left')
     
     # Plot Nspins largest eigenvectors
@@ -73,13 +76,19 @@ if __name__  == '__main__':
     im1 = putils.plotContour(fig, ax1, ild2, '$1/|\lambda_2|$ - {}'.format(basename), fontsize=16, vmin=None, vmax=None, cmap=cmap)
     #im1 = ax1.imshow(ild2, origin='lower', vmin=vmin, vmax=vmax, extent=extent)
     ax1.set_ylabel('$u$', fontsize=24)
+    yticks = np.linspace(0, nu-1, 6)
+    ax1.set_yticks(yticks)
+    ax1.set_yticklabels(labels=['{:.1f}'.format(t/100) for t in yticks])
+
     ax1.set_xlabel('$\\tau$', fontsize=24)
-    #ax1.set_xticks(list(range(extent[0], extent[1] + 1)))
-    
+    xticks = np.linspace(0, nt-1, int(tmax - tmin) + 1)
+    ax1.set_xticks(xticks)
+    ax1.set_xticklabels(labels=['{:d}'.format(int(t*(tmax-tmin)/(nt-1) + tmin)) for t in xticks])
+    ax1.tick_params('both', length=10, width=1.0, which='major', labelsize=20)
     plt.tight_layout()
     # call subplot adjust after tight_layout
     #plt.subplots_adjust(hspace=0.0)
-    fig.colorbar(im1, ax=[ax1], orientation="vertical", format='%.2f')
+    fig.colorbar(im1, ax=[ax1], orientation="horizontal", format='%.3f')
     
     figsave = os.path.join(folder, 'figs')
     if os.path.isdir(figsave) == False:
@@ -87,7 +96,7 @@ if __name__  == '__main__':
 
     outbase = os.path.join(figsave, basename)
 
-    for ftype in ['png']:
+    for ftype in ['png', 'svg']:
         plt.savefig('{}_heat.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
     plt.show()
 
