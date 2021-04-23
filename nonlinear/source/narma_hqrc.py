@@ -97,9 +97,9 @@ if __name__  == '__main__':
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
 
     for order in orders:
-        outbase = os.path.join(savedir, '{}_{}_{}_units_{}_V_{}_alpha_{}_QRs_{}_narma_{}_deep_{}_ntrials_{}'.format(\
+        outbase = os.path.join(savedir, '{}_{}_{}_units_{}_V_{}_QRs_{}_narma_{}_deep_{}_ntrials_{}'.format(\
             dynamic, solver, datestr, n_units, V,\
-            '_'.join([str(o) for o in strengths]), \
+            #'_'.join([str(o) for o in strengths]), \
             '_'.join([str(o) for o in layers]), \
             order, deep, Ntrials))
 

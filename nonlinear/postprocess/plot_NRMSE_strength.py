@@ -9,14 +9,13 @@ import plot_utils as putils
 if __name__  == '__main__':
     # Check for command line arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--folders', type=str, default='resnarma_deep_strength,resnarma_high_strength')
-    parser.add_argument('--prefix', type=str, default='qrc_narma_ridge_pinv_2021-0')
+    parser.add_argument('--folder', type=str, default='resnarma_strength')
+    parser.add_argument('--prefix', type=str, default='full_random_ridge_pinv_2021-0')
     parser.add_argument('--posfix', type=str, default='NRMSE')
-    parser.add_argument('--tau', type=float, default=2.0)
+    parser.add_argument('--tau', type=float, default=8.0)
     args = parser.parse_args()
     print(args)
-    folders, prefix, posfix, tau = args.folders, args.prefix, args.posfix, args.tau
-    folders = [str(x) for x in args.folders.split(',')]
+    folder, prefix, posfix, tau = args.folder, args.prefix, args.posfix, args.tau
     orders = [5,10,15,20]
     N = len(orders)
     cmap = plt.get_cmap("viridis")
@@ -38,9 +37,8 @@ if __name__  == '__main__':
     for i in range(N):
         order = orders[i]
         ax = axs[i]
-        for j in range(len(folders)):
-            folder = folders[j]
-            for rfile in glob.glob('{}/{}*_narma_{}_*_{}.txt'.format(folder, prefix, order, posfix)):
+        for deep in [0, 1]:
+            for rfile in glob.glob('{}/{}*_narma_{}_deep_{}*_{}.txt'.format(folder, prefix, order, deep, posfix)):
                 print(rfile)
                 ntitle = os.path.basename(rfile)
                 nidx = ntitle.find('units_')
@@ -52,7 +50,7 @@ if __name__  == '__main__':
                 if (np.sum(id1) == 0):
                     continue
                 xs, avg_tests, std_tests = rsarr[:, 3], rsarr[:, -3], rsarr[:, -1]
-                id2 = (xs < 0.95)
+                id2 = (xs < 1.0)
                 id1 = id1 * id2
                 #print(id1)
                 for nqrc in [1,2,3,4,5]:
@@ -68,7 +66,7 @@ if __name__  == '__main__':
                         ax.errorbar(xa[sids], ya[sids], yerr=za[sids], elinewidth=2, linewidth=2, markersize=12, \
                             label='{}'.format(nqrc))
                     else:
-                        ax.plot(xa[sids], ya[sids], lstype[j], color=colors[nqrc-1], alpha = 0.8, linewidth=2.0, mec='k', mew=0.5, markersize=8, label='{}'.format(nqrc))
+                        ax.plot(xa[sids], ya[sids], lstype[deep], color=colors[nqrc-1], alpha = 0.8, linewidth=2.0, mec='k', mew=0.5, markersize=8, label='{}'.format(nqrc))
                         #ax.fill_between(xa[sids], ya[sids] - za[sids], ya[sids] + za[sids], facecolor=colors[nqrc-1], alpha=0.2)
                     
             
@@ -87,13 +85,14 @@ if __name__  == '__main__':
         ax.tick_params('both', length=6, width=1, which='major', labelsize=16)
         #ax.tick_params('both', length=4, width=1, which='minor')
 
-    figsave = os.path.join(os.path.dirname(rfile), 'figs')
+    figsave = os.path.join(folder, 'figs')
     if os.path.isdir(figsave) == False:
         os.mkdir(figsave)
     outbase = os.path.join(figsave, '{}_tau_{}'.format(ntitle, tau))
     #plt.suptitle(outbase, fontsize=14)
     plt.tight_layout()
-    for ftype in ['pdf', 'png', 'svg']:
-        plt.savefig('{}_nrmse.{}'.format(outbase, ftype), bbox_inches='tight')
+    if ntitle != '':
+        for ftype in ['pdf', 'png', 'svg']:
+            plt.savefig('{}_nrmse.{}'.format(outbase, ftype), bbox_inches='tight')
     plt.show()
     

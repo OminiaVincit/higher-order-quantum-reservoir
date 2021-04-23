@@ -10,8 +10,8 @@ if __name__  == '__main__':
     # Check for command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--folder', type=str, required=True)
-    parser.add_argument('--prefix', type=str, default='qrc_narma_ridge_pinv_2021-04')
-    parser.add_argument('--posfix', type=str, default='NMSE')
+    parser.add_argument('--prefix', type=str, default='full_random_ridge_pinv_2021-04')
+    parser.add_argument('--posfix', type=str, default='NRMSE')
     parser.add_argument('--strengths', type=str, default='0.0,0.5,0.9')
     args = parser.parse_args()
     print(args)
@@ -41,7 +41,7 @@ if __name__  == '__main__':
             for rfile in glob.glob('{}/{}*_V_20_alpha_{}_*narma_{}_*_{}.txt'.format(folder, prefix, alpha, order, posfix)):
                 print(rfile)
                 rsarr = []
-                if 'deep_True' in rfile:
+                if 'deep_1' in rfile:
                     lb_conn = 'Forward'
                 else:
                     lb_conn = 'Mutual'
@@ -83,18 +83,19 @@ if __name__  == '__main__':
         ax.set_yscale('log', base=10)
         ax.set_xscale('log', base=2)
         #ax.set_ylim([np.min(avg_tests)/2, 2*np.max(avg_tests)])
-        ax.set_ylim(slims[i])
+        #ax.set_ylim(slims[i])
         #ax.set_xticklabels(labels='')
         #ax.set_yticklabels(labels='')
         ax.set_xlim([2**(-5), 2**7])
         ax.set_xticks([2**x for x in np.arange(-5,7.01, 1)])
         ax.set_title('NARMA{}'.format(order))
-        ax.grid(True, which="both", ls="-", color='0.65')
-        if i == 0:
+        #ax.grid(True, which="both", ls="-", color='0.65')
+        #if i == 0:
+        if True:
             ax.legend()
         if i == N-1:
             ax.set_xlabel('$\\tau$', fontsize=32)
-            
+        
     for ax in axs:
         ax.minorticks_on()
         ax.tick_params('both', length=8, width=1, which='major', labelsize=24)
@@ -105,7 +106,8 @@ if __name__  == '__main__':
     outbase = os.path.join(figfolder, ntitle)
     #plt.suptitle(outbase, fontsize=12)
     plt.tight_layout()
-    for ftype in ['png', 'pdf', 'svg']:
-        plt.savefig('{}_nrmse.{}'.format(outbase, ftype), bbox_inches='tight')
+    if ntitle != '':
+        for ftype in ['png', 'pdf', 'svg']:
+            plt.savefig('{}_nrmse.{}'.format(outbase, ftype), bbox_inches='tight')
     plt.show()
     
