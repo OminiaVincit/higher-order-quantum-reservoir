@@ -62,7 +62,7 @@ if __name__  == '__main__':
     
     (nu, nt) = ild2.shape
     # Plot file
-    cmap = plt.get_cmap('nipy_spectral')
+    cmap = plt.get_cmap('jet')
     plt.rc('font', family='serif')
     plt.rc('mathtext', fontset='cm')
     plt.rcParams["font.size"] = 20 # 全体のフォントサイズが変更されます

@@ -16,7 +16,7 @@ if __name__  == '__main__':
     parser.add_argument('--posfix', type=str, default='esp_trials_10_10_esp')
     parser.add_argument('--strength', type=float, default=0.5)
     parser.add_argument('--eval', type=int, default=1000)
-    parser.add_argument('--Ts', type=str, default='32,64,128,256,512,1024,2048,4096,8192')
+    parser.add_argument('--Ts', type=str, default='8192,4096,2048,1024,512,256,128,64,32')
     args = parser.parse_args()
     print(args)
     folder, prefix, posfix, strength = args.folder, args.prefix, args.posfix, args.strength
@@ -49,7 +49,9 @@ if __name__  == '__main__':
             tmp = np.loadtxt(rfile)
             print(tmp.shape)
             ts, avs, stds = tmp[:, 2], tmp[:, -2], tmp[:, -1]
-            ax1.plot(ts, avs, label='T={}'.format(T), linewidth=3)
+            ax1.plot(ts, avs, label='T={}'.format(T), linewidth=3, alpha=0.8)
+            #ax1.fill_between(ts, avs - stds, avs + stds, facecolor='k', alpha=0.2)
+                    
             esp_bt.append(np.array(avs))
     esp_bt = np.array(esp_bt)
 
