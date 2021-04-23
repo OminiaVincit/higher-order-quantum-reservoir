@@ -29,6 +29,7 @@ def nmse_job(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_output_s
             val_input_seq, val_output_seq, nqrc, alpha, ranseed=n, deep=deep)
         train_loss_ls.append(train_loss)
         val_loss_ls.append(val_loss)
+        print('trials={}, train_loss={}, val_loss={}'.format(n, train_loss, val_loss))
 
     mean_train, mean_val = np.mean(train_loss_ls), np.mean(val_loss_ls)
     std_train, std_val = np.std(train_loss_ls), np.std(val_loss_ls)

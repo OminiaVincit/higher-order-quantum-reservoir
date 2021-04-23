@@ -3,9 +3,9 @@
 export OMP_NUM_THREADS=1
 
 BIN=../source/narma_hqrc.py
-TRAIN=2000
-VAL=2000
-T=2000
+TRAIN=200
+VAL=200
+T=200
 #UNITS=5
 SOLVER='ridge_pinv'
 
@@ -18,9 +18,9 @@ ALPHA='0.0'
 TAUS='default'
 DEEP=0
 
-for UNITS in 8 9 10
+for V in 1 5
 do
-for V in 20
+for UNITS in 8 9 10
 do
 python $BIN --deep $DEEP --units $UNITS --strengths $ALPHA --solver $SOLVER --savedir $SAVE --trainlen $TRAIN --vallen $VAL --transient $T --nqrc $QR --ntrials $N --virtuals $V --taudelta $TAUS
 done
