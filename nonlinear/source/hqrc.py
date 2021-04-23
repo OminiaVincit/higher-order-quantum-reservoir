@@ -503,7 +503,7 @@ def esp_index(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, ranse
     input_seq = np.tile(input_seq, (nqrc, 1))
 
     # Initialize the reservoir to zero state - density matrix
-    model = HQRC(nqrc, gamma, sparsity, sigma_input)
+    model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, sigma_input=sigma_input)
     x0_state_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = ranseed)
     # Compute esp index and esp_lambda
     dP = []
