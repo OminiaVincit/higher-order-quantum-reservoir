@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
-    Calculate NMSE for NARMA tasks
-    See run_hqrc_nmse_narma.sh for an example to run the script
+    Calculate NRMSE for NARMA tasks
+    See run_hqrc_nrmse_narma.sh for an example to run the script
 """
 
 import sys
@@ -50,7 +50,7 @@ if __name__  == '__main__':
     parser.add_argument('--beta', type=float, default=1e-14, help='reg term')
     parser.add_argument('--solver', type=str, default=LINEAR_PINV, \
         help='regression solver by linear_pinv,ridge_pinv,auto,svd,cholesky,lsqr,sparse_cg,sag')
-    parser.add_argument('--solver', type=str, default=DYNAMIC_FULL_RANDOM,\
+    parser.add_argument('--dynamic', type=str, default=DYNAMIC_FULL_RANDOM,\
         help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
 
     parser.add_argument('--trainlen', type=int, default=2000)
@@ -65,7 +65,6 @@ if __name__  == '__main__':
 
     parser.add_argument('--deep', type=int, default=0, help='0: mutual connection, 1: forward connection')
     parser.add_argument('--orders', type=str, default='5,10,15,20')
-    parser.add_argument('--basename', type=str, default='qrc_narma')
     parser.add_argument('--savedir', type=str, default='resnarma_hqrc')
     args = parser.parse_args()
     print(args)
@@ -78,7 +77,7 @@ if __name__  == '__main__':
     Ntrials = args.ntrials
     deep = args.deep
 
-    basename, savedir = args.basename, args.savedir
+    dynamic, savedir = args.dynamic, args.savedir
     if os.path.isdir(savedir) == False:
         os.mkdir(savedir)
 
@@ -99,7 +98,7 @@ if __name__  == '__main__':
 
     for order in orders:
         outbase = os.path.join(savedir, '{}_{}_{}_units_{}_V_{}_alpha_{}_QRs_{}_narma_{}_deep_{}_ntrials_{}'.format(\
-            basename, solver, datestr, n_units, V,\
+            dynamic, solver, datestr, n_units, V,\
             '_'.join([str(o) for o in strengths]), \
             '_'.join([str(o) for o in layers]), \
             order, deep, Ntrials))

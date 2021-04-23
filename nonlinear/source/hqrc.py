@@ -226,13 +226,13 @@ class HQRC(object):
             for v in range(self.virtual_nodes):
                 # Time evolution of density matrix
                 rho = Uop @ rho @ Uop.T.conj()
-                for qindex in range(self.n_envs, self.n_qubits):
+                for qindex in range(0, self.n_qubits):
                     expectation_value = np.real(np.trace(self.Zop[qindex] @ rho))
                     rvstate = (1.0 + expectation_value) / 2.0
                     current_state.append(rvstate)
                 
                 if self.use_corr > 0:
-                    for q1 in range(self.n_envs, self.n_qubits):
+                    for q1 in range(0, self.n_qubits):
                         for q2 in range(q1+1, self.n_qubits):
                             cindex = (q1, q2)
                             expectation_value = np.real(np.trace(self.Zop_corr[cindex] @ rho))
@@ -331,7 +331,7 @@ def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, 
         ranseed, nqrc, gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, deep=0, use_corr=0):
 
     model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, \
-        sigma_input=sigma_input, type_input=type_input, deep=deep, user_corr=use_corr)
+        sigma_input=sigma_input, type_input=type_input, deep=deep, use_corr=use_corr)
 
     train_input_seq = np.array(train_input_seq)
     train_output_seq = np.array(train_output_seq)
