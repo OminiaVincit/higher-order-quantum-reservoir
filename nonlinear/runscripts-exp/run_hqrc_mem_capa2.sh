@@ -7,12 +7,11 @@ N=10
 J=1.0
 TASK=qrc_stm
 SAVE=../../../data/hqrc/memcapa
-QR=5
 PROC=101
 
-TAUS=\'-1,4\' # The parameters for tau is 2**x for x in TAUS
-STRENGTHS='1.0'
-VS='1,5,10,15,25'
+TAUS='4.0' # The parameters for tau is 2**x for x in TAUS
+STRENGTHS='0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9'
+VS='1,5,10,15,20,25'
 QRS='5'
 
 MIND=0
