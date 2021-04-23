@@ -133,7 +133,7 @@ if __name__  == '__main__':
 
     # Create params and model
     qparams = QRCParams(n_units=n_units, max_energy=J,\
-        beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho)
+        beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=)
     model = hqrc.HQRC(nqrc=n_qrs, alpha=alpha)
     model.init_reservoir(qparams, ranseed=rseed)
     # create training and testing data

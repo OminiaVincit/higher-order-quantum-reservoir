@@ -18,26 +18,29 @@ RIDGE_SPARSE = 'sparse_cg'
 RIDGE_SAG = 'sag'
 
 DYNAMIC_FULL_RANDOM = 'full_random'
+DYNAMIC_HALF_RANDOM = 'half_random'
 DYNAMIC_FULL_CONST_TRANS = 'full_const_trans'
 DYNAMIC_FULL_CONST_COEFF = 'full_const_coeff'
 DYNAMIC_ION_TRAP = 'ion_trap'
 
 class QRCParams():
-    def __init__(self, n_units, max_energy, beta, virtual_nodes, tau, init_rho, \
-        non_diag = 0.42, solver=LINEAR_PINV, dynamic=DYNAMIC_FULL_CONST_TRANS):
+    def __init__(self, n_units, n_envs, max_energy, virtual_nodes, tau, init_rho, \
+        beta, solver, dynamic, non_diag=1.0, alpha=1.0):
         self.n_units = n_units
+        self.n_envs = n_envs
         self.max_energy = max_energy
+        self.non_diag = non_diag
+        self.alpha = alpha
         self.beta = beta
         self.virtual_nodes = virtual_nodes
         self.tau = tau
         self.init_rho = init_rho
         self.solver = solver
-        self.non_diag = non_diag
         self.dynamic = dynamic
 
     def info(self):
-        print('units={},Jdelta={},V={},taudelta={},init_rho={}'.format(\
-            self.n_units, self.max_energy,
+        print('units={},n_envs={},J={},non_diag={},alpha={},V={},t={},init_rho={}'.format(\
+            self.n_units, self.n_envs, self.max_energy, self.non_diag, self.alpha,
             self.virtual_nodes, self.tau, self.init_rho))
 
 def solfmax_layer(states):

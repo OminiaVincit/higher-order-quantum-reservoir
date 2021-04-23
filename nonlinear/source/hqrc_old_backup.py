@@ -5,25 +5,17 @@
 
 import sys
 import numpy as np
-import scipy as sp
-from scipy import sparse
+import scipy as sp 
 from scipy.sparse import linalg as splinalg
 from scipy.linalg import pinv2 as scipypinv2
-from IPC import *
+
 from utils import *
 
-import time
-from datetime import timedelta
-
 class HQRC(object):
-    def __init__(self, nqrc, gamma, sparsity, sigma_input, \
-        type_input=0, use_corr=0, deep=0):
+    def __init__(self, nqrc, alpha, deep=False, bias=1.0):
         self.nqrc = nqrc
-        self.gamma = gamma
-        self.sparsity = sparsity
-        self.sigma_input = sigma_input
-        self.type_input = type_input
-        self.use_corr = use_corr
+        self.alpha = alpha
+        self.bias = bias
         self.deep = deep
 
     def __init_reservoir(self, qparams, ranseed):
@@ -36,58 +28,27 @@ class HQRC(object):
         P0 = [[1,0],[0,0]]
         P1 = [[0,0],[0,1]]
         self.n_units = qparams.n_units
-        self.n_envs = qparams.n_envs
         self.virtual_nodes = qparams.virtual_nodes
         self.tau = qparams.tau
         self.max_energy = qparams.max_energy
-        self.non_diag = qparams.non_diag
-        self.alpha = qparams.alpha
+        self.ap = qparams.ap
+        self.bc = qparams.bc
         self.solver = qparams.solver
-        self.dynamic = qparams.dynamic
 
-        self.n_qubits = self.n_units + self.n_envs
+        self.n_qubits = self.n_units
         self.dim = 2**self.n_qubits
         self.Zop = [1]*self.n_qubits
-
+        self.Xop = [1]*self.n_qubits
+        self.P0op = [1]
+        self.P1op = [1]
+        
         self.Zop_corr = dict()
         for q1 in range(self.n_qubits):
             for q2 in range(q1+1, self.n_qubits):
                 self.Zop_corr[(q1, q2)] = [1]
         
-        self.Xop = [1]*self.n_qubits
-        self.P0op = [1]
-        self.P1op = [1]
-        
         nqrc = self.nqrc
         Nspins = self.n_qubits
-        
-        # generate feedback matrix
-        n_nodes = self.__get_comput_nodes()
-        # skip self loop
-        n_local_nodes = self.__get_qr_nodes()
-        
-        W_feed = np.zeros((n_nodes, nqrc))
-        if nqrc > 1:
-            for i in range(0, nqrc):
-                if self.deep == 0:
-                    smat = scipy.sparse.random(n_nodes, 1, density = self.sparsity).data
-                    smat = smat.ravel()
-                    bg = i * n_local_nodes
-                    ed = bg + n_local_nodes 
-                    smat[bg:ed] = 0
-                    smat *= (self.sigma_input / (n_nodes - n_local_nodes))
-                    W_feed[:, i] = smat.copy()
-                else:
-                    if i > 1:
-                        smat = scipy.sparse.random(n_local_nodes, 1, density = self.sparsity).data
-                        smat = smat.ravel()
-                        smat *= (self.sigma_input / n_local_nodes)
-
-                        bg = (i-1) * n_local_nodes
-                        ed = bg + n_local_nodes
-                        W_feed[bg:ed, i] = smat.copy()
-
-        self.W_feed = W_feed
 
         # create operators from tensor product
         for cindex in range(self.n_qubits):
@@ -106,61 +67,42 @@ class HQRC(object):
                 self.P0op = np.kron(self.P0op, I)
                 self.P1op = np.kron(self.P1op, I)
 
-        # generate correlatior operators
-        if self.use_corr > 0:
-            for q1 in range(self.n_qubits):
-                for q2 in range(q1+1, self.n_qubits):
-                    cindex = (q1, q2)
-                    for qindex in range(self.n_qubits):
-                        if qindex == q1 or qindex == q2:
-                            self.Zop_corr[cindex] = np.kron(self.Zop_corr[cindex], Z)
-                        else:
-                            self.Zop_corr[cindex] = np.kron(self.Zop_corr[cindex], I)
+        # initialize connection to layer i
+        connections = []
+        N_local_states = self.n_units * self.virtual_nodes
         
-        # initialize current states
-        self.cur_states = [None] * nqrc
+        nqrc = self.nqrc
+        Nspins = self.n_qubits
+        dynamic = qparams.dynamic
 
-        # create coupling strength for ion trap
-        a = self.alpha
-        bc = self.non_diag
-        Nalpha = 0
-        for qindex1 in range(Nspins):
-            for qindex2 in range(qindex1+1, Nspins):
-                Jij = np.abs(qindex2-qindex1)**(-a)
-                Nalpha += Jij / (Nspins-1)
-        B = self.max_energy / bc # Magnetic field
+        if nqrc > 1:
+            for i in range(nqrc):
+                local_cs = []
+                for j in range(nqrc):
+                    cs = [0] * N_local_states
+                    if self.deep == False:
+                        if j != i:
+                            cs = np.random.rand(N_local_states)
+                    else:
+                        if j == i-1:
+                            cs = np.random.rand(N_local_states)
+                    local_cs.append(cs)
+                local_cs = np.array(local_cs).flatten()
+                total = np.sum(local_cs)
+                if total > 0:
+                    local_cs = local_cs / total
+                connections.append(local_cs)
+        self.coeffs = connections
+
+        # initialize current states
+        self.prev_states = [None] * nqrc
+        self.cur_states  = [None] * nqrc
 
         # Intialize evolution operators
         tmp_uops = []
-        # generate hamiltonian
-        for i in range(nqrc):
-            hamiltonian = np.zeros( (self.dim,self.dim) )
-
-            for qindex in range(Nspins):
-                if self.dynamic == DYNAMIC_FULL_RANDOM:
-                    coef = (np.random.rand()-0.5) * 2 * self.max_energy
-                else:
-                    coef = B
-                hamiltonian -= coef * self.Zop[qindex]
-
-            for qindex1 in range(Nspins):
-                for qindex2 in range(qindex1+1, Nspins):
-                    if self.dynamic == DYNAMIC_FULL_CONST_COEFF:
-                        coef =  self.max_energy
-                    elif self.dynamic == DYNAMIC_ION_TRAP:
-                        coef = np.abs(qindex2 - qindex1)**(-a) / Nalpha
-                        coef = self.max_energy * coef
-                    else:
-                        coef = (np.random.rand()-0.5) * 2 * self.max_energy
-                    hamiltonian -= coef * self.Xop[qindex1] @ self.Xop[qindex2]
-                    
-            ratio = float(self.tau) / float(self.virtual_nodes)        
-            Uop = sp.linalg.expm(-1.j * hamiltonian * ratio)
-            tmp_uops.append(Uop)
-        
-        # initialize density matrix
         tmp_rhos = []
         for i in range(nqrc):
+            # initialize density matrix
             rho = np.zeros( [self.dim, self.dim] )
             rho[0, 0] = 1
             if qparams.init_rho != 0:
@@ -168,21 +110,61 @@ class HQRC(object):
                 rho = random_density_matrix(self.dim)
             tmp_rhos.append(rho)
 
+            # generate hamiltonian
+            hamiltonian = np.zeros( (self.dim,self.dim) )
+
+            # create coupling strength for ion trap
+            ap, bc = self.ap, self.bc
+            J = 0
+            for qindex1 in range(Nspins):
+                for qindex2 in range(qindex1+1, Nspins):
+                    Jij = np.abs(qindex2-qindex1)**(-ap)
+                    J += Jij / (Nspins-1)
+            B = J/bc # Magnetic field
+
+            for qindex in range(Nspins):
+                if dynamic == DYNAMIC_FULL_RANDOM:
+                    coef = (np.random.rand()-0.5) * 2 * self.max_energy
+                elif dynamic == DYNAMIC_ION_TRAP:
+                    coef = - B * self.max_energy
+                else:
+                    coef = - self.bc * self.max_energy
+                hamiltonian += coef * self.Zop[qindex]
+
+            for qindex1 in range(Nspins):
+                for qindex2 in range(qindex1+1, Nspins):
+                    if dynamic == DYNAMIC_FULL_CONST_COEFF:
+                        coef =  - self.max_energy
+                    elif dynamic == DYNAMIC_ION_TRAP:
+                        coef =  - np.abs(qindex2 - qindex1)**(-a) / J
+                        coef = 2 * self.max_energy * coef
+                    else:
+                        coef = (np.random.rand()-0.5) * 2 * self.max_energy
+                    hamiltonian += coef * self.Xop[qindex1] @ self.Xop[qindex2]
+
+            # include input qubit for computation
+            for qindex in range(self.n_qubits):
+                coef = (np.random.rand()-0.5) * 2 * self.max_energy
+                hamiltonian += coef * self.Zop[qindex]
+            for qindex1 in range(self.n_qubits):
+                for qindex2 in range(qindex1+1, self.n_qubits):
+                    coef = (np.random.rand()-0.5) * 2 * self.max_energy
+                    hamiltonian += coef * self.Xop[qindex1] @ self.Xop[qindex2]
+                    
+            ratio = float(self.tau) / float(self.virtual_nodes)        
+            Uop = sp.linalg.expm(-1.j * hamiltonian * ratio)
+            tmp_uops.append(Uop)
+        
         self.init_rhos = tmp_rhos.copy()
         self.last_rhos = tmp_rhos.copy()
         self.Uops = tmp_uops.copy()
 
-    def init_reservoir(self, qparams, ranseed):
-        self.__init_reservoir(qparams, ranseed)
-
-    def __get_qr_nodes(self):
-        return self.n_qubits * self.virtual_nodes
-
     def __get_comput_nodes(self):
-        return self.__get_qr_nodes() * self.nqrc
+        return self.n_units * self.virtual_nodes * self.nqrc
     
     def __reset_states(self):
-        self.cur_states = [None] * self.nqrc
+        self.prev_states = [None] * self.nqrc
+        self.cur_states  = [None] * self.nqrc
 
     def gen_rand_rhos(self, ranseed):
         if ranseed >= 0:
@@ -195,56 +177,45 @@ class HQRC(object):
 
     def step_forward(self, local_rhos, input_val):
         nqrc = self.nqrc
-        update_input = input_val.copy().ravel()
-
-        if self.gamma > 0 and self.cur_states[0] is not None:
-            tmp_states = np.array(self.cur_states, dtype=np.float64).reshape(1, -1)
-            tmp_states = tmp_states @ self.W_feed
-            tmp_states = tmp_states.ravel()
-            update_input = self.gamma * tmp_states + (1.0 - self.gamma) * update_input
-            
+        local_prev_states = []
         for i in range(nqrc):
             Uop = self.Uops[i]
             rho = local_rhos[i]
             # Obtain value from the input
-            value = update_input[i]
-
+            value = input_val[i]
+            prev_states = self.prev_states
+            if nqrc > 1 and prev_states[0] is not None:
+                scaled_coeffs = self.coeffs[i] * self.alpha
+                value = scale_linear_combine(value, prev_states, scaled_coeffs, self.bias)
+            
             # Replace the density matrix
             rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
             # (1 + u Z)/2 = (1+u)/2 |0><0| + (1-u)/2 |1><1|
-            # inv1 = (self.affine[1] + self.value) / self.affine[0]
-            # inv2 = (self.affine[1] - self.value) / self.affine[0]
+        
+            # for input in [-1, 1]
+            # rho = (1+value)/2 * rho + (1-value)/2 *self.Xop[0] @ rho @ self.Xop[0]
 
-            if self.type_input == 0:
-                # for input in [0, 1]
-                rho = (1 - value) * rho + value * self.Xop[0] @ rho @ self.Xop[0]
-            else:
-                # for input in [-1, 1]
-                rho = ((1+value)/2) * rho + ((1-value)/2) *self.Xop[0] @ rho @ self.Xop[0]
+            # for input in [0, 1]
+            rho = (1 - value) * rho + value * self.Xop[0] @ rho @ self.Xop[0]
             
             current_state = []
             for v in range(self.virtual_nodes):
                 # Time evolution of density matrix
                 rho = Uop @ rho @ Uop.T.conj()
-                for qindex in range(self.n_envs, self.n_qubits):
+                for qindex in range(0, self.n_qubits):
                     expectation_value = np.real(np.trace(self.Zop[qindex] @ rho))
-                    rvstate = (1.0 + expectation_value) / 2.0
-                    current_state.append(rvstate)
-                
-                if self.use_corr > 0:
-                    for q1 in range(self.n_envs, self.n_qubits):
-                        for q2 in range(q1+1, self.n_qubits):
-                            cindex = (q1, q2)
-                            expectation_value = np.real(np.trace(self.Zop_corr[cindex] @ rho))
-                            rvstate = (1.0 + expectation_value) / 2.0
-                            current_state.append(rvstate)
-
-            # Size of current_state is Nqubits x Nvirtuals)
-            self.cur_states[i] = np.array(current_state, dtype=np.float64)
+                    current_state.append(expectation_value)
+            # Size of current_state is Nqubits x Nvirtuals
+            tmp = np.array(current_state, dtype=np.float64)
+            local_prev_states.append(tmp)
+            self.cur_states[i] = tmp.copy()
             local_rhos[i] = rho
+        # update previous states
+        if any(x is None for x in local_prev_states) == False:
+            self.prev_states = np.array(local_prev_states, dtype=np.float64).flatten()
         return local_rhos
 
-    def feed_forward(self, input_seq, predict, use_lastrho):
+    def __feed_forward(self, input_seq, predict, use_lastrho):
         input_dim, input_length = input_seq.shape
         nqrc = self.nqrc
         assert(input_dim == nqrc)
@@ -277,14 +248,13 @@ class HQRC(object):
         Nout = output_seq.shape[1]
         self.W_out = np.random.rand(self.__get_comput_nodes() + 1, Nout)
 
-        _, state_list = self.feed_forward(input_seq, predict=False, use_lastrho=False)
+        _, state_list = self.__feed_forward(input_seq, predict=False, use_lastrho=False)
 
         state_list = np.array(state_list)
         state_list = state_list[buffer:, :]
 
         # discard the transitient state for training
         X = np.reshape(state_list, [-1, self.__get_comput_nodes()])
-        #print('shape', X.shape, state_list.shape)
         X = np.hstack( [state_list, np.ones([X.shape[0], 1]) ] )
 
         discard_output = output_seq[buffer:, :]
@@ -311,31 +281,29 @@ class HQRC(object):
         self.__train(input_seq, output_seq, buffer, qparams.beta)
 
     def predict(self, input_seq, output_seq, buffer, use_lastrho):
-        prediction_seq, _ = self.feed_forward(input_seq, predict=True, use_lastrho=use_lastrho)
+        prediction_seq, _ = self.__feed_forward(input_seq, \
+            predict=True, use_lastrho=use_lastrho)
         pred = prediction_seq[buffer:, :]
         out  = output_seq[buffer:, :]
-        
-        nrmse_loss = np.sqrt(np.mean((pred - out)**2)/(np.std(pred)**2))
-        #nmse_loss = np.sum((pred - out)**2) / np.sum(pred**2)
-        
-        return prediction_seq, nrmse_loss
-    
+        # Use loss = NMSE
+        # loss = np.sum((pred - out)**2)/np.sum(pred**2)
+        # Use loss = NRMSE
+        loss = np.sqrt(np.mean((pred - out)**2)/(np.std(pred)**2))
+        return prediction_seq, loss
+
     def init_forward(self, qparams, input_seq, init_rs, ranseed):
         self.__reset_states()
         if init_rs == True:
             self.__init_reservoir(qparams, ranseed)
-        _, state_list =  self.feed_forward(input_seq, predict=False, use_lastrho=False)
+        _, state_list =  self.__feed_forward(input_seq, predict=False, use_lastrho=False)
         return state_list
 
-def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, val_output_seq, \
-        ranseed, nqrc, gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, deep=0, use_corr=0):
-
-    model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, \
-        sigma_input=sigma_input, type_input=type_input, deep=deep, user_corr=use_corr)
+def get_loss(qparams, buffer, train_input_seq, train_output_seq, \
+        val_input_seq, val_output_seq, nqrc, alpha, ranseed, deep=False):
+    model = HQRC(nqrc, alpha, deep)
 
     train_input_seq = np.array(train_input_seq)
     train_output_seq = np.array(train_output_seq)
-    
     model.train_to_predict(train_input_seq, train_output_seq, buffer, qparams, ranseed)
 
     train_pred_seq, train_loss = model.predict(train_input_seq, train_output_seq, buffer=buffer, use_lastrho=False)
@@ -349,35 +317,8 @@ def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, 
 
     return train_pred_seq, train_loss, val_pred_seq, val_loss
 
-def get_IPC(qparams, ipcparams, length, logger, ranseed=-1, Ntrials=1, savedir=None, \
-    posfix='capa', type_input=0, label=''):
-    start_time = time.monotonic()
-    fname = '{}_{}'.format(label, sys._getframe().f_code.co_name)
-    nqrc = 1
-    transient = length // 2
-
-    if ranseed >= 0:
-        np.random.seed(seed=ranseed)
-    for n in range(Ntrials):
-        if type_input == 0:
-            input_signals = np.random.uniform(0, 1, length) 
-        else:
-            input_signals = np.random.uniform(-1, 1, length)
-        input_signals = np.array(input_signals)
-        input_signals = np.tile(input_signals, (nqrc, 1))
-
-        ipc = IPC(ipcparams, log=logger, savedir=savedir, label=label)
-        model = HQRC(nqrc=nqrc, gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=type_input)
-        output_signals = model.init_forward(qparams, input_signals, init_rs=True, ranseed = n + ranseed)
-        logger.debug('{}: n={} per {} trials, input shape = {}, output shape={}'.format(fname, n+1, Ntrials, input_signals.shape, output_signals.shape))
-        
-        ipc.run(input_signals[0, transient:], output_signals[transient:])
-        ipc.write_results(posfix=posfix)
-    end_time = time.monotonic()
-    logger.info('{}: Executed time {}'.format(fname, timedelta(seconds=end_time - start_time)))
-
 def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
-        nqrc, gamma, sparsity, sigma_input, ranseed=-1, Ntrials=1, type_input=0):    
+        nqrc, alpha, ranseed=-1, Ntrials=1, deep=False):    
     MFlist = []
     MFstds = []
     train_list, val_list = [], []
@@ -394,10 +335,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
         data = np.random.randint(0, 2, length)
     else:
         print('Generate STM task data')
-        if type_input == 0:
-            data = np.random.rand(length)
-        else:
-            data = 2.0*np.random.rand(length) - 1.0
+        data = np.random.rand(length)
 
     for d in dlist:
         train_input_seq = np.array(data[  : buffer + train_len])
@@ -437,7 +375,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
             # Use the same ranseed the same trial
             train_pred_seq, train_loss, val_pred_seq, val_loss = \
                 get_loss(qparams, buffer, train_input_seq, train_output_seq, \
-                    val_input_seq, val_output_seq, nqrc, gamma, sparsity, sigma_input, ranseed_net, type_input)
+                    val_input_seq, val_output_seq, nqrc, alpha, ranseed_net, deep)
 
             # Compute memory function
             val_out_seq, val_pred_seq = val_output_seq.flatten(), val_pred_seq.flatten()
@@ -458,7 +396,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
     
     return np.array(list(zip(dlist, MFlist, MFstds, train_list, val_list)))
 
-def effective_dim(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, ranseed, Ntrials):
+def effective_dim(qparams, buffer, length, nqrc, alpha, ranseed, Ntrials, deep=False):
     # Calculate effective dimension for reservoir
     from numpy import linalg as LA
     
@@ -469,7 +407,7 @@ def effective_dim(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, r
     input_seq = np.array(data)
     input_seq = np.tile(input_seq, (nqrc, 1))
 
-    model = HQRC(nqrc, gamma, sparsity, sigma_input)
+    model = HQRC(nqrc, alpha, deep)
 
     effdims = []
     for n in range(Ntrials):
@@ -480,21 +418,23 @@ def effective_dim(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, r
         state_list = model.init_forward(qparams, input_seq, init_rs=True, ranseed=ranseed_net)
         L, D = state_list.shape
         # L = Length of time series
-        # D = Number of virtual nodes x Number of qubits
+        # D = Nqrc x Number of virtual nodes x Number of qubits
         locls = []
         for i in range(D):
+            ri = state_list[buffer:, i].ravel()
+            ri = ri - np.mean(ri)
             for j in range(D):
-                ri = state_list[buffer:, i]
-                rj = state_list[buffer:, j]
+                rj = state_list[buffer:, j].ravel()
+                rj = rj - np.mean(rj)
                 locls.append(np.mean(ri*rj))
         locls = np.array(locls).reshape(D, D)
+        # effdims.append(np.linalg.matrix_rank(locls, tol=1e-10))
         w, v = LA.eig(locls)
-        #print(w)
         w = np.abs(w) / np.abs(w).sum()
-        effdims.append(1.0 / np.power(w, 2).sum())
+        effdims.append( 1.0 / np.power(w, 2).sum())
     return np.mean(effdims), np.std(effdims)
 
-def esp_index(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, ranseed, state_trials):
+def esp_index(qparams, buffer, length, nqrc, alpha, ranseed, state_trials, deep=False):
     if ranseed >= 0:
         np.random.seed(seed=ranseed)
 
@@ -503,7 +443,7 @@ def esp_index(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, ranse
     input_seq = np.tile(input_seq, (nqrc, 1))
 
     # Initialize the reservoir to zero state - density matrix
-    model = HQRC(nqrc, gamma, sparsity, sigma_input)
+    model = HQRC(nqrc, alpha, deep)
     x0_state_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = ranseed)
     # Compute esp index and esp_lambda
     dP = []
@@ -526,7 +466,7 @@ def esp_index(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, ranse
         dP.append(local_diff)
     return np.mean(dP)
 
-def lyapunov_exp(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, ranseed, initial_distance):
+def lyapunov_exp(qparams, buffer, length, nqrc, alpha, ranseed, initial_distance, deep=False):
     if ranseed >= 0:
         np.random.seed(seed=ranseed)
 
@@ -535,7 +475,7 @@ def lyapunov_exp(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, ra
     input_seq = np.tile(input_seq, (nqrc, 1))
 
     # Initialize the reservoir to zero state - density matrix
-    model = HQRC(nqrc, gamma, sparsity, sigma_input)
+    model = HQRC(nqrc, alpha, deep)
     states1 = model.init_forward(qparams, input_seq, init_rs = True, ranseed = -1)
     L, D = states1.shape
     # L = Length of time series
@@ -552,6 +492,8 @@ def lyapunov_exp(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, ra
         gamma_k_list = []
         local_rhos = model.last_rhos.copy()
         for k in range(buffer, L):
+            # Update prev states
+            model.prev_states = states2[k-1, :].copy()
             input_val = input_seq[:, k].ravel()
             local_rhos = model.step_forward(local_rhos, input_val)
             states2[k, :] = np.array(model.cur_states, dtype=np.float64).flatten()

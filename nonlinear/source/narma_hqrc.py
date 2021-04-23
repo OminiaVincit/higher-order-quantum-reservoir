@@ -19,14 +19,14 @@ import hqrc as hqrc
 import utils
 from utils import *
 
-def nmse_job(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_output_seq, \
+def compute_job(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_output_seq, \
         val_input_seq, val_output_seq, Ntrials, send_end, order):
     train_loss_ls, val_loss_ls = [], []
     print('Start process alpha={}, taudelta={}, virtual={}, Jdelta={}'.format(\
         alpha, qparams.tau, qparams.virtual_nodes, qparams.max_energy))
     for n in range(Ntrials):
         _, train_loss, _, val_loss = hqrc.get_loss(qparams, buffer, train_input_seq, train_output_seq, \
-            val_input_seq, val_output_seq, nqrc, alpha, ranseed=n, deep=deep)
+            val_input_seq, val_output_seq, nqrc=nqrc, gamma=alpha, ranseed=n, deep=deep)
         train_loss_ls.append(train_loss)
         val_loss_ls.append(val_loss)
 
@@ -49,6 +49,8 @@ if __name__  == '__main__':
     parser.add_argument('--beta', type=float, default=1e-14, help='reg term')
     parser.add_argument('--solver', type=str, default=LINEAR_PINV, \
         help='regression solver by linear_pinv,ridge_pinv,auto,svd,cholesky,lsqr,sparse_cg,sag')
+    parser.add_argument('--solver', type=str, default=DYNAMIC_FULL_RANDOM,\
+        help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
 
     parser.add_argument('--trainlen', type=int, default=2000)
     parser.add_argument('--vallen', type=int, default=2000)
@@ -73,9 +75,7 @@ if __name__  == '__main__':
     init_rho, solver = args.rho, args.solver
 
     Ntrials = args.ntrials
-    deep = False
-    if args.deep > 0:
-        deep = True
+    deep = args.deep
 
     basename, savedir = args.basename, args.savedir
     if os.path.isdir(savedir) == False:
@@ -122,9 +122,9 @@ if __name__  == '__main__':
             for alpha in strengths:
                 for tau in taudeltas:
                     recv_end, send_end = multiprocessing.Pipe(False)
-                    qparams = QRCParams(n_units=n_units, max_energy=max_energy,\
-                        beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho)
-                    p = multiprocessing.Process(target=nmse_job, args=(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_output_seq, \
+                    qparams = QRCParams(n_units=n_units-1, n_envs=1, max_energy=max_energy,\
+                        beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
+                    p = multiprocessing.Process(target=compute_job, args=(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_output_seq, \
                         val_input_seq, val_output_seq, Ntrials, send_end, order))
                     jobs.append(p)
                     pipels.append(recv_end)
