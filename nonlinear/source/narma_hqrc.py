@@ -29,7 +29,8 @@ def compute_job(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_outpu
             val_input_seq, val_output_seq, nqrc=nqrc, gamma=alpha, ranseed=n, deep=deep)
         train_loss_ls.append(train_loss)
         val_loss_ls.append(val_loss)
-        print('trials={}, train_loss={}, val_loss={}'.format(n, train_loss, val_loss))
+        print('trials={}, tau={},V={},alpha={}, train_loss={}, val_loss={}'.format(\
+            n, qparams.tau, qparams.virtual_nodes, alpha, train_loss, val_loss))
 
     mean_train, mean_val = np.mean(train_loss_ls), np.mean(val_loss_ls)
     std_train, std_val = np.std(train_loss_ls), np.std(val_loss_ls)
@@ -66,12 +67,13 @@ if __name__  == '__main__':
     parser.add_argument('--deep', type=int, default=0, help='0: mutual connection, 1: forward connection')
     parser.add_argument('--orders', type=str, default='5,10,15,20')
     parser.add_argument('--savedir', type=str, default='resnarma_hqrc')
+    parser.add_argument('--rseed', type=int, default=0)
     args = parser.parse_args()
     print(args)
 
     n_units, max_energy, beta = args.units, args.coupling, args.beta
     train_len, val_len, buffer = args.trainlen, args.vallen, args.transient
-    V = args.virtuals
+    V, rseed = args.virtuals, args.rseed
     init_rho, solver = args.rho, args.solver
 
     Ntrials = args.ntrials
@@ -102,9 +104,10 @@ if __name__  == '__main__':
             #'_'.join([str(o) for o in strengths]), \
             '_'.join([str(o) for o in layers]), \
             order, deep, Ntrials))
+        #np.random.seed(seed=rseed + order*100)
 
         jobs, pipels = [], []
-        data, target = make_data_for_narma(train_len + val_len + buffer, orders=[order])
+        data, target = make_data_for_narma(train_len + val_len + buffer, orders=[order], ranseed=rseed + order*100)
 
         train_input_seq_org = np.array(data[: buffer + train_len])
         train_input_seq_org = train_input_seq_org.reshape(1, train_input_seq_org.shape[0])
@@ -155,6 +158,7 @@ if __name__  == '__main__':
             sfile.write('layers={}\n'.format(' '.join([str(l) for l in layers])))
             sfile.write('V={}\n'.format(V))
             sfile.write('deep={}\n'.format(deep))
+            sfile.write('ranseed={}\n'.format(rseed))
             sfile.write('alpha={}, Ntrials={}\n'.format(alpha, Ntrials))
 
 

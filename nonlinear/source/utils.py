@@ -65,7 +65,8 @@ def scale_linear_combine(u, states, coeffs, bias):
     states = (states + bias) / (2.0 * bias)
     return linear_combine(u, states, coeffs)
 
-def make_data_for_narma(length, orders):
+def make_data_for_narma(length, orders, ranseed=0):
+    np.random.seed(seed=ranseed)
     xs = np.random.rand(length)
     x = xs * 0.2
     N = len(orders)
