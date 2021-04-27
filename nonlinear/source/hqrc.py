@@ -316,8 +316,8 @@ class HQRC(object):
         pred = prediction_seq[buffer:, :]
         out  = output_seq[buffer:, :]
         
-        nrmse_loss = np.sqrt(np.mean((pred - out)**2)/(np.std(pred)**2))
-        #nmse_loss = np.sum((pred - out)**2) / np.sum(pred**2)
+        nrmse_loss = np.sqrt(np.mean((pred - out)**2)/(np.std(out)**2))
+        #nmse_loss = np.sum((pred - out)**2) / np.sum(out**2)
         
         return prediction_seq, nrmse_loss
     
