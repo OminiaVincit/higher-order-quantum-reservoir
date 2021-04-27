@@ -201,6 +201,7 @@ class HQRC(object):
             tmp_states = np.array(self.cur_states, dtype=np.float64).reshape(1, -1)
             tmp_states = tmp_states @ self.W_feed
             tmp_states = tmp_states.ravel()
+            #tmp_states = np.exp(-1.0*tmp_states)
             update_input = self.gamma * tmp_states + (1.0 - self.gamma) * update_input
             
         for i in range(nqrc):

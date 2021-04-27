@@ -3,17 +3,17 @@
 export OMP_NUM_THREADS=1
 
 BIN=../source/view_states.py
-LENGTH=10000
-BG=9000
-ED=10000
-SAVE=../rs_dynamics
-QR=1
-ALPHA=0.0
+LENGTH=5000
+BG=4000
+ED=5000
+SAVE=../../../data/hqrc/dynamics
+QR=5
 PROC=100
 CONST=0
-BASE=qrc_varj
+INT=0.05
+J=1.0
 
-for J in 1.0
+for ALPHA in 0.0 0.1 0.5 0.9 1.0
 do
-python $BIN --basename $BASE --const $CONST --coupling $J --savedir $SAVE --length $LENGTH --bg $BG --ed $ED --nqrc $QR --strength $ALPHA --nproc $PROC
+python $BIN --interval $INT --const $CONST --savedir $SAVE --length $LENGTH --bg $BG --ed $ED --nqrc $QR --strength $ALPHA --nproc $PROC
 done
