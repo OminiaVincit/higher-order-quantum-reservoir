@@ -73,10 +73,14 @@ if __name__  == '__main__':
             if j == M-1:
                 ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=14)
     
-    outbase = '{}\{}'.format(folder, ntitle)
-    plt.suptitle(outbase, fontsize=12)
-    
-    for ftype in ['pdf', 'svg']:
-        plt.savefig('{}_capa2.{}'.format(outbase, ftype), bbox_inches='tight')
+    figfolder = os.path.join(folder, 'figs')
+    if os.path.isdir(figfolder) == False:
+        os.mkdir(figfolder)
+    if ntitle != '':
+        outbase = os.path.join(figfolder, ntitle)
+        plt.suptitle(outbase, fontsize=12)
+        
+        for ftype in ['pdf', 'svg', 'png']:
+            plt.savefig('{}_capa2.{}'.format(outbase, ftype), bbox_inches='tight')
     plt.show()
     
