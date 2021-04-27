@@ -437,8 +437,8 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
                 ranseed_net = (ranseed + 10000) * (n + 1)
             # Use the same ranseed the same trial
             train_pred_seq, train_loss, val_pred_seq, val_loss = \
-                get_loss(qparams, buffer, train_input_seq, train_output_seq, \
-                    val_input_seq, val_output_seq, nqrc, gamma, sparsity, sigma_input, ranseed_net, type_input)
+            get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, val_output_seq, \
+                nqrc=nqrc, gamma=gamma, sparsity=sparsity, sigma_input=sigma_input, ranseed=ranseed_net, type_input=type_input)
 
             # Compute memory function
             val_out_seq, val_pred_seq = val_output_seq.flatten(), val_pred_seq.flatten()
@@ -504,7 +504,7 @@ def esp_index(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, ranse
     input_seq = np.tile(input_seq, (nqrc, 1))
 
     # Initialize the reservoir to zero state - density matrix
-    model = HQRC(nqrc, gamma, sparsity, sigma_input)
+    model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, sigma_input=sigma_input)
     x0_state_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = ranseed)
     # Compute esp index and esp_lambda
     dP = []

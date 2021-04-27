@@ -24,7 +24,7 @@ def memory_compute(taskname, qparams, nqrc, alpha,\
         train_len, val_len, buffer, dlist, ranseed, pid, send_end):
     btime = int(time.time() * 1000.0)
     rsarr = hqrc.memory_function(taskname, qparams, train_len=train_len, val_len=val_len, buffer=buffer, \
-        dlist=dlist, nqrc=nqrc, alpha=alpha, ranseed=ranseed)
+        dlist=dlist, nqrc=nqrc, gamma=alpha, ranseed=ranseed, sparsity=1.0, sigma_input=1.0)
     C = np.sum(rsarr[:, 1])
     etime = int(time.time() * 1000.0)
     now = datetime.datetime.now()
@@ -42,6 +42,8 @@ if __name__  == '__main__':
     parser.add_argument('--beta', type=float, default=1e-14, help='reg term')
     parser.add_argument('--solver', type=str, default=LINEAR_PINV, \
         help='regression solver by linear_pinv,ridge_pinv,auto,svd,cholesky,lsqr,sparse_cg,sag')
+    parser.add_argument('--dynamic', type=str, default=DYNAMIC_FULL_RANDOM,\
+        help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
 
     parser.add_argument('--trainlen', type=int, default=3000)
     parser.add_argument('--vallen', type=int, default=1000)
@@ -74,7 +76,7 @@ if __name__  == '__main__':
     nproc = min(nproc, len(dlist))
     print('Divided into {} processes'.format(nproc))
     
-    taskname, savedir, solver = args.taskname, args.savedir, args.solver
+    dynamic, taskname, savedir, solver = args.dynamic, args.taskname, args.savedir, args.solver
     if os.path.isdir(savedir) == False:
         os.mkdir(savedir)
 
@@ -91,8 +93,8 @@ if __name__  == '__main__':
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
-    outbase = os.path.join(savedir, '{}_{}_{}_J_{}_strength_{}_V_{}_layers_{}_capa_ntrials_{}'.format(\
-        taskname, solver, datestr, \
+    outbase = os.path.join(savedir, '{}_{}_{}_{}_J_{}_strength_{}_V_{}_layers_{}_capa_ntrials_{}'.format(\
+        dynamic, taskname, solver, datestr, \
         '_'.join([str(o) for o in couplings]), \
         '_'.join([str(o) for o in strengths]), \
         '_'.join([str(o) for o in virtuals]), \
@@ -106,8 +108,8 @@ if __name__  == '__main__':
     for max_energy in couplings:
         for tau in taudeltas:
             for V in virtuals:
-                qparams = QRCParams(n_units=n_units, max_energy=max_energy,\
-                    beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver)
+                qparams = QRCParams(n_units=n_units-1, n_envs=1, max_energy=max_energy,\
+                    beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
                 for alpha in strengths:
                     for nqrc in layers:
                         local_sum = []
