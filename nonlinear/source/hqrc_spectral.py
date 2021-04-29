@@ -31,8 +31,9 @@ def dump_eigenval_job(savedir, tempfile, tauls, L, s_prep):
     for tau in tauls:
         S = (tau*L).expm()
         ts = tensor_contract(S, (0, Nspins)) * s_prep
-        # if tau == 1.0:
-        #     print(tau, ts.shape, ts.iscp, ts.istp, ts.iscptp)
+        # # if tau == 1.0:
+        # print(tau, ts.shape, ts.iscp, ts.istp, ts.iscptp, S.shape)
+        # exit(1)
         egvals = ts.eigenstates()[0] # Eigenvalues sorted from low to high (magnitude)
         results[tau] = egvals
     with open(tempfile, 'wb') as wrs:
