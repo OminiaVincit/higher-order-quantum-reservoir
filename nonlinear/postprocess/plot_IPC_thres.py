@@ -85,21 +85,25 @@ if __name__  == '__main__':
     ax2.set_title('THRES_{}_{}'.format(thres, posfix), size=14)
 
     ax1.bar(xs, degcapa[0], width=width, color=d_colors[0], edgecolor='k', label='deg-0')
-    ax2.bar(xs, degcapa[0] / sum_by_cols,  width=width, color=d_colors[0], edgecolor='k', label='deg-0')
+    #ax2.bar(xs, degcapa[0] / sum_by_cols,  width=width, color=d_colors[0], edgecolor='k', label='deg-0')
     for i in range(1, N):
         bt = degcapa[:i].reshape(i, -1)
         bt = np.sum(bt, axis=0).ravel()
         ax1.bar(xs, degcapa[i], bottom=bt, width=width, label='deg-{}'.format(i), color=d_colors[i], edgecolor='k')
-        ax2.bar(xs, degcapa[i] / sum_by_cols, bottom=bt/sum_by_cols, width=width, label='deg-{}'.format(i), color=d_colors[i], edgecolor='k')
-    
+        #ax2.bar(xs, degcapa[i] / sum_by_cols, bottom=bt/sum_by_cols, width=width, label='deg-{}'.format(i), color=d_colors[i], edgecolor='k')
+    ax2.plot(xs, degcapa[1], linewidth=3, label='deg-1')
+    ax2.plot(xs, degcapa[2], linewidth=3, label='deg-2')
+    ax2.plot(xs, degcapa[3] + degcapa[4], linewidth=3, label='deg > 2')
+
     ax1.set_xlabel('$\\alpha$', size=24)
     ax1.set_ylabel('IPC', fontsize=24)
     ax1.set_xlim([amin, amax])
     #ax1.set_xticks(list(range(int(amin), int(amax)+1)))
 
     ax2.set_xlabel('$\\alpha$', size=24)
-    ax2.set_ylabel('Normalized IPC', fontsize=24)
+    ax2.set_ylabel('$C(d)$', fontsize=24)
     ax2.set_xlim([amin, amax])
+    ax2.set_ylim([0.0, np.max(degcapa[1])+1.0])
     #ax2.set_xticks(list(range(int(amin), int(amax)+1)))
     
     #ax1.set_ylim([0, 4.0])
