@@ -16,6 +16,17 @@ cycle = [
 '#ffff33'
 ]
 
+d_colors = [
+'#777777',
+'#2166ac',
+'#fee090',
+'#fdbb84',
+'#fc8d59',
+'#e34a33',
+'#b30000',
+'#00706c'
+]
+
 def plotContour(fig, ax, data, title, fontsize, vmin, vmax, cmap):
     ax.set_title(title, fontsize=fontsize)
     t, s = np.meshgrid(np.arange(data.shape[0]), np.arange(data.shape[1]))

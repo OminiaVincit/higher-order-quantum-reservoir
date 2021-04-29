@@ -5,11 +5,13 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
+import plot_utils as putils
 
 if __name__  == '__main__':
     # Check for command line arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--folder', type=str, required=True)
+    parser.add_argument('--parent', type=str, required=True)
+    parser.add_argument('--folders', type=str, required=True)
     parser.add_argument('--dynamic', type=str, default='full_random')
     parser.add_argument('--virtuals', type=str, default='1', help='Number of virtual nodes')
     parser.add_argument('--taus', type=str, default='8.0', help='Taus')
@@ -26,57 +28,69 @@ if __name__  == '__main__':
     parser.add_argument('--nas', type=int, default=100, help='Number of alpha')
     
     parser.add_argument('--prefix', type=str, default='ipc_capa')
-    parser.add_argument('--posfix', type=str, default='seed_1_mdeg_7_mvar_7_thres_0.0_delays_0,100,50,50,20,20,10,10_T_200000')
+    parser.add_argument('--T', type=int, default=200000, help='Number of time steps')
+    parser.add_argument('--keystr', type=str, default='mdeg_4_mvar_4')
 
 
     args = parser.parse_args()
     print(args)
-    folder, dynamic, prefix, posfix, thres, width = args.folder, args.dynamic, args.prefix, args.posfix, args.thres, args.width
+    parent, folders, dynamic, prefix, keystr, thres, width = args.parent, args.folders, args.dynamic, args.prefix, args.keystr, args.thres, args.width
     V, tau, nspins, max_energy, amin, amax, nas = args.virtuals, args.taus, args.nspins, args.max_energy, args.amin, args.amax, args.nas
-    nqrc = args.nqrc
-
-    dfolder = os.path.join(folder, 'ipc')
-    posfix  = 'tau_{}_V_{}_hqrc_IPC_{}_nqrc_{}_nspins_{}_amax_{}_amin_{}_nas_{}_{}'.format(\
-        tau, V, dynamic, nqrc, nspins, amax, amin, nas, posfix)
-
+    T, nqrc = args.T, args.nqrc
+    posfix  = 'tau_{}_V_{}_hqrc_IPC_{}_nqrc_{}_nspins_{}_amax_{}_amin_{}_nas_{}'.format(\
+        tau, V, dynamic, nqrc, nspins, amax, amin, nas)
+    print(posfix)
     txBs = list(np.linspace(amin, amax, nas + 1))
-    
-    degcapa, xs = [], []
-    for tB in txBs:
-        tarr = []
-        filename = os.path.join(dfolder, '{}_alpha_{:.3f}_{}.pickle'.format(prefix, tB, posfix))
-        if os.path.isfile(filename) == False:
-            print('Not found {}'.format(filename))
-            continue
-        with open(filename, "rb") as rfile:
-            data = pickle.load(rfile)
-        ipc_arr = data['ipc_arr']
-        for deg in sorted(ipc_arr.keys()):
-            darr = ipc_arr[deg].ravel()
-            tarr.append( np.sum(darr[darr >= thres]) )
-        #print(deg_arr.shape)
-        degcapa.append(np.array(tarr).ravel())
-        xs.append(tB)
 
-    degcapa = np.array(degcapa).T
-    print(degcapa.shape)
-    sum_by_cols = np.sum(degcapa, axis=0)
+    folders = [str(x) for x in folders.split(',')]
+    degcapa_ls = []
+    for folder in folders:
+        folder = os.path.join(parent, folder)
+        print('Folder={}'.format(folder))
+        if os.path.isdir(folder) == False:
+            continue
+        dfolder = os.path.join(folder, 'ipc')
+        degcapa, xs = [], []
+        for tB in txBs:
+            tarr = []
+            for filename in glob.glob('{}/{}_alpha_{:.3f}_{}*{}*T_{}.pickle'.format(dfolder, prefix, tB, posfix, keystr, T)):
+                #print(filename)
+                with open(filename, "rb") as rfile:
+                    data = pickle.load(rfile)
+                    ipc_arr = data['ipc_arr']
+                    for deg in sorted(ipc_arr.keys()):
+                        darr = ipc_arr[deg].ravel()
+                        tarr.append( np.sum(darr[darr >= thres]) )    
+                #print(deg_arr.shape)
+                degcapa.append(np.array(tarr).ravel())
+                xs.append(tB)
+                break
+        if len(degcapa) == 0:
+            continue
+        degcapa = np.array(degcapa).T
+        degcapa_ls.append(degcapa)
     
-    plt.rc('font', family='serif', size=14)
-    plt.rc('mathtext', fontset='cm')
+    degcapa_ls = np.array(degcapa_ls)
+    print(degcapa_ls.shape, len(xs))
+    degcapa_mean = np.mean(degcapa_ls, axis=0)
+    degcapa_std  = np.std(degcapa_ls, axis=0)
+
+    print(degcapa_mean.shape)
+
+    sum_by_cols = np.sum(degcapa_mean, axis=0)
+    
     fig = plt.figure(figsize=(24, 16), dpi=600)
-    
-    
-    d_colors = ['#777777',
-                '#2166ac',
-                '#fee090',
-                '#fdbb84',
-                '#fc8d59',
-                '#e34a33',
-                '#b30000',
-                '#00706c'
-                ]
-    N = min(len(d_colors), degcapa.shape[0])
+    cmap = plt.get_cmap('nipy_spectral')
+    plt.rc('font', family='serif')
+    plt.rc('mathtext', fontset='cm')
+    plt.rcParams["font.size"] = 20 # 全体のフォントサイズが変更されます
+    plt.rcParams['xtick.labelsize'] = 24 # 軸だけ変更されます
+    plt.rcParams['ytick.labelsize'] = 24 # 軸だけ変更されます
+    #colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    colors = putils.cycle
+    d_colors = putils.d_colors
+
+    N = min(len(d_colors), degcapa_mean.shape[0])
 
     ax1 = plt.subplot2grid((2,1), (0,0), colspan=1, rowspan=1)
     ax1.set_title('THRES_{}_{}'.format(thres, posfix), size=14)
@@ -84,17 +98,22 @@ if __name__  == '__main__':
     ax2 = plt.subplot2grid((2,1), (1,0), colspan=1, rowspan=1)
     ax2.set_title('THRES_{}_{}'.format(thres, posfix), size=14)
 
-    ax1.bar(xs, degcapa[0], width=width, color=d_colors[0], edgecolor='k', label='deg-0')
+    ax1.bar(xs, degcapa_mean[0], width=width, color=d_colors[0], edgecolor='k', label='deg-0')
     #ax2.bar(xs, degcapa[0] / sum_by_cols,  width=width, color=d_colors[0], edgecolor='k', label='deg-0')
     for i in range(1, N):
-        bt = degcapa[:i].reshape(i, -1)
+        bt = degcapa_mean[:i].reshape(i, -1)
         bt = np.sum(bt, axis=0).ravel()
-        ax1.bar(xs, degcapa[i], bottom=bt, width=width, label='deg-{}'.format(i), color=d_colors[i], edgecolor='k')
+        ax1.bar(xs, degcapa_mean[i], bottom=bt, width=width, label='deg-{}'.format(i), color=d_colors[i], edgecolor='k')
         #ax2.bar(xs, degcapa[i] / sum_by_cols, bottom=bt/sum_by_cols, width=width, label='deg-{}'.format(i), color=d_colors[i], edgecolor='k')
-    ax2.plot(xs, degcapa[1], linewidth=3, label='deg-1')
-    ax2.plot(xs, degcapa[2], linewidth=3, label='deg-2')
-    ax2.plot(xs, degcapa[3] + degcapa[4], linewidth=3, label='deg > 2')
-
+    m_avg, m_std = dict(), dict()
+    m_avg[0], m_std[0] = degcapa_mean[1], degcapa_std[1]
+    m_avg[1], m_std[1] = degcapa_mean[2], degcapa_std[2]
+    m_avg[2], m_std[2] = degcapa_mean[3] + degcapa_mean[4], degcapa_std[3] + degcapa_std[4]
+    
+    for i in range(3):
+        ax2.plot(xs, m_avg[i], linewidth=3, label='deg-{}'.format(i+1), color=colors[i], alpha=0.8)
+        ax2.fill_between(xs, m_avg[i] - m_std[i], m_avg[i] + m_std[i], facecolor=colors[i], alpha=0.2)
+    
     ax1.set_xlabel('$\\alpha$', size=24)
     ax1.set_ylabel('IPC', fontsize=24)
     ax1.set_xlim([amin, amax])
@@ -103,7 +122,7 @@ if __name__  == '__main__':
     ax2.set_xlabel('$\\alpha$', size=24)
     ax2.set_ylabel('$C(d)$', fontsize=24)
     ax2.set_xlim([amin, amax])
-    ax2.set_ylim([0.0, np.max(degcapa[1])+1.0])
+    ax2.set_ylim([0.0, np.max(m_avg[0]+m_std[0])])
     #ax2.set_xticks(list(range(int(amin), int(amax)+1)))
     
     #ax1.set_ylim([0, 4.0])
