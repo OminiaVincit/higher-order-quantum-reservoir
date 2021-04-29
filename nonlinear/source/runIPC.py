@@ -101,7 +101,6 @@ if __name__  == '__main__':
         max_window=max_window, thres=thres, deg_delays=deg_delays)
     
     vals = list(np.linspace(amin, amax, nas + 1))
-    vals = vals[0:-1]
     nproc = min(len(vals), args.nproc)
     lst = np.array_split(vals, nproc)
 

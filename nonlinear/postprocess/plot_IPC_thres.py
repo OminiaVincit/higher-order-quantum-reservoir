@@ -22,7 +22,7 @@ if __name__  == '__main__':
     parser.add_argument('--nspins', type=int, default=5, help='Number of spins')
     parser.add_argument('--max_energy', type=float, default=1.0)
     parser.add_argument('--amax', type=float, default=1.0, help='Maximum of alpha')
-    parser.add_argument('--amin', type=float, default=0, help='Minimum of alpha')
+    parser.add_argument('--amin', type=float, default=0.0, help='Minimum of alpha')
     parser.add_argument('--nas', type=int, default=100, help='Number of alpha')
     
     parser.add_argument('--prefix', type=str, default='ipc_capa')
@@ -40,7 +40,6 @@ if __name__  == '__main__':
         tau, V, dynamic, nqrc, nspins, amax, amin, nas, posfix)
 
     txBs = list(np.linspace(amin, amax, nas + 1))
-    txBs = txBs[0:-1]
     
     degcapa, xs = [], []
     for tB in txBs:
@@ -57,12 +56,12 @@ if __name__  == '__main__':
             tarr.append( np.sum(darr[darr >= thres]) )
         #print(deg_arr.shape)
         degcapa.append(np.array(tarr).ravel())
-        xs.append(tB + amin)
+        xs.append(tB)
 
     degcapa = np.array(degcapa).T
     print(degcapa.shape)
     sum_by_cols = np.sum(degcapa, axis=0)
-
+    
     plt.rc('font', family='serif', size=14)
     plt.rc('mathtext', fontset='cm')
     fig = plt.figure(figsize=(24, 16), dpi=600)
@@ -96,12 +95,12 @@ if __name__  == '__main__':
     ax1.set_xlabel('$\\alpha$', size=24)
     ax1.set_ylabel('IPC', fontsize=24)
     ax1.set_xlim([amin, amax])
-    ax1.set_xticks(list(range(int(amin), int(amax)+1)))
+    #ax1.set_xticks(list(range(int(amin), int(amax)+1)))
 
     ax2.set_xlabel('$\\alpha$', size=24)
     ax2.set_ylabel('Normalized IPC', fontsize=24)
     ax2.set_xlim([amin, amax])
-    ax2.set_xticks(list(range(int(amin), int(amax)+1)))
+    #ax2.set_xticks(list(range(int(amin), int(amax)+1)))
     
     #ax1.set_ylim([0, 4.0])
     #ax1.set_xscale('log', basex=2)
