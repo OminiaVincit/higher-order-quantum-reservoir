@@ -30,15 +30,19 @@ if __name__  == '__main__':
     parser.add_argument('--prefix', type=str, default='ipc_capa')
     parser.add_argument('--T', type=int, default=200000, help='Number of time steps')
     parser.add_argument('--keystr', type=str, default='mdeg_4_mvar_4')
-
+    parser.add_argument('--exp', type=int, default=0, help='Use exponent for alpha')
 
     args = parser.parse_args()
     print(args)
     parent, folders, dynamic, prefix, keystr, thres, width = args.parent, args.folders, args.dynamic, args.prefix, args.keystr, args.thres, args.width
     V, tau, nspins, max_energy, amin, amax, nas = args.virtuals, args.taus, args.nspins, args.max_energy, args.amin, args.amax, args.nas
-    T, nqrc = args.T, args.nqrc
+    T, nqrc, explb = args.T, args.nqrc, args.exp
     posfix  = 'tau_{}_V_{}_hqrc_IPC_{}_nqrc_{}_nspins_{}_amax_{}_amin_{}_nas_{}'.format(\
         tau, V, dynamic, nqrc, nspins, amax, amin, nas)
+    if explb > 0:
+        posfix  = 'tau_{}_V_{}_hqrc_IPC_exp_{}_{}_nqrc_{}_nspins_{}_amax_{}_amin_{}_nas_{}'.format(\
+        tau, V, explb, dynamic, nqrc, nspins, amax, amin, nas)
+
     print(posfix)
     txBs = list(np.linspace(amin, amax, nas + 1))
 
@@ -53,7 +57,11 @@ if __name__  == '__main__':
         degcapa, xs = [], []
         for tB in txBs:
             tarr = []
-            for filename in glob.glob('{}/{}_alpha_{:.3f}_{}*{}*T_{}.pickle'.format(dfolder, prefix, tB, posfix, keystr, T)):
+            pattern = '{}/{}_alpha_{:.3f}_{}*{}*T_{}.pickle'.format(dfolder, prefix, tB, posfix, keystr, T)
+            if explb > 0:
+                pattern = '{}/{}_alpha_{}_{}*{}*T_{}.pickle'.format(dfolder, prefix, tB, posfix, keystr, T)
+            #print(pattern)
+            for filename in glob.glob(pattern):
                 #print(filename)
                 with open(filename, "rb") as rfile:
                     data = pickle.load(rfile)
@@ -63,7 +71,10 @@ if __name__  == '__main__':
                         tarr.append( np.sum(darr[darr >= thres]) )    
                 #print(deg_arr.shape)
                 degcapa.append(np.array(tarr).ravel())
-                xs.append(tB)
+                if explb > 0:
+                    xs.append(1.0-10**tB)
+                else:
+                    xs.append(tB)
                 break
         if len(degcapa) == 0:
             continue
@@ -111,17 +122,19 @@ if __name__  == '__main__':
     m_avg[2], m_std[2] = degcapa_mean[3] + degcapa_mean[4], degcapa_std[3] + degcapa_std[4]
     
     for i in range(3):
-        ax2.plot(xs, m_avg[i], linewidth=3, label='deg-{}'.format(i+1), color=colors[i], alpha=0.8)
-        ax2.fill_between(xs, m_avg[i] - m_std[i], m_avg[i] + m_std[i], facecolor=colors[i], alpha=0.2)
+        xas = 1.0 - np.array(xs)
+        ax2.plot(xas, m_avg[i], linewidth=3, label='deg-{}'.format(i+1), color=colors[i], alpha=0.8)
+        ax2.fill_between(xas, m_avg[i] - m_std[i], m_avg[i] + m_std[i], facecolor=colors[i], alpha=0.2)
     
     ax1.set_xlabel('$\\alpha$', size=24)
     ax1.set_ylabel('IPC', fontsize=24)
-    ax1.set_xlim([amin, amax])
+    #ax1.set_xlim([amin, amax])
     #ax1.set_xticks(list(range(int(amin), int(amax)+1)))
 
-    ax2.set_xlabel('$\\alpha$', size=24)
+    ax2.set_xlabel('$1.0-\\alpha$', size=24)
     ax2.set_ylabel('$C(d)$', fontsize=24)
-    ax2.set_xlim([amin, amax])
+    #ax2.set_xlim([amin, amax])
+    ax2.set_xscale('log',base=10)
     ax2.set_ylim([0.0, np.max(m_avg[0]+m_std[0])])
     #ax2.set_xticks(list(range(int(amin), int(amax)+1)))
     

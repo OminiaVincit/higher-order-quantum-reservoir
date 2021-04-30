@@ -22,14 +22,18 @@ import utils
 from utils import *
 from IPC import IPCParams
 
-def IPC_compute(qparams, ipcparams, length, ntrials, ranseed, log_filename, savedir, posfix, nqrc, alphas):
+def IPC_compute(qparams, ipcparams, length, ntrials, ranseed, log_filename, savedir, posfix, nqrc, alphas, explb):
     logger = get_module_logger(__name__, log_filename)
     logger.info(log_filename)
     
     for alpha in alphas:
-        hqrc.get_IPC(qparams, ipcparams, length, nqrc=nqrc, gamma=alpha, logger=logger, ranseed=ranseed, Ntrials=ntrials, \
-            savedir=savedir, posfix='capa_alpha_{:.3f}_{}'.format(alpha, posfix), \
-            type_input=1, label='alpha_{:.3f}'.format(alpha))
+        if explb > 0:
+            gamma = 1.0 - 10**alpha
+        else:
+            gamma = alpha
+        hqrc.get_IPC(qparams, ipcparams, length, nqrc=nqrc, gamma=gamma, logger=logger, ranseed=ranseed, Ntrials=ntrials, \
+            savedir=savedir, posfix='capa_alpha_{}_{}'.format(alpha, posfix), \
+            type_input=1, label='alpha_{}'.format(alpha))
     
 if __name__  == '__main__':
     # Check for command line arguments
@@ -63,6 +67,7 @@ if __name__  == '__main__':
     parser.add_argument('--amax', type=float, default=1.0, help='Maximum of alpha')
     parser.add_argument('--amin', type=float, default=0, help='Minimum of alpha')
     parser.add_argument('--nas', type=int, default=100, help='Number of alpha')
+    parser.add_argument('--exp', type=int, default=0, help='Use exponent for alpha')
 
     args = parser.parse_args()
     print(args)
@@ -75,7 +80,7 @@ if __name__  == '__main__':
     deg_delays = [int(x) for x in args.deg_delays.split(',')]
 
 
-    dynamic = args.dynamic
+    dynamic, explb = args.dynamic, args.exp
     length, ranseed = args.length, args.seed
     
 
@@ -90,8 +95,8 @@ if __name__  == '__main__':
     if os.path.isdir(logdir) == False:
         os.mkdir(logdir)
     
-    basename = '{}_{}_nqrc_{}_nspins_{}_amax_{}_amin_{}_nas_{}_seed_{}_mdeg_{}_mvar_{}_thres_{}_delays_{}_T_{}'.format(\
-        basename, dynamic, nqrc, n_spins, amax, amin, nas, ranseed, max_deg, max_num_var, thres, args.deg_delays, length)
+    basename = '{}_exp_{}_{}_nqrc_{}_nspins_{}_amax_{}_amin_{}_nas_{}_seed_{}_mdeg_{}_mvar_{}_thres_{}_delays_{}_T_{}'.format(\
+        basename, explb, dynamic, nqrc, n_spins, amax, amin, nas, ranseed, max_deg, max_num_var, thres, args.deg_delays, length)
     log_filename = os.path.join(logdir, '{}.log'.format(basename))
     logger = get_module_logger(__name__, log_filename)
     logger.info(log_filename)
@@ -101,6 +106,7 @@ if __name__  == '__main__':
         max_window=max_window, thres=thres, deg_delays=deg_delays)
     
     vals = list(np.linspace(amin, amax, nas + 1))
+    
     nproc = min(len(vals), args.nproc)
     lst = np.array_split(vals, nproc)
 
@@ -114,7 +120,7 @@ if __name__  == '__main__':
                 for pid in range(nproc):
                     tBs = lst[pid]
                     posfix = 'tau_{}_V_{}_{}'.format(tau, V, basename)
-                    log_filename = os.path.join(logdir, 'alpha_{:.3f}_{:.3f}_{}.log'.format(tBs[0], tBs[-1], posfix))
+                    log_filename = os.path.join(logdir, 'alpha_{}_{}_{}.log'.format(tBs[0], tBs[-1], posfix))
                     
                     # check file
                     # degfile = os.path.join(savedir, 'degree_{}.txt'.format(posfix))
@@ -123,7 +129,7 @@ if __name__  == '__main__':
                     qparams = QRCParams(n_units=n_spins-1, n_envs=1, max_energy=max_energy, \
                                 beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=LINEAR_PINV, dynamic=dynamic)
                     p = multiprocessing.Process(target=IPC_compute, \
-                        args=(qparams, ipcparams, length, ntrials, ranseed, log_filename, savedir, posfix, nqrc, tBs))
+                        args=(qparams, ipcparams, length, ntrials, ranseed, log_filename, savedir, posfix, nqrc, tBs, explb))
                     jobs.append(p)
                     #pipels.append(recv_end)
 

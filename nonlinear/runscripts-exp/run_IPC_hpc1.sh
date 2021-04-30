@@ -25,23 +25,25 @@ THRES=0.0
 DYNAMIC='full_random'
 CAPA=25
 WIDTH=0.01
-AMIN=0.0
-AMAX=1.0
+AMIN=-10.0
+AMAX=0.0
 NAS=100
+EXP=1
 
 FRS='XXX'
 for SEED in 0 1 2 3 4
 do
-SAVE=$PARENT\/IPC_seed_$SEED
-FRS=$FRS,IPC_seed_$SEED
-#python $EXE --amin $AMIN --amax $AMAX --nas $NAS --nqrc $QR --nproc $NPROC --spins $NSPINS --seed $SEED --dynamic $DYNAMIC --deg_delays $DELAYS --thres $THRES --virtuals $V --length $T --max_deg $DEG --max_window $WD --max_num_var $VAR --savedir $SAVE
+SAVE=$PARENT\/IPC_exp_$EXP\_seed_$SEED
+FRS=$FRS,IPC_exp_$EXP\_seed_$SEED
+
+#python $EXE --exp $EXP --amin $AMIN --amax $AMAX --nas $NAS --nqrc $QR --nproc $NPROC --spins $NSPINS --seed $SEED --dynamic $DYNAMIC --deg_delays $DELAYS --thres $THRES --virtuals $V --length $T --max_deg $DEG --max_window $WD --max_num_var $VAR --savedir $SAVE
 done
 
 P=mdeg_4_mvar_4
 
 for THRES in 0.0 1e-4
 do
-python $BINPLOT --parent $PARENT --folders $FRS --T $T --thres $THRES --amin $AMIN --amax $AMAX --nas $NAS --nqrc $QR --dynamic $DYNAMIC --virtuals $V --taus $TAUS --nspins $NSPINS --keystr $P  --max_capa $CAPA --width $WIDTH
+python $BINPLOT --exp $EXP --parent $PARENT --folders $FRS --T $T --thres $THRES --amin $AMIN --amax $AMAX --nas $NAS --nqrc $QR --dynamic $DYNAMIC --virtuals $V --taus $TAUS --nspins $NSPINS --keystr $P  --max_capa $CAPA --width $WIDTH
 done
 
 
