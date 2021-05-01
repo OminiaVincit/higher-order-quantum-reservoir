@@ -92,12 +92,7 @@ if __name__  == '__main__':
     
     fig = plt.figure(figsize=(24, 16), dpi=600)
     cmap = plt.get_cmap('nipy_spectral')
-    plt.rc('font', family='serif')
-    plt.rc('mathtext', fontset='cm')
-    plt.rcParams["font.size"] = 20 # 全体のフォントサイズが変更されます
-    plt.rcParams['xtick.labelsize'] = 24 # 軸だけ変更されます
-    plt.rcParams['ytick.labelsize'] = 24 # 軸だけ変更されます
-    #colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    putils.setPlot(fontsize=20, labelsize=24)
     colors = putils.cycle
     d_colors = putils.d_colors
 
@@ -122,21 +117,21 @@ if __name__  == '__main__':
     m_avg[2], m_std[2] = degcapa_mean[3] + degcapa_mean[4], degcapa_std[3] + degcapa_std[4]
     
     for i in range(3):
-        xas = 1.0 - np.array(xs)
-        ax2.plot(xas, m_avg[i], linewidth=3, label='deg-{}'.format(i+1), color=colors[i], alpha=0.8)
-        ax2.fill_between(xas, m_avg[i] - m_std[i], m_avg[i] + m_std[i], facecolor=colors[i], alpha=0.2)
+        #xs = 1.0 - np.array(xs)
+        ax2.plot(xs, m_avg[i], linewidth=3, label='deg-{}'.format(i+1), color=colors[i], alpha=0.8)
+        ax2.fill_between(xs, m_avg[i] - m_std[i], m_avg[i] + m_std[i], facecolor=colors[i], alpha=0.2)
     
     ax1.set_xlabel('$\\alpha$', size=24)
     ax1.set_ylabel('IPC', fontsize=24)
-    #ax1.set_xlim([amin, amax])
+    ax1.set_xlim([amin, amax])
     #ax1.set_xticks(list(range(int(amin), int(amax)+1)))
 
-    ax2.set_xlabel('$1.0-\\alpha$', size=24)
-    ax2.set_ylabel('$C(d)$', fontsize=24)
-    #ax2.set_xlim([amin, amax])
-    ax2.set_xscale('log',base=10)
+    ax2.set_xlabel('$\\alpha$', size=24)
+    ax2.set_ylabel('$C(d)$', size=24)
+    ax2.set_xlim([amin, amax])
+    #ax2.set_xscale('log',basex=10)
     ax2.set_ylim([0.0, np.max(m_avg[0]+m_std[0])])
-    #ax2.set_xticks(list(range(int(amin), int(amax)+1)))
+    ax2.set_xticks(np.linspace(amin, amax, 11))
     
     #ax1.set_ylim([0, 4.0])
     #ax1.set_xscale('log', basex=2)
@@ -145,13 +140,18 @@ if __name__  == '__main__':
     ax1.legend()
     ax2.legend()
     
+    for ax in [ax1, ax2]:
+        #ax.minorticks_on()
+        ax.tick_params('both', length=8, width=1, which='major', labelsize=24)
+        #ax.tick_params('both', length=4, width=1, which='minor')
+
     plt.tight_layout()
 
     fig_folder = os.path.join(folder, 'figs')
     if os.path.isdir(fig_folder) == False:
         os.mkdir(fig_folder)
     outbase = os.path.join(fig_folder, 'fig_thres_{}_{}'.format(thres, posfix))
-    for ftype in ['png']:
+    for ftype in ['png', 'svg']:
         plt.savefig('{}.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
     plt.show()
 

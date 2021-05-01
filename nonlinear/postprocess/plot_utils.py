@@ -27,6 +27,13 @@ d_colors = [
 '#00706c'
 ]
 
+def setPlot(fontsize=24, labelsize=24):
+    plt.rc('font', family='serif')
+    plt.rc('mathtext', fontset='cm')
+    plt.rcParams["font.size"] = fontsize # 全体のフォントサイズが変更されます
+    plt.rcParams['xtick.labelsize'] = labelsize # 軸だけ変更されます
+    plt.rcParams['ytick.labelsize'] = labelsize # 軸だけ変更されます
+
 def plotContour(fig, ax, data, title, fontsize, vmin, vmax, cmap):
     ax.set_title(title, fontsize=fontsize)
     t, s = np.meshgrid(np.arange(data.shape[0]), np.arange(data.shape[1]))

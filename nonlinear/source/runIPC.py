@@ -33,7 +33,7 @@ def IPC_compute(qparams, ipcparams, length, ntrials, ranseed, log_filename, save
             gamma = alpha
         hqrc.get_IPC(qparams, ipcparams, length, nqrc=nqrc, gamma=gamma, logger=logger, ranseed=ranseed, Ntrials=ntrials, \
             savedir=savedir, posfix='capa_alpha_{}_{}'.format(alpha, posfix), \
-            type_input=1, label='alpha_{}'.format(alpha))
+            type_input=1, label='alpha_{:.3f}'.format(alpha))
     
 if __name__  == '__main__':
     # Check for command line arguments
@@ -94,9 +94,11 @@ if __name__  == '__main__':
         logdir = os.path.join(os.path.dirname(__file__), 'log')
     if os.path.isdir(logdir) == False:
         os.mkdir(logdir)
+    if explb > 0:
+        basename = '{}_exp_{}'.format(basename, explb)
     
-    basename = '{}_exp_{}_{}_nqrc_{}_nspins_{}_amax_{}_amin_{}_nas_{}_seed_{}_mdeg_{}_mvar_{}_thres_{}_delays_{}_T_{}'.format(\
-        basename, explb, dynamic, nqrc, n_spins, amax, amin, nas, ranseed, max_deg, max_num_var, thres, args.deg_delays, length)
+    basename = '{}_{}_nqrc_{}_nspins_{}_amax_{}_amin_{}_nas_{}_seed_{}_mdeg_{}_mvar_{}_thres_{}_delays_{}_T_{}'.format(\
+        basename, dynamic, nqrc, n_spins, amax, amin, nas, ranseed, max_deg, max_num_var, thres, args.deg_delays, length)
     log_filename = os.path.join(logdir, '{}.log'.format(basename))
     logger = get_module_logger(__name__, log_filename)
     logger.info(log_filename)
@@ -120,7 +122,7 @@ if __name__  == '__main__':
                 for pid in range(nproc):
                     tBs = lst[pid]
                     posfix = 'tau_{}_V_{}_{}'.format(tau, V, basename)
-                    log_filename = os.path.join(logdir, 'alpha_{}_{}_{}.log'.format(tBs[0], tBs[-1], posfix))
+                    log_filename = os.path.join(logdir, 'alpha_{:.3f}_{:.3f}_{}.log'.format(tBs[0], tBs[-1], posfix))
                     
                     # check file
                     # degfile = os.path.join(savedir, 'degree_{}.txt'.format(posfix))
