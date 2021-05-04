@@ -24,7 +24,8 @@ def esp_job(qparams, nqrc, layer_strength, buffer, length, state_trials, net_tri
     btime = int(time.time() * 1000.0)
     dPs = []
     for n in range(net_trials):
-        dP = hqrc.esp_index(qparams, buffer, length, nqrc, layer_strength, \
+        dP = hqrc.esp_index(qparams, buffer, length, nqrc, \
+            gamma=layer_strength, sparsity=1.0, sigma_input=1.0,\
             ranseed=n, state_trials=state_trials)
         dPs.append(dP)
 
@@ -45,37 +46,39 @@ if __name__  == '__main__':
     parser.add_argument('--coupling', type=float, default=1.0)
     parser.add_argument('--rho', type=int, default=0)
     parser.add_argument('--beta', type=float, default=1e-14)
-    
-    parser.add_argument('--buffer', type=int, default=100)
-    parser.add_argument('--evalstep', type=int, default=100)
+    parser.add_argument('--solver', type=str, default=LINEAR_PINV, \
+        help='regression solver by linear_pinv,ridge_pinv,auto,svd,cholesky,lsqr,sparse_cg,sag')
+    parser.add_argument('--dynamic', type=str, default=DYNAMIC_FULL_RANDOM,\
+        help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
+
+    parser.add_argument('--length', type=int, default=1500)
+    parser.add_argument('--buffer', type=int, default=1000)
     
     parser.add_argument('--ntrials', type=int, default=1)
-    parser.add_argument('--strials', type=int, default=2)
+    parser.add_argument('--strials', type=int, default=1)
 
-    parser.add_argument('--layers', type=str, default='1')
+    parser.add_argument('--taudeltas', type=str, default='-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7')
+    parser.add_argument('--layers', type=str, default='5')
     parser.add_argument('--strengths', type=str, default='0.0')
     parser.add_argument('--virtuals', type=str, default='1')
 
-    parser.add_argument('--basename', type=str, default='qrc_echo2')
-    parser.add_argument('--savedir', type=str, default='res_echo2')
+    parser.add_argument('--basename', type=str, default='echo')
+    parser.add_argument('--savedir', type=str, default='res_high_echo2')
     args = parser.parse_args()
     print(args)
 
     n_units, max_energy, beta = args.units, args.coupling, args.beta
-    buffer = args.buffer
-    length = buffer + args.evalstep
-
+    length, buffer = args.length, args.buffer
     init_rho = args.rho
     net_trials, state_trials = args.ntrials, args.strials
 
-    basename, savedir = args.basename, args.savedir
+    solver, dynamic, basename, savedir = args.solver, args.dynamic, args.basename, args.savedir
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
         os.mkdir(savedir)
 
-    tx = list(np.arange(-7, 7.1, 0.02))
-    #tx = list(np.arange(0, 14.1, 0.02))
-    
-    taudeltas = [2**x for x in tx]
+    tstr = args.taudeltas.replace('\'','')
+    taudeltas = [float(x) for x in tstr.split(',')]
+    taudeltas = [2**x for x in taudeltas]
     
     virtuals = [int(x) for x in args.virtuals.split(',')]
     layers = [int(x) for x in args.layers.split(',')]
@@ -85,12 +88,12 @@ if __name__  == '__main__':
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
-    outbase = os.path.join(savedir, '{}_{}_J_{}_strength_{}_V_{}_layers_{}_T_{}_{}_esp_trials_{}_{}'.format(\
-        basename, datestr, max_energy,\
+    outbase = os.path.join(savedir, '{}_{}_{}_J_{}_strength_{}_V_{}_layers_{}_esp_trials_{}_{}'.format(\
+        basename, dynamic, datestr, max_energy,\
             '_'.join([str(s) for s in strengths]), \
             '_'.join([str(v) for v in virtuals]), \
             '_'.join([str(l) for l in layers]), \
-            buffer, length, net_trials, state_trials))
+            net_trials, state_trials))
     
     if os.path.isfile(savedir) == False:
         jobs, pipels = [], []
@@ -99,8 +102,8 @@ if __name__  == '__main__':
                 for V in virtuals:
                     for tau_delta in taudeltas:
                         recv_end, send_end = multiprocessing.Pipe(False)
-                        qparams = QRCParams(n_units=n_units, max_energy=max_energy,\
-                            beta=beta, virtual_nodes=V, tau=tau_delta, init_rho=init_rho)
+                        qparams = QRCParams(n_units=n_units-1, n_envs=1, max_energy=max_energy,beta=beta, \
+                            virtual_nodes=V, tau=tau_delta, init_rho=init_rho, solver=solver, dynamic=dynamic)
                         p = multiprocessing.Process(target=esp_job, \
                             args=(qparams, nqrc, layer_strength, buffer, length, net_trials, state_trials, send_end))
                         jobs.append(p)
@@ -128,6 +131,7 @@ if __name__  == '__main__':
             sfile.write('n_units={}\n'.format(n_units))
             sfile.write('max_energy={}\n'.format(max_energy))
             sfile.write('beta={}\n'.format(beta))
+            sfile.write('taudeltas={}\n'.format(' '.join([str(v) for v in taudeltas])))
             sfile.write('layers={}\n'.format(' '.join([str(l) for l in layers])))
             sfile.write('Vs={}\n'.format(' '.join([str(v) for v in virtuals])))
             sfile.write('strengths={}\n'.format(' '.join([str(s) for s in strengths])))

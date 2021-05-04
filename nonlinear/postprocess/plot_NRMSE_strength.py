@@ -13,9 +13,11 @@ if __name__  == '__main__':
     parser.add_argument('--prefix', type=str, default='full_random_ridge_pinv_2021-0')
     parser.add_argument('--posfix', type=str, default='NRMSE')
     parser.add_argument('--tau', type=float, default=8.0)
+    parser.add_argument('--virtuals', type=int, default=5)
+    
     args = parser.parse_args()
     print(args)
-    folder, prefix, posfix, tau = args.folder, args.prefix, args.posfix, args.tau
+    folder, prefix, posfix, tau, V = args.folder, args.prefix, args.posfix, args.tau, args.virtuals
     orders = [5,10,15,20]
     N = len(orders)
     cmap = plt.get_cmap("viridis")
@@ -32,13 +34,13 @@ if __name__  == '__main__':
     colors = putils.cycle
     
     ntitle = ''
-    lstype = ['--','o-']
+    lstype = ['o-', '--']
 
     for i in range(N):
         order = orders[i]
         ax = axs[i]
         for deep in [0, 1]:
-            for rfile in glob.glob('{}/{}*_narma_{}_deep_{}*_{}.txt'.format(folder, prefix, order, deep, posfix)):
+            for rfile in glob.glob('{}/{}*_V_{}*narma_{}_deep_{}*_{}.txt'.format(folder, prefix, V, order, deep, posfix)):
                 print(rfile)
                 ntitle = os.path.basename(rfile)
                 nidx = ntitle.find('units_')
@@ -73,7 +75,8 @@ if __name__  == '__main__':
             ax.set_xlabel('$\\alpha$', fontsize=20)
             #ax.set_ylabel('NMSE', fontsize=14)
             ax.set_yscale('log', base=10)
-            ax.set_xticks(np.arange(0, 0.9001, step=0.2))
+            ax.set_xticks(np.arange(0, 1.01, step=0.2))
+            ax.set_xlim([0.0, 1.01])
             #ax.set_ylim([np.min(avg_tests[id1])/1.2, 1.2*np.max(avg_tests[id1])])
             ax.set_title('NARMA{}'.format(order))
             ax.grid(True, which="both", ls="-", color='0.65')

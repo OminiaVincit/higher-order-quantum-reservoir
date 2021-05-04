@@ -229,7 +229,10 @@ class HQRC(object):
                 rho = Uop @ rho @ Uop.T.conj()
                 for qindex in range(0, self.n_qubits):
                     expectation_value = np.real(np.trace(self.Zop[qindex] @ rho))
-                    rvstate = (1.0 + expectation_value) / 2.0
+                    if self.type_input == 0:
+                        rvstate = (1.0 + expectation_value) / 2.0
+                    else:
+                        rvstate = expectation_value
                     current_state.append(rvstate)
                 
                 if self.use_corr > 0:
@@ -237,7 +240,10 @@ class HQRC(object):
                         for q2 in range(q1+1, self.n_qubits):
                             cindex = (q1, q2)
                             expectation_value = np.real(np.trace(self.Zop_corr[cindex] @ rho))
-                            rvstate = (1.0 + expectation_value) / 2.0
+                            if self.type_input == 0:
+                                rvstate = (1.0 + expectation_value) / 2.0
+                            else:
+                                rvstate = expectation_value
                             current_state.append(rvstate)
 
             # Size of current_state is Nqubits x Nvirtuals)
@@ -316,8 +322,8 @@ class HQRC(object):
         pred = prediction_seq[buffer:, :]
         out  = output_seq[buffer:, :]
         
-        nrmse_loss = np.sqrt(np.mean((pred - out)**2)/(np.std(pred)**2))
-        #nmse_loss = np.sum((pred - out)**2) / np.sum(pred**2)
+        nrmse_loss = np.sqrt(np.mean((pred - out)**2)/(np.std(out)**2))
+        #nmse_loss = np.sum((pred - out)**2) / np.sum(out**2)
         
         return prediction_seq, nrmse_loss
     
@@ -350,11 +356,10 @@ def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, 
 
     return train_pred_seq, train_loss, val_pred_seq, val_loss
 
-def get_IPC(qparams, ipcparams, length, logger, ranseed=-1, Ntrials=1, savedir=None, \
+def get_IPC(qparams, ipcparams, length, logger, nqrc=1, gamma=0.0, ranseed=-1, Ntrials=1, savedir=None, \
     posfix='capa', type_input=0, label=''):
     start_time = time.monotonic()
     fname = '{}_{}'.format(label, sys._getframe().f_code.co_name)
-    nqrc = 1
     transient = length // 2
 
     if ranseed >= 0:
@@ -368,7 +373,7 @@ def get_IPC(qparams, ipcparams, length, logger, ranseed=-1, Ntrials=1, savedir=N
         input_signals = np.tile(input_signals, (nqrc, 1))
 
         ipc = IPC(ipcparams, log=logger, savedir=savedir, label=label)
-        model = HQRC(nqrc=nqrc, gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=type_input)
+        model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=1.0, sigma_input=1.0, type_input=type_input)
         output_signals = model.init_forward(qparams, input_signals, init_rs=True, ranseed = n + ranseed)
         logger.debug('{}: n={} per {} trials, input shape = {}, output shape={}'.format(fname, n+1, Ntrials, input_signals.shape, output_signals.shape))
         
