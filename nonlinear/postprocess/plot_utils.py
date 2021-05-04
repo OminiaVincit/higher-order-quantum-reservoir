@@ -13,7 +13,7 @@ cycle = [
 '#4daf4a',
 '#984ea3',
 '#ff7f00',
-'#ffff33'
+'#ffd92f'
 ]
 
 def plotContour(fig, ax, data, title, fontsize, vmin, vmax, cmap):

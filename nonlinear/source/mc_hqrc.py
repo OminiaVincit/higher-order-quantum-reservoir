@@ -81,8 +81,8 @@ if __name__  == '__main__':
         os.mkdir(savedir)
 
     tstr = args.taudeltas.replace('\'','')
-    taudeltas = [float(x) for x in tstr.split(',')]
-    taudeltas = [2**x for x in taudeltas]
+    taudeltas_log = [float(x) for x in tstr.split(',')]
+    taudeltas = [2**x for x in taudeltas_log]
     
     couplings = [float(x) for x in args.couplings.split(',')]
     layers = [int(x) for x in args.layers.split(',')]
@@ -93,9 +93,9 @@ if __name__  == '__main__':
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
-    outbase = os.path.join(savedir, '{}_{}_{}_{}_J_{}_strength_{}_V_{}_layers_{}_capa_ntrials_{}'.format(\
+    outbase = os.path.join(savedir, '{}_{}_{}_{}_tau_{}_strength_{}_V_{}_layers_{}_capa_ntrials_{}'.format(\
         dynamic, taskname, solver, datestr, \
-        '_'.join([str(o) for o in couplings]), \
+        '_'.join([str(o) for o in taudeltas]), \
         '_'.join([str(o) for o in strengths]), \
         '_'.join([str(o) for o in virtuals]), \
         '_'.join([str(o) for o in layers]), Ntrials))

@@ -27,6 +27,7 @@ if __name__  == '__main__':
     fig, axs = plt.subplots(1, M, figsize=(6*M, 3))
     axs = axs.ravel()
     #plt.style.use('seaborn-colorblind')
+    fpath = Path(mpl.get_data_path(), "fonts/ttf/cmr10.ttf")
     plt.rc('font', family='serif')
     plt.rc('mathtext', fontset='cm')
     plt.rcParams['font.size']=16
