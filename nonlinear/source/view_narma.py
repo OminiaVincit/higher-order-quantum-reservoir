@@ -24,7 +24,7 @@ def predict_job(qparams, nqrc, alpha, buffer, train_input_seq, train_output_seq,
         val_input_seq, val_output_seq, rseed, outbase):
     print('Start process strength={}, taudelta={}, virtual={}, Jdelta={}'.format(alpha, qparams.tau, qparams.virtual_nodes, qparams.max_energy))
     train_pred_seq, train_loss, val_pred_seq, val_loss = hqrc.get_loss(qparams, buffer, train_input_seq, train_output_seq, \
-        val_input_seq, val_output_seq, nqrc, alpha, ranseed=rseed)
+        val_input_seq, val_output_seq, ranseed=rseed, nqrc=nqrc, gamma=alpha)
     results = {'val_input': val_input_seq[0], 'val_pred': val_pred_seq, \
         'val_out': val_output_seq, 'train_loss': train_loss, 'val_loss': val_loss}
     #pickle.dump()
@@ -48,8 +48,8 @@ if __name__  == '__main__':
     parser.add_argument('--transient', type=int, default=2000, help='Transitient time steps')
     
     parser.add_argument('--ntrials', type=int, default=1)
-    parser.add_argument('--virtuals', type=int, default=20)
-    parser.add_argument('--taudelta', type=float, default=2.0, help='Interval between the inputs')
+    parser.add_argument('--virtuals', type=int, default=15)
+    parser.add_argument('--taudelta', type=float, default=8.0, help='Interval between the inputs')
     parser.add_argument('--nqrc', type=int, default=5, help='Number of reservoirs')
 
     parser.add_argument('--orders', type=str, default='5,10,15,20')
@@ -106,8 +106,8 @@ if __name__  == '__main__':
             jobs, pipels = [], []
 
             for alpha in strengths:
-                qparams = QRCParams(n_units=n_units, max_energy=max_energy, \
-                    beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver)
+                qparams = QRCParams(n_units=n_units-1, n_envs=1, max_energy=max_energy, \
+                    beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=DYNAMIC_FULL_RANDOM)
                 rseed = 0
                 p = multiprocessing.Process(target=predict_job, args=(qparams, nqrc, alpha, buffer, train_input_seq, train_output_seq, \
                         val_input_seq, val_output_seq, rseed, outbase))
@@ -140,7 +140,7 @@ if __name__  == '__main__':
             #if i < N-1:
             ax.set_xticklabels([])
     if args.plot > 0:
-        for ftype in ['png']:
+        for ftype in ['png', 'svg']:
             outbase = os.path.join(savedir, '{}_{}_{}_{}_{}_V_{}_nqr_{}'.format(basename, \
                     solver, train_len, val_len, buffer, V, nqrc))
             plt.savefig('{}_narma.{}'.format(outbase, ftype), bbox_inches='tight')

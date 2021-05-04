@@ -10,7 +10,7 @@ if __name__  == '__main__':
     # Check for command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--folder', type=str, default='resnarma_strength')
-    parser.add_argument('--prefix', type=str, default='full_random_ridge_pinv_2021-0')
+    parser.add_argument('--prefix', type=str, default='full_random_linear_pinv_2021-0')
     parser.add_argument('--posfix', type=str, default='NRMSE')
     parser.add_argument('--tau', type=float, default=8.0)
     parser.add_argument('--virtuals', type=int, default=5)
@@ -55,12 +55,12 @@ if __name__  == '__main__':
                 id2 = (xs < 1.0)
                 id1 = id1 * id2
                 #print(id1)
-                for nqrc in [1,2,3,4,5]:
+                for nqrc in [2,3,4,5]:
                     ids = (rsarr[:, 1] == nqrc)   
                     ids = id1 * ids
                     #if nqrc == 1:
                     #    avg_tests[ids] = np.mean(avg_tests[ids])
-                    xa, ya, za = xs[ids], avg_tests[ids], std_tests[ids]
+                    xa, ya, za = 1.0-xs[ids], avg_tests[ids], std_tests[ids]
                     sids = np.argsort(xa)
                     #print(nqrc, sids)
                     #ax.scatter(xs[ids], avg_tests[ids], label='Layers={}'.format(nqrc))
@@ -68,20 +68,23 @@ if __name__  == '__main__':
                         ax.errorbar(xa[sids], ya[sids], yerr=za[sids], elinewidth=2, linewidth=2, markersize=12, \
                             label='{}'.format(nqrc))
                     else:
-                        ax.plot(xa[sids], ya[sids], lstype[deep], color=colors[nqrc-1], alpha = 0.8, linewidth=2.0, mec='k', mew=0.5, markersize=8, label='{}'.format(nqrc))
+                        ax.plot(xa[sids], ya[sids], lstype[deep], color=colors[nqrc-2], alpha = 0.8, linewidth=2.0, mec='k', mew=0.5, markersize=8, label='{}'.format(nqrc))
                         #ax.fill_between(xa[sids], ya[sids] - za[sids], ya[sids] + za[sids], facecolor=colors[nqrc-1], alpha=0.2)
                     
             
-            ax.set_xlabel('$\\alpha$', fontsize=20)
+            ax.set_xlabel('$1.0-\\alpha$', fontsize=20)
             #ax.set_ylabel('NMSE', fontsize=14)
             ax.set_yscale('log', base=10)
-            ax.set_xticks(np.arange(0, 1.01, step=0.2))
-            ax.set_xlim([0.0, 1.01])
+            ax.set_xscale('log', base=10)
+            
+            #ax.set_xticks(np.arange(0, 1.01, step=0.2))
+            #ax.set_xlim([0.0, 1.01])
+            
             #ax.set_ylim([np.min(avg_tests[id1])/1.2, 1.2*np.max(avg_tests[id1])])
             ax.set_title('NARMA{}'.format(order))
             ax.grid(True, which="both", ls="-", color='0.65')
-            if i == N-1:
-                ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left')
+            if i == 0:
+                ax.legend(loc='best')
     
     for ax in axs:
         #ax.minorticks_on()
@@ -91,7 +94,7 @@ if __name__  == '__main__':
     figsave = os.path.join(folder, 'figs')
     if os.path.isdir(figsave) == False:
         os.mkdir(figsave)
-    outbase = os.path.join(figsave, '{}_tau_{}'.format(ntitle, tau))
+    outbase = os.path.join(figsave, '{}_{}_tau_{}'.format(prefix, ntitle, tau))
     #plt.suptitle(outbase, fontsize=14)
     plt.tight_layout()
     if ntitle != '':
