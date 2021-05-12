@@ -30,19 +30,20 @@ AMIN=0.0
 AMAX=1.0
 NAS=100
 EXP=0
+SOLVER='ridge_pinv' #'linear_pinv'
 
 FRS='XXX'
-for SEED in 5 6 7 8 9
+for SEED in 0 1 2 3 4 5 6 7 8 9
 do
 SAVE=$PARENT\/IPC_seed_$SEED
 FRS=$FRS,IPC_seed_$SEED
 
-python $EXE --exp $EXP --amin $AMIN --amax $AMAX --nas $NAS --nqrc $QR --nproc $NPROC --spins $NSPINS --seed $SEED --dynamic $DYNAMIC --deg_delays $DELAYS --thres $THRES --virtuals $V --length $T --max_deg $DEG --max_window $WD --max_num_var $VAR --savedir $SAVE
+#python $EXE --solver $SOLVER --exp $EXP --amin $AMIN --amax $AMAX --nas $NAS --nqrc $QR --nproc $NPROC --spins $NSPINS --seed $SEED --dynamic $DYNAMIC --deg_delays $DELAYS --thres $THRES --virtuals $V --length $T --max_deg $DEG --max_window $WD --max_num_var $VAR --savedir $SAVE
 done
 
 P=mdeg_4_mvar_4
-
-for THRES in 1e-4
+RIDGE=1
+for THRES in 5e-5
 do
-#python $BINPLOT --exp $EXP --parent $PARENT --folders $FRS --T $T --thres $THRES --amin $AMIN --amax $AMAX --nas $NAS --nqrc $QR --dynamic $DYNAMIC --virtuals $V --taus $TAUS --nspins $NSPINS --keystr $P  --max_capa $CAPA --width $WIDTH
+python $BINPLOT --ridge $RIDGE --exp $EXP --parent $PARENT --folders $FRS --T $T --thres $THRES --amin $AMIN --amax $AMAX --nas $NAS --nqrc $QR --dynamic $DYNAMIC --virtuals $V --taus $TAUS --nspins $NSPINS --keystr $P  --max_capa $CAPA --width $WIDTH
 done
