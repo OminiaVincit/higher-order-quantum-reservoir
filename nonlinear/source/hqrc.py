@@ -17,7 +17,7 @@ from datetime import timedelta
 
 class HQRC(object):
     def __init__(self, nqrc, gamma, sparsity, sigma_input, \
-        type_input=0, use_corr=0, deep=0):
+        type_input=0, use_corr=0, deep=0,softmax=0):
         self.nqrc = nqrc
         self.gamma = gamma
         self.sparsity = sparsity
@@ -25,6 +25,7 @@ class HQRC(object):
         self.type_input = type_input
         self.use_corr = use_corr
         self.deep = deep
+        self.softmax = softmax
 
     def __init_reservoir(self, qparams, ranseed):
         if ranseed >= 0:
@@ -70,22 +71,28 @@ class HQRC(object):
         if nqrc > 1:
             for i in range(0, nqrc):
                 if self.deep == 0:
-                    smat = scipy.sparse.random(n_nodes, 1, density = self.sparsity).data
+                    smat = scipy.sparse.random(n_nodes, 1, density = self.sparsity).todense()
                     smat = smat.ravel()
                     bg = i * n_local_nodes
                     ed = bg + n_local_nodes 
                     smat[bg:ed] = 0
-                    smat *= (self.sigma_input / (n_nodes - n_local_nodes))
+                    if self.softmax <= 0:
+                        smat *= (self.sigma_input / (n_nodes - n_local_nodes))
                     W_feed[:, i] = smat.copy()
                 else:
                     if i > 1:
-                        smat = scipy.sparse.random(n_local_nodes, 1, density = self.sparsity).data
+                        smat = scipy.sparse.random(n_local_nodes, 1, density = self.sparsity).todense()
                         smat = smat.ravel()
-                        smat *= (self.sigma_input / n_local_nodes)
+                        if self.softmax <= 0:
+                            smat *= (self.sigma_input / n_local_nodes)
 
                         bg = (i-1) * n_local_nodes
                         ed = bg + n_local_nodes
                         W_feed[bg:ed, i] = smat.copy()
+        # if self.radius > 0:
+        #     eigenvalues, eigvectors = splinalg.eigs(W_feed)
+        #     eigenvalues = np.abs(eigenvalues)
+        #     W_feed = (W_feed/np.max(eigenvalues))*self.radius
 
         self.W_feed = W_feed
 
@@ -202,6 +209,8 @@ class HQRC(object):
             tmp_states = tmp_states @ self.W_feed
             tmp_states = tmp_states.ravel()
             #tmp_states = np.exp(-1.0*tmp_states)
+            if self.softmax > 0:
+                tmp_states = softmax(tmp_states)
             update_input = self.gamma * tmp_states + (1.0 - self.gamma) * update_input
             
         for i in range(nqrc):
@@ -490,8 +499,8 @@ def effective_dim(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, r
         locls = []
         for i in range(D):
             for j in range(D):
-                ri = state_list[buffer:, i]
-                rj = state_list[buffer:, j]
+                ri = state_list[buffer:, i] * 2.0 - 1.0
+                rj = state_list[buffer:, j] * 2.0 - 1.0
                 locls.append(np.mean(ri*rj))
         locls = np.array(locls).reshape(D, D)
         w, v = LA.eig(locls)

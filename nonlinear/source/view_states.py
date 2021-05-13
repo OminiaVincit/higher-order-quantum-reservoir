@@ -27,7 +27,7 @@ INIT_RHO=0
 V=1
 INTERVAL=0.05
 
-def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, J, \
+def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, softmax, sparsity,\
     xs, idx, send_end):
     """
     Dump raw data of states
@@ -36,14 +36,14 @@ def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, J, \
     results = dict()
     for x in xs:
         tau = 2**x
-        qparams = QRCParams(n_units=UNITS-1, n_envs=1, max_energy=J,\
+        qparams = QRCParams(n_units=UNITS-1, n_envs=1, max_energy=1.0,\
             beta=BETA, virtual_nodes=V, tau=tau, init_rho=INIT_RHO, solver=LINEAR_PINV, dynamic=dynamic)
-        model = hqrc.HQRC(nqrc=nqrc, gamma=layer_strength, sparsity=1.0, sigma_input=1.0)
+        model = hqrc.HQRC(nqrc=nqrc, gamma=layer_strength, sparsity=sparsity, sigma_input=1.0, softmax=softmax)
         state_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = 0)
         results[x] = state_list*2.0-1.0
     
-    outbase = os.path.join(savedir, '{}_layers_{}_V_{}_J_{}_strength_{}'.format(dynamic, \
-        nqrc, V, J, layer_strength))
+    outbase = os.path.join(savedir, '{}_layers_{}_V_{}_softmax_{}_strength_{}_sparse_{}'.format(dynamic, \
+        nqrc, V, softmax, layer_strength, sparsity))
     filename = '{}_states_id_{}.binaryfile'.format(outbase, idx)
     with open(filename, 'wb') as wrs:
         pickle.dump(results, wrs)
@@ -59,7 +59,8 @@ if __name__  == '__main__':
     parser.add_argument('--const', type=int, default=0, help='flag to set constant input')
     parser.add_argument('--nqrc', type=int, default=5, help='Number of reservoirs')
     parser.add_argument('--strength', type=float, default=0.5, help='The connection strength')
-    parser.add_argument('--coupling', type=float, default=1.0, help='The coupling magnitude')
+    parser.add_argument('--sparsity', type=float, default=1.0, help='The sparsity of the connection strength')
+    parser.add_argument('--softmax', type=int, default=0, help='The softmax of feedback matrix')
     parser.add_argument('--nproc', type=int, default=50)
     parser.add_argument('--dynamic', type=str, default=DYNAMIC_FULL_RANDOM,\
         help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
@@ -71,7 +72,7 @@ if __name__  == '__main__':
 
     length, nqrc, nproc, dynamic = args.length, args.nqrc, args.nproc, args.dynamic
     bg, ed = args.bg, args.ed
-    layer_strength, J = args.strength, args.coupling
+    layer_strength, softmax, sparsity = args.strength, args.softmax, args.sparsity
     const_input = args.const
 
     savedir = args.savedir
@@ -98,7 +99,7 @@ if __name__  == '__main__':
             xs = lst[pid]
             recv_end, send_end = multiprocessing.Pipe(False)
             p = multiprocessing.Process(target=dumpstates_job, args=(savedir, dynamic, input_seq, \
-                nqrc, layer_strength, J, xs, pid, send_end))
+                nqrc, layer_strength, softmax, sparsity, xs, pid, send_end))
             jobs.append(p)
             pipels.append(recv_end)
         # Start the process
@@ -179,6 +180,6 @@ if __name__  == '__main__':
         ax2.set_xticklabels([])
         
     outbase = filename.replace('.binaryfile', '_bg_{}_ed_{}'.format(bg, ed))
-    for ftype in ['pdf', 'svg']:
-        plt.savefig('{}_v3.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
+    for ftype in ['png', 'pdf', 'svg']:
+        plt.savefig('{}_v4.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
     plt.show()
