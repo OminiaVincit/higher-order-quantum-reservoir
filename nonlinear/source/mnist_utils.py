@@ -1,4 +1,5 @@
 import os
+import numpy as np
 
 # Generate MNIST dataset with appropriate size
 def gen_mnist_dataset(mnist_dir, mnist_size):
