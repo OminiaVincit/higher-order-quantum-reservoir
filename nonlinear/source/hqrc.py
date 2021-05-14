@@ -71,21 +71,39 @@ class HQRC(object):
         if nqrc > 1:
             for i in range(0, nqrc):
                 if self.deep == 0:
-                    smat = scipy.sparse.random(n_nodes, 1, density = self.sparsity).todense()
+                    #smat = scipy.sparse.random(n_nodes, 1, density = self.sparsity).todense()
+                    if self.softmax <= 0:
+                        smat = np.random.rand(n_nodes)
+                    else:
+                        smat = np.random.randn(n_nodes) * self.sigma_input
                     smat = smat.ravel()
                     bg = i * n_local_nodes
                     ed = bg + n_local_nodes 
                     smat[bg:ed] = 0
                     if self.softmax <= 0:
                         smat *= (self.sigma_input / (n_nodes - n_local_nodes))
+                    # else:
+                    #     #print(np.std(smat), self.sigma_input)
+                    #     valstd = np.std(smat)
+                    #     if valstd > 0:
+                    #         smat /= valstd
+                    #     smat *= (self.sigma_input)
+                    
                     W_feed[:, i] = smat.copy()
                 else:
                     if i > 1:
-                        smat = scipy.sparse.random(n_local_nodes, 1, density = self.sparsity).todense()
+                        #smat = scipy.sparse.random(n_local_nodes, 1, density = self.sparsity).todense()
+                        if self.softmax <= 0:
+                            smat = np.random.rand(n_nodes)
+                        else:
+                            smat = np.random.randn(n_nodes) * self.sigma_input
+                    
                         smat = smat.ravel()
                         if self.softmax <= 0:
                             smat *= (self.sigma_input / n_local_nodes)
-
+                        # else:
+                        #     smat /= np.std(smat)
+                        #     smat *= (self.sigma_input)
                         bg = (i-1) * n_local_nodes
                         ed = bg + n_local_nodes
                         W_feed[bg:ed, i] = smat.copy()
