@@ -27,7 +27,7 @@ INIT_RHO=0
 V=1
 INTERVAL=0.05
 
-def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, softmax, sigma_input, sparsity,\
+def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, nonlinear, sigma_input, sparsity,\
     xs, idx, send_end):
     """
     Dump raw data of states
@@ -38,12 +38,12 @@ def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, softmax, s
         tau = 2**x
         qparams = QRCParams(n_units=UNITS-1, n_envs=1, max_energy=1.0,\
             beta=BETA, virtual_nodes=V, tau=tau, init_rho=INIT_RHO, solver=LINEAR_PINV, dynamic=dynamic)
-        model = hqrc.HQRC(nqrc=nqrc, gamma=layer_strength, sparsity=sparsity, sigma_input=sigma_input, softmax=softmax)
+        model = hqrc.HQRC(nqrc=nqrc, gamma=layer_strength, sparsity=sparsity, sigma_input=sigma_input, nonlinear=nonlinear)
         state_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = 0)
         results[x] = state_list*2.0-1.0
     
-    outbase = os.path.join(savedir, '{}_layers_{}_V_{}_softmax_{}_strength_{}_sigma_{}_sparse_{}'.format(dynamic, \
-        nqrc, V, softmax, layer_strength, sigma_input, sparsity))
+    outbase = os.path.join(savedir, '{}_layers_{}_V_{}_nonlinear_{}_strength_{}_sigma_{}_sparse_{}'.format(dynamic, \
+        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity))
     filename = '{}_states_id_{}.binaryfile'.format(outbase, idx)
     with open(filename, 'wb') as wrs:
         pickle.dump(results, wrs)
@@ -61,7 +61,7 @@ if __name__  == '__main__':
     parser.add_argument('--strength', type=float, default=0.5, help='The connection strength')
     parser.add_argument('--sparsity', type=float, default=1.0, help='The sparsity of the connection strength')
     parser.add_argument('--sigma_input', type=float, default=1.0, help='The sigma input for the feedback')
-    parser.add_argument('--softmax', type=int, default=0, help='The softmax of feedback matrix')
+    parser.add_argument('--nonlinear', type=int, default=0, help='The nonlinear of feedback matrix')
     parser.add_argument('--nproc', type=int, default=50)
     parser.add_argument('--dynamic', type=str, default=DYNAMIC_FULL_RANDOM,\
         help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
@@ -73,8 +73,10 @@ if __name__  == '__main__':
 
     length, nqrc, nproc, dynamic = args.length, args.nqrc, args.nproc, args.dynamic
     bg, ed = args.bg, args.ed
-    layer_strength, softmax, sparsity, sigma_input = args.strength, args.softmax, args.sparsity, args.sigma_input
+    layer_strength, nonlinear, sparsity, sigma_input = args.strength, args.nonlinear, args.sparsity, args.sigma_input
     const_input = args.const
+    basename = '{}_nqrc_{}_V_{}_sm_{}_a_{}_sigma_{}_sparse_{}'.format(dynamic, \
+        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity)
 
     savedir = args.savedir
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
@@ -100,7 +102,7 @@ if __name__  == '__main__':
             xs = lst[pid]
             recv_end, send_end = multiprocessing.Pipe(False)
             p = multiprocessing.Process(target=dumpstates_job, args=(savedir, dynamic, input_seq, \
-                nqrc, layer_strength, softmax, sigma_input, sparsity, xs, pid, send_end))
+                nqrc, layer_strength, nonlinear, sigma_input, sparsity, xs, pid, send_end))
             jobs.append(p)
             pipels.append(recv_end)
         # Start the process
@@ -130,54 +132,61 @@ if __name__  == '__main__':
         with open(filename, 'rb') as rrs:
             z = pickle.load(rrs)
     
-    rs, ts = [], []
-    for x in tx:
-        state_list = z[x]
-        ys = state_list[bg:ed, 1:UNITS].ravel()
-        rs.extend(ys)
-        ts.extend([2**x] * len(ys))
-    ts = np.array(ts).ravel()
-    rs = np.array(rs).ravel()
-
     # Plot file
-    plt.rc('font', family='serif', size=8)
+    plt.rc('font', family='serif')
     plt.rc('mathtext', fontset='cm')
+    plt.rcParams["font.size"] = 8 # 全体のフォントサイズが変更されます
+    plt.rcParams['xtick.labelsize'] = 8 # 軸だけ変更されます
+    plt.rcParams['ytick.labelsize'] = 8 # 軸だけ変更されます
 
     #fig, axs = plt.subplots(1, 1, figsize=(8, 6), squeeze=False, dpi=600)
     #ax1 = axs.ravel()[0]
-    
     #ax.plot(ts, rs, ls="", marker=",")
 
-    fig = plt.figure(figsize=(8, 6), dpi=600)
-    ax1 = plt.subplot2grid((4,3), (0,0), colspan=2, rowspan=2)
+    fig = plt.figure(figsize=(8, 10), dpi=600)
+    for i in range(nqrc):
+        sbg = 1 + i*UNITS
+        sed = (i+1)*UNITS
+        rs, ts = [], []
+        for x in tx:
+            state_list = z[x]
+            ys = state_list[bg:ed, sbg:sed].ravel()
+            rs.extend(ys)
+            ts.extend([2**x] * len(ys))
+        ts = np.array(ts).ravel()
+        rs = np.array(rs).ravel()
 
-    if False:
-        # Very slow to run density plot
-        xy = np.vstack([ts, rs])
-        z = gaussian_kde(xy)(xy)
-        ax1.scatter(ts, rs, c=z, s=(12*72./fig.dpi)**2, marker='o', cmap='brg', lw=0, rasterized=True)
-    else:
-        ax1.scatter(ts, rs, s=(12*72./fig.dpi)**2, marker='o', lw=0, rasterized=True)
-    
-    ax1.set_title('{}'.format(os.path.basename(filename)))
-    ax1.set_xscale("log", base=2)
-    ax1.set_yscale("symlog", base=10, linthresh=1e-5)
-    ax1.grid(alpha=0.8,axis='x')
-    ax1.set_xticks([2**x for x in np.arange(-7,7.1,1.0)])
-    ax1.minorticks_on()
-    ax1.tick_params('both', length=6, width=1, which='major')
-    ax1.tick_params('both', length=3, width=1, which='minor')
-    ax1.set_xlim([2**tx[0], 2**tx[-1]])
+        ax1 = plt.subplot2grid((nqrc,3), (i,0), colspan=2, rowspan=1)
+        
+        if False:
+            # Very slow to run density plot
+            xy = np.vstack([ts, rs])
+            z = gaussian_kde(xy)(xy)
+            ax1.scatter(ts, rs, c=z, s=(12*72./fig.dpi)**2, marker='o', cmap='brg', lw=0, rasterized=True)
+        else:
+            ax1.scatter(ts, rs, s=(12*72./fig.dpi)**2, marker='o', lw=0, rasterized=True)
+        
+        if i == 0:
+            ax1.set_title('{}_QR_{}'.format(basename, i+1), fontsize=8)
+        ax1.set_xscale("log", base=2)
+        ax1.set_yscale("symlog", base=10, linthresh=1e-5)
+        ax1.grid(alpha=0.8, axis='x')
+        ax1.set_xticks([2**x for x in np.arange(-7,7.1,1.0)])
+        ax1.minorticks_on()
+        ax1.tick_params('both', length=6, width=1, which='major')
+        ax1.tick_params('both', length=3, width=1, which='minor')
+        ax1.set_xlim([2**tx[0], 2**tx[-1]])
+
     ids = [20, 60, 80, 180]
     for i in range(len(ids)):
-        ax2 = plt.subplot2grid((4,3), (i,2))
+        ax2 = plt.subplot2grid((nqrc,3), (i,2))
         x = tx[ids[i]]
         state_list = z[x]
         for j in range(1, UNITS):
             ys = state_list[bg:ed, j].ravel()
             ax2.plot(ys)
         ax2.set_title('2^{:.1f}'.format(x))
-        #ax2.set_yticklabels([])
+        ax2.set_yticklabels([])
         ax2.set_xticklabels([])
         
     outbase = filename.replace('.binaryfile', '_bg_{}_ed_{}'.format(bg, ed))

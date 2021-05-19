@@ -55,7 +55,7 @@ if __name__  == '__main__':
                 id2 = (xs < 1.0)
                 id1 = id1 * id2
                 #print(id1)
-                for nqrc in [2,3,4,5]:
+                for nqrc in [1,2,3,4,5]:
                     ids = (rsarr[:, 1] == nqrc)   
                     ids = id1 * ids
                     #if nqrc == 1:

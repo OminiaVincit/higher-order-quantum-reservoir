@@ -8,7 +8,7 @@ VAL=2000
 T=2000
 UNITS=5
 
-SAVE=../../../data/hqrc/narma_nrmse_alpha_tau_8
+SAVE=../../../data/hqrc/narma_nrmse_alpha_tau_8_norm
 QR='1,2,3,4,5'
 N=10
 
@@ -20,7 +20,7 @@ SOLVER='linear_pinv'
 
 for TAUS in 3.0
 do
-for V in 15 5 10 20
+for V in 15
 do
 for DEEP in 0 1
 do

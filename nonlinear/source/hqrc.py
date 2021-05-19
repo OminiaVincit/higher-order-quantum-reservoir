@@ -14,10 +14,11 @@ from utils import *
 
 import time
 from datetime import timedelta
+from scipy.special import expit
 
 class HQRC(object):
     def __init__(self, nqrc, gamma, sparsity, sigma_input, \
-        type_input=0, use_corr=0, deep=0,softmax=0):
+        type_input=0, use_corr=0, deep=0,nonlinear=0):
         self.nqrc = nqrc
         self.gamma = gamma
         self.sparsity = sparsity
@@ -25,7 +26,7 @@ class HQRC(object):
         self.type_input = type_input
         self.use_corr = use_corr
         self.deep = deep
-        self.softmax = softmax
+        self.nonlinear = nonlinear
 
     def __init_reservoir(self, qparams, ranseed):
         if ranseed >= 0:
@@ -72,7 +73,7 @@ class HQRC(object):
             for i in range(0, nqrc):
                 if self.deep == 0:
                     #smat = scipy.sparse.random(n_nodes, 1, density = self.sparsity).todense()
-                    if self.softmax <= 0:
+                    if self.nonlinear <= 0:
                         smat = np.random.rand(n_nodes)
                     else:
                         smat = np.random.randn(n_nodes) * self.sigma_input
@@ -80,7 +81,7 @@ class HQRC(object):
                     bg = i * n_local_nodes
                     ed = bg + n_local_nodes 
                     smat[bg:ed] = 0
-                    if self.softmax <= 0:
+                    if self.nonlinear <= 0:
                         smat *= (self.sigma_input / (n_nodes - n_local_nodes))
                     # else:
                     #     #print(np.std(smat), self.sigma_input)
@@ -93,13 +94,13 @@ class HQRC(object):
                 else:
                     if i > 1:
                         #smat = scipy.sparse.random(n_local_nodes, 1, density = self.sparsity).todense()
-                        if self.softmax <= 0:
+                        if self.nonlinear <= 0:
                             smat = np.random.rand(n_nodes)
                         else:
                             smat = np.random.randn(n_nodes) * self.sigma_input
                     
                         smat = smat.ravel()
-                        if self.softmax <= 0:
+                        if self.nonlinear <= 0:
                             smat *= (self.sigma_input / n_local_nodes)
                         # else:
                         #     smat /= np.std(smat)
@@ -227,8 +228,8 @@ class HQRC(object):
             tmp_states = tmp_states @ self.W_feed
             tmp_states = tmp_states.ravel()
             #tmp_states = np.exp(-1.0*tmp_states)
-            if self.softmax > 0:
-                tmp_states = softmax(tmp_states)
+            if self.nonlinear > 0:
+                tmp_states = expit(tmp_states)
             update_input = self.gamma * tmp_states + (1.0 - self.gamma) * update_input
             
         for i in range(nqrc):
@@ -559,7 +560,7 @@ def esp_index(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, ranse
         dP.append(local_diff)
     return np.mean(dP)
 
-def lyapunov_exp(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, ranseed, initial_distance):
+def lyapunov_exp(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, nonlinear, ranseed, initial_distance):
     if ranseed >= 0:
         np.random.seed(seed=ranseed)
 
@@ -568,7 +569,7 @@ def lyapunov_exp(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, ra
     input_seq = np.tile(input_seq, (nqrc, 1))
 
     # Initialize the reservoir to zero state - density matrix
-    model = HQRC(nqrc, gamma, sparsity, sigma_input)
+    model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, sigma_input=sigma_input, nonlinear=nonlinear)
     states1 = model.init_forward(qparams, input_seq, init_rs = True, ranseed = -1)
     L, D = states1.shape
     # L = Length of time series
