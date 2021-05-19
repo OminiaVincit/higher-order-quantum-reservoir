@@ -151,54 +151,57 @@ if __name__  == '__main__':
     logger.info('shape x_train={}, y_train={},  x_test={}, y_test={}'.format(\
         x_train.shape, Y_train_org.shape, x_test.shape, Y_test_org.shape))
 
-    jobs, pipels = [], []
     datfs = dict()
-                
-    for alpha in strengths:
-        for tau in taudeltas:
-            # Create params and model
-            qparams = QRCParams(n_units=n_spins-1, n_envs=1, max_energy=J,\
-                beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
-            model = hqrc.HQRC(nqrc=n_qrs, gamma=alpha, sparsity=1.0, sigma_input=1.0, use_corr=use_corr)
-            model.init_reservoir(qparams, ranseed=rseed)
-            init_rs, rs_seed, use_lastrho = False, 0, False
-            # create training and testing data
-            if linear_reg <= 0:
-                for datlb in ['train', 'test']:
-                    if datlb == 'train':
-                        Xt = x_train
-                    else:
-                        Xt  = x_test
-                    # Make Xs to put in hqrc
-                    Xs = [x.reshape(n_qrs, -1) for x in Xt]
-                    Xs = np.concatenate(Xs, axis=1)
-                    # Create training/test file
-                    (ns, ds) = Xt.shape
-                    logger.info('{} file in time series {}'.format(datlb, Xs.shape))
-                    datfile = '{}_{}_alpha_{:.2f}_tau_{:.4f}_shape_{}_{}.bin'.format(datlb, basename, alpha, tau, ns, ds)
-                    datfile = os.path.join(bindir, datfile)
-                    datfs['{}_alpha_{:.2f}_tau_{:.4f}'.format(datlb, alpha, tau)] = datfile
-                    p = multiprocessing.Process(target=dump_reservoir_states, \
-                        args=(logger, datfile, Xs, qparams, model, init_rs, rs_seed))
-                    jobs.append(p)
-    # Start the process
-    for p in jobs:
-        p.start()
 
-    # Ensure all processes have finished execution
-    for p in jobs:
-        p.join()
+    for datlb in ['train', 'test']:
+        if linear_reg > 0:
+            continue
+        if datlb == 'train':
+            Xt = x_train
+        else:
+            Xt  = x_test
+        # Make Xs to put in hqrc
+        Xs = [x.reshape(n_qrs, -1) for x in Xt]
+        Xs = np.concatenate(Xs, axis=1)
+        # Create training/test file
+        (ns, ds) = Xt.shape
+        logger.info('{} file in time series {}'.format(datlb, Xs.shape))
+        jobs, pipels = [], [] 
+        for alpha in strengths:
+            for tau in taudeltas:
+                # Create params and model
+                qparams = QRCParams(n_units=n_spins-1, n_envs=1, max_energy=J,\
+                    beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
+                model = hqrc.HQRC(nqrc=n_qrs, gamma=alpha, sparsity=1.0, sigma_input=1.0, use_corr=use_corr)
+                model.init_reservoir(qparams, ranseed=rseed)
+                init_rs, rs_seed, use_lastrho = False, 0, False
+                # create training and testing data
+                datfile = '{}_{}_alpha_{:.2f}_tau_{:.4f}_shape_{}_{}.bin'.format(datlb, basename, alpha, tau, ns, ds)
+                datfile = os.path.join(bindir, datfile)
+                datfs['{}_alpha_{:.2f}_tau_{:.4f}'.format(datlb, alpha, tau)] = datfile
+                p = multiprocessing.Process(target=dump_reservoir_states, \
+                    args=(logger, datfile, Xs, qparams, model, init_rs, rs_seed))
+                jobs.append(p)
+        # Start the process
+        for p in jobs:
+            p.start()
 
-    # Sleep 5s
-    time.sleep(5)
+        # Ensure all processes have finished execution
+        for p in jobs:
+            p.join()
+
+        # Sleep 5s
+        time.sleep(5)
     
     # perform regression
     for alpha in strengths:
         for tau in taudeltas:
             if linear_reg > 0:
                 X_train = np.array(x_train)
-                if full_mnist == 0:
-                    X_train = X_train[train_ids, :]
+                X_train = [x.reshape(n_qrs, -1) for x in X_train]
+                X_train = np.concatenate(X_train, axis=1).T
+                #if full_mnist == 0:
+                #    X_train = X_train[train_ids, :]
             else:
                 # Training
                 with open(datfs['train_alpha_{:.2f}_tau_{:.4f}'.format(alpha, tau)], 'rb') as rrs:
@@ -230,8 +233,10 @@ if __name__  == '__main__':
             # Testing
             if linear_reg > 0:
                 X_test = np.array(x_test)
-                if full_mnist == 0:
-                    X_test = X_test[test_ids, :]
+                X_test = [x.reshape(n_qrs, -1) for x in X_test]
+                X_test = np.concatenate(X_test, axis=1).T
+                #if full_mnist == 0:
+                #    X_test = X_test[test_ids, :]
             else:
                 with open(datfs['test_alpha_{:.2f}_tau_{:.4f}'.format(alpha, tau)], 'rb') as rrs:
                     X_test = pickle.load(rrs)
