@@ -230,6 +230,7 @@ if __name__  == '__main__':
             logger.info('y_train_predict shape={}'.format(y_train_predict.shape))
             
             train_acc = get_acc(y_train_predict, y_train_lb)
+            #train_acc = get_acc_major_vote(X_train @ W_out, imlength, y_train_lb)
             logger.info('Nqr={}, V={}, tau={}, alpha={}, Train acc={}'.format(n_qrs, V, tau, alpha, train_acc))
 
             # Testing
@@ -255,4 +256,5 @@ if __name__  == '__main__':
             y_test_predict = group_avg(X_test @ W_out, imlength)
             logger.info('y_test_predict shape={}'.format(y_test_predict.shape))
             test_acc = get_acc(y_test_predict, y_test_lb)
+            #test_acc = get_acc_major_vote(X_test @ W_out, imlength, y_test_lb)
             logger.info('Nqr={}, V={}, tau={}, alpha={}, Test acc={}'.format(n_qrs, V, tau, alpha, test_acc))

@@ -41,3 +41,17 @@ def get_acc(predict, out_lb):
     pred_lb = np.argmax(predict, axis=1)
     acc = np.sum(pred_lb == out_lb) / pred_lb.shape[0]
     return acc
+
+def get_acc_major_vote(arr, N, out_lb):
+    pred_arr = np.argmax(arr, axis=1)
+    print('Pred arr shape', pred_arr.shape)
+    pred_lb = []
+    bg, ed = 0, N
+    while ed <= pred_arr.shape[0]:
+        counts = np.bincount(pred_arr[bg:ed].ravel())
+        pred_lb.append(np.argmax(counts))
+        bg = ed
+        ed = bg + N
+    pred_lb = np.array(pred_lb)
+    acc = np.sum(pred_lb == out_lb) / pred_lb.shape[0]
+    return acc
