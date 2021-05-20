@@ -575,7 +575,8 @@ def lyapunov_exp(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, no
     # L = Length of time series
     # D = Number of layers x Number of virtual nodes x Number of qubits
     lyps = []
-    for n in range(int(D / nqrc)):
+    n_local = int(D / nqrc)
+    for n in range(n_local):
         if n % qparams.n_units == 0:
             # Skip the input qubits
             continue
@@ -586,6 +587,8 @@ def lyapunov_exp(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, no
         gamma_k_list = []
         local_rhos = model.last_rhos.copy()
         for k in range(buffer, L):
+            # Update cur states
+            model.cur_states[0] = states2[k-1, :n_local].copy()
             input_val = input_seq[:, k].ravel()
             local_rhos = model.step_forward(local_rhos, input_val)
             states2[k, :] = np.array(model.cur_states, dtype=np.float64).flatten()
