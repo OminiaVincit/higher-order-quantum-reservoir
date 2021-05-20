@@ -38,6 +38,7 @@ def dump_reservoir_states(logger, datfile, Xs, qparams, model, init_rs, ranseed)
     if os.path.isfile(datfile) == True:
         logger.debug('File existed {}'.format(datfile))
     else:
+        logger.debug('Going to dump file {}'.format(datfile))
         input_signals = np.array(Xs)
         rstates = model.init_forward(qparams, input_signals, init_rs=init_rs, ranseed = ranseed)
         #_, rstates =  model.feed_forward(input_signals, predict=False, use_lastrho=use_lastrho)
@@ -206,6 +207,7 @@ if __name__  == '__main__':
                 # Training
                 with open(datfs['train_alpha_{:.2f}_tau_{:.4f}'.format(alpha, tau)], 'rb') as rrs:
                     X_train = pickle.load(rrs)
+                    logger.debug('Loaded train file {}'.format(X_train.shape))
                     # if use_corr == 0:
                     #     ids = np.array(range(X_train.shape[1]))
                     #     ids = ids[ids % 15 < 5]
@@ -216,7 +218,7 @@ if __name__  == '__main__':
             X_train = np.hstack( [X_train, np.ones([X_train.shape[0], 1]) ] )
             logger.info('Nqr={}, V={}, alpha={}, tau={}, X_train shape={}, Y_train shape={}'.format(\
                 n_qrs, V, alpha, tau, X_train.shape, Y_train.shape))
-
+            logger.debug('Perform training')
             #XTX = X_train.T @ X_train
             #XTY = X_train.T @ Y_train
             #I = np.identity(np.shape(XTX)[1])	
@@ -240,6 +242,7 @@ if __name__  == '__main__':
             else:
                 with open(datfs['test_alpha_{:.2f}_tau_{:.4f}'.format(alpha, tau)], 'rb') as rrs:
                     X_test = pickle.load(rrs)
+                    logger.debug('Loaded test file {}'.format(X_test.shape))
                     # if use_corr == 0:
                     #     ids = np.array(range(X_test.shape[1]))
                     #     ids = ids[ids % 15 < 5]
