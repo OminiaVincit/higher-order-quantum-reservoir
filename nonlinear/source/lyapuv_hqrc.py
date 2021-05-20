@@ -91,11 +91,12 @@ if __name__  == '__main__':
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
-    outfile = os.path.join(savedir, '{}_nqrc_{}_V_{}_a_{:.2f}_sm_{}_sigma_{}_sparse_{}_lyp_trials_{}_dist_{}_lyp.txt'.format(\
+    outbase = os.path.join(savedir, '{}_nqrc_{}_V_{}_a_{:.2f}_sm_{}_sigma_{}_sparse_{}_lyp_trials_{}_dist_{}'.format(\
         dynamic, \
             '_'.join([str(l) for l in layers]), \
             '_'.join([str(v) for v in virtuals]), \
             layer_strength, nonlinear, sigma_input, sparsity, net_trials, initial_distance))
+    outfile = '{}_lyp.txt'.format(outbase)
     
     if os.path.isfile(outfile) == False:
         jobs, pipels = [], []
