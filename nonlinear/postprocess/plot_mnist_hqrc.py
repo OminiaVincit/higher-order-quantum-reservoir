@@ -19,6 +19,7 @@ import time
 import datetime
 import re
 import plot_utils as putils
+from mpl_toolkits.axes_grid.inset_locator import (inset_axes, InsetPosition, mark_inset)
 
 RES_MNIST_DIR = "../results/rs_mnist"
 MNIST_SIZE="10x10"
@@ -35,7 +36,7 @@ if __name__  == '__main__':
     parser.add_argument('--virtuals', type=int, default=1)
     parser.add_argument('--strengths', type=str, default='0.0,0.1,0.5,0.9', help='Connection strengths')
     parser.add_argument('--taudeltas', type=str, default='-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7')
-    parser.add_argument('--interval', type=float, default=0.2, help='tau-interval')
+    parser.add_argument('--tmin', type=float, default=0.0, help='tmin in plot inset')
     
     parser.add_argument('--linear_reg', type=int, default=0)
     parser.add_argument('--use_corr', type=int, default=0)
@@ -47,11 +48,12 @@ if __name__  == '__main__':
     parser.add_argument('--mnist_size', type=str, default=MNIST_SIZE)
     parser.add_argument('--nproc', type=int, default=100)
     parser.add_argument('--rseed', type=int, default=0)
+    parser.add_argument('--inset', type=int, default=0)
     args = parser.parse_args()
     print(args)
 
     n_qrs, n_spins, rseed = args.nqrs, args.spins, args.rseed
-    V = args.virtuals
+    V, tmin, inset = args.virtuals, args.tmin, args.inset
     
     linear_reg, use_corr = args.linear_reg, args.use_corr
     full_mnist, label1, label2 = args.full, args.label1, args.label2
@@ -97,14 +99,31 @@ if __name__  == '__main__':
     fig, axs = plt.subplots(1, 1, figsize=(24, 10), squeeze=False, dpi=600)
     axs = axs.ravel()
     ax1 = axs[0]
+
+    if inset > 0:
+        # Create a set of inset Axes: these should fill the bounding box allocated to them.
+        ax2 = plt.axes([0,0,1,1])
+        # Manually set the position and relative size of the inset axes within ax1
+        # left, bottom, width, height
+        ip = InsetPosition(ax1, [0.50,0.10,0.45,0.57])
+        ax2.set_axes_locator(ip)
+        # Mark the region corresponding to the inset axes on ax1 and draw lines
+        # in grey linking the two axes.
+        # mark_inset(ax1, ax2, loc1=2, loc2=4, fc="none", ec='0.5')
+
+    
     colors = putils.cycle
     nc = 0
     for alpha in accs.keys():
-        #color = colors[nc % len(colors)]
-        ts = accs[alpha]['taus']
-        avs = accs[alpha]['test_acc']
+        color = colors[nc % len(colors)]
+        ts = np.array(accs[alpha]['taus'])
+        avs = np.array(accs[alpha]['test_acc'])
         ax1.plot(ts, avs, 's-', label='$\\alpha=${}'.format(alpha), linewidth=4, \
-            alpha=0.8, markersize=12, mec='k', mew=0.5)
+            alpha=0.8, markersize=12, mec='k', mew=0.5, color=color)
+        if inset > 0:
+            ax2.plot(ts[ts >= 2**tmin], avs[ts >= 2**tmin], 's-', label='$\\alpha=${}'.format(alpha), linewidth=4, \
+                alpha=0.8, markersize=12, mec='k', mew=0.5, color=color)
+        
         nc += 1
     
     ax1.set_title('{}'.format(basename), fontsize=16)
@@ -116,7 +135,12 @@ if __name__  == '__main__':
     ax1.grid(True, which="both", ls="-", color='0.65')
     ax1.set_xlabel('$\\tau$', fontsize=32)
     ax1.set_ylabel('Accuracy', fontsize=28)
-    
+    if inset > 0:
+        ax2.set_xscale("log", basex=2)
+        ax2.tick_params('both', length=6, width=1, which='major', labelsize=24)
+        #ax2.grid(True, which="both", ls="-", color='0.65')
+        #ax2.set_xlim([2**(tmin), 2**7])
+
     for ax in axs:
         ax.tick_params('both', length=8, width=1, which='major', labelsize=28)
     
