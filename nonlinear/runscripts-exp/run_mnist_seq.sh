@@ -1,16 +1,17 @@
 #!/usr/bin/bash
 # Script to view dynamics of the HQRC
 export OMP_NUM_THREADS=1
-MNIST_SIZE="20x20"
+MNIST_SIZE="10x10"
 
 BIN=../source/mnist_hqrc.py
 SAVE=/data/zoro/hqrc/mnist
 STRENGTHS='0.0,0.1,0.3,0.5,0.7,0.9'
-FULL=1
+
+FULL=0
 LB1=3
-LB2=7
+LB2=5
 CORR=0
-NQR=20
+NQR=10
 
 for V in 1 5 10 20
 do
