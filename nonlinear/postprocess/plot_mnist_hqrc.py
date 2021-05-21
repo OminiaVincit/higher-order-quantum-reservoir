@@ -36,7 +36,7 @@ if __name__  == '__main__':
     parser.add_argument('--virtuals', type=int, default=1)
     parser.add_argument('--strengths', type=str, default='0.0,0.1,0.5,0.9', help='Connection strengths')
     parser.add_argument('--taudeltas', type=str, default='-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7')
-    parser.add_argument('--tmin', type=float, default=0.0, help='tmin in plot inset')
+    parser.add_argument('--tmin', type=float, default=1.0, help='tmin in plot inset')
     
     parser.add_argument('--linear_reg', type=int, default=0)
     parser.add_argument('--use_corr', type=int, default=0)
