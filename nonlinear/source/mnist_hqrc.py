@@ -60,7 +60,7 @@ if __name__  == '__main__':
     parser.add_argument('--dynamic', type=str, default=DYNAMIC_FULL_RANDOM,\
         help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
 
-    parser.add_argument('--transient', type=int, default=200, help='Transitient time steps')
+    parser.add_argument('--transient', type=int, default=100, help='Transitient time steps')
     
     parser.add_argument('--nqrs', type=int, default=1, help='Number of reservoirs')
     parser.add_argument('--ntrials', type=int, default=1)
@@ -84,7 +84,7 @@ if __name__  == '__main__':
     print(args)
 
     n_qrs, n_spins, beta, rseed = args.nqrs, args.spins, args.beta, args.rseed
-    J, init_rho, V = args.coupling, args.rho, args.virtuals
+    J, init_rho, V, transient = args.coupling, args.rho, args.virtuals, args.transient
     
     solver, linear_reg, use_corr, transient = args.solver, args.linear_reg, args.use_corr, args.transient
     full_mnist, label1, label2 = args.full, args.label1, args.label2
@@ -122,7 +122,7 @@ if __name__  == '__main__':
     
     x_train, y_train_lb, x_test, y_test_lb = gen_mnist_dataset_join_test(mnist_dir, mnist_size)
     imlength = int(x_train.shape[1] / n_qrs)
-
+    
     if full_mnist > 0:
         Y_train_org = np.identity(10)[y_train_lb]
         Y_test_org  = np.identity(10)[y_test_lb]
@@ -146,12 +146,15 @@ if __name__  == '__main__':
 
         Y_test_org  = np.identity(2)[y_test_lb]
 
-    log_filename = os.path.join(logdir, '{}.log'.format(basename))
+    log_filename = os.path.join(logdir, '{}_softmax.log'.format(basename))
     logger = get_module_logger(__name__, log_filename)
     logger.info(log_filename)
     logger.info('shape x_train={}, y_train={},  x_test={}, y_test={}'.format(\
         x_train.shape, Y_train_org.shape, x_test.shape, Y_test_org.shape))
 
+    buffer = imlength * transient
+    logger.info('Buffer to train {}'.format(buffer))
+    
     datfs = dict()
 
     for datlb in ['train', 'test']:
@@ -216,6 +219,11 @@ if __name__  == '__main__':
                     #    X_train = X_train[train_ids, :]
             Y_train = np.repeat(Y_train_org, imlength, axis=0)
             X_train = np.hstack( [X_train, np.ones([X_train.shape[0], 1]) ] )
+            if linear_reg <= 0:
+                X_train = X_train[buffer:, :]
+                Y_train = Y_train[buffer:, :]
+                y_train_lb = y_train_lb[transient:]
+
             logger.info('Nqr={}, V={}, alpha={}, tau={}, X_train shape={}, Y_train shape={}'.format(\
                 n_qrs, V, alpha, tau, X_train.shape, Y_train.shape))
             logger.debug('Perform training')
@@ -226,7 +234,10 @@ if __name__  == '__main__':
             #W_out = pinv_ @ XTY
             W_out = np.linalg.pinv(X_train, rcond = beta) @ Y_train
             logger.info('Wout shape={}'.format(W_out.shape))
-            y_train_predict = group_avg(X_train @ W_out, imlength)
+            y_train_predict = X_train @ W_out
+            y_train_predict = np.array([softmax(a) for a in y_train_predict])
+            y_train_predict = group_avg(y_train_predict, imlength)
+            #print(y_train_predict)
             logger.info('y_train_predict shape={}'.format(y_train_predict.shape))
             
             train_acc = get_acc(y_train_predict, y_train_lb)
@@ -252,7 +263,14 @@ if __name__  == '__main__':
                     #    X_test = X_test[test_ids, :]
             Y_test = np.repeat(Y_test_org, imlength, axis=0)
             X_test = np.hstack( [X_test, np.ones([X_test.shape[0], 1]) ] )
+            # if linear_reg <= 0:
+            #     X_test = X_test[buffer:, :]
+            #     Y_test = Y_test[buffer:, :]
+            #     y_test_lb = y_test_lb[transient:]
+
             logger.info('Nqr={}, V={}, tau={}, alpha={}, X_test shape = {}'.format(n_qrs, V, tau, alpha, X_test.shape))
+            y_test_predict = X_test @ W_out
+            y_test_predict = np.array([softmax(a) for a in y_test_predict])
             y_test_predict = group_avg(X_test @ W_out, imlength)
             logger.info('y_test_predict shape={}'.format(y_test_predict.shape))
             test_acc = get_acc(y_test_predict, y_test_lb)
