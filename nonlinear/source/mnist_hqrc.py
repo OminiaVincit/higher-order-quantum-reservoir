@@ -6,27 +6,14 @@ Separate spiral data in nonlinear map
 import sys
 import numpy as np
 import os
-import scipy
 import argparse
 import multiprocessing
-import matplotlib
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-
-from matplotlib import ticker
-from sklearn.decomposition import PCA 
-from sklearn.preprocessing import StandardScaler
-from scipy.sparse import linalg as splinalg
-from scipy.linalg import pinv2 as scipypinv2
-
 import time
-import datetime
-import pickle
 
 import hqrc as hqrc
 from loginit import get_module_logger
 
-import utils
 from utils import *
 from mnist_utils import *
 
@@ -34,19 +21,37 @@ MNIST_DIR = "../mnist"
 RES_MNIST_DIR = "../results/rs_mnist"
 MNIST_SIZE="10x10"
 
-def dump_reservoir_states(logger, datfile, Xs, qparams, model, init_rs, ranseed):
-    if os.path.isfile(datfile) == True:
-        logger.debug('File existed {}'.format(datfile))
+def get_acc_from_series(y_preds, y_lbs):
+    y_preds = np.array([softmax(a) for a in y_preds])
+    imlength = int(y_preds.shape[0] / len(y_lbs))
+    y_preds = group_avg(y_preds, imlength)
+    acc = get_acc(y_preds, y_lbs)
+    return acc
+
+def training_reservoir_states(logger, qparams, nqrs, alpha, buffer, use_corr, train_seq, test_seq, ranseed):
+    if linear_reg < 0:
+        logger.debug('Linear regression')
     else:
-        logger.debug('Going to dump file {}'.format(datfile))
-        input_signals = np.array(Xs)
-        rstates = model.init_forward(qparams, input_signals, init_rs=init_rs, ranseed = ranseed)
+        tau = qparams.tau
+        logger.debug('ranseed={}, Start regression with QR by tau={}, alpha={}, shape train={}, test={}'.format(\
+            ranseed, tau, alpha, train_seq['input'].shape, test_seq['input'].shape))
+        #input_signals = np.array(Xs)
+        #rstates = model.init_forward(qparams, input_signals, init_rs=init_rs, ranseed = ranseed)
         #_, rstates =  model.feed_forward(input_signals, predict=False, use_lastrho=use_lastrho)
-        rstates = np.array(rstates)
-        with open(datfile, 'wb') as wrs:
-            pickle.dump(rstates, wrs)
-            logger.debug('Dumped file {}'.format(datfile))
-    return datfile
+        train_pred_seq, train_loss, test_pred_seq, val_loss = hqrc.get_loss(qparams, buffer, \
+            train_seq['input'], train_seq['output'], \
+            test_seq['input'], test_seq['output'], \
+            nqrc=nqrs, gamma=alpha, ranseed=ranseed, deep=0, use_corr=use_corr)
+        
+        logger.debug('ranseed={}, tau={}, alpha={}, (not real) loss train={}, val={}'.format(\
+            ranseed, tau, alpha, train_loss, val_loss))
+        train_acc = get_acc_from_series(train_pred_seq, train_seq['label'])
+        test_acc  = get_acc_from_series(test_pred_seq, test_seq['label'])
+
+        logger.info('ranseed={}, Finish regression with QR by tau={}, alpha={}, train_acc={}, test_acc={}'.format(\
+            ranseed, tau, alpha, train_acc, test_acc))
+    #rstr = '{} {:.10f} {:.10f} {:.10f}'.format(alpha, qparams.tau, train_acc, test_acc)
+    #send_end.send(rstr)
 
 if __name__  == '__main__':
     # Check for command line arguments
@@ -60,7 +65,7 @@ if __name__  == '__main__':
     parser.add_argument('--dynamic', type=str, default=DYNAMIC_FULL_RANDOM,\
         help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
 
-    parser.add_argument('--transient', type=int, default=100, help='Transitient time steps')
+    parser.add_argument('--transient', type=int, default=0, help='Transitient time steps')
     
     parser.add_argument('--nqrs', type=int, default=1, help='Number of reservoirs')
     parser.add_argument('--ntrials', type=int, default=1)
@@ -80,6 +85,8 @@ if __name__  == '__main__':
     parser.add_argument('--mnist_size', type=str, default=MNIST_SIZE)
     parser.add_argument('--nproc', type=int, default=100)
     parser.add_argument('--rseed', type=int, default=0)
+    parser.add_argument('--rate', type=float, default=1.0)
+    
     args = parser.parse_args()
     print(args)
 
@@ -89,7 +96,7 @@ if __name__  == '__main__':
     solver, linear_reg, use_corr, transient = args.solver, args.linear_reg, args.use_corr, args.transient
     full_mnist, label1, label2 = args.full, args.label1, args.label2
     ntrials, dynamic, savedir = args.ntrials, args.dynamic, args.savedir
-    mnist_dir, mnist_size, nproc = args.mnist_dir, args.mnist_size, args.nproc
+    mnist_dir, mnist_size, nproc, rate = args.mnist_dir, args.mnist_size, args.nproc, args.rate
 
     taudeltas = [float(x) for x in args.taudeltas.split(',')]
     #taudeltas = list(np.arange(-7, 7.1, args.interval))
@@ -117,16 +124,15 @@ if __name__  == '__main__':
     if os.path.isdir(bindir) == False:
         os.mkdir(bindir)
 
-    basename = 'join_{}_{}_linear_{}_nqrs_{}_corr_{}_nspins_{}_V_{}'.format(\
-        mnist_size, dynamic, linear_reg, n_qrs, use_corr, n_spins, V)
+    basename = 'join_{}_{}_linear_{}_nqrs_{}_corr_{}_nspins_{}_V_{}_rate_{}_trials_{}'.format(\
+        mnist_size, dynamic, linear_reg, n_qrs, use_corr, n_spins, V, rate, ntrials)
     
     x_train, y_train_lb, x_test, y_test_lb = gen_mnist_dataset_join_test(mnist_dir, mnist_size)
     imlength = int(x_train.shape[1] / n_qrs)
-    
-    if full_mnist > 0:
-        Y_train_org = np.identity(10)[y_train_lb]
-        Y_test_org  = np.identity(10)[y_test_lb]
-    else:
+    train_seq = dict()
+    test_seq  = dict()
+
+    if full_mnist <= 0:
         basename = '{}_lb_{}_{}'.format(basename, label1, label2)
         # Train data
         train_ids = (y_train_lb == label1) | (y_train_lb == label2)
@@ -135,8 +141,6 @@ if __name__  == '__main__':
         y_train_lb[y_train_lb == label1] = 0
         y_train_lb[y_train_lb == label2] = 1
 
-        Y_train_org = np.identity(2)[y_train_lb]
-
         # Test data 
         test_ids = (y_test_lb == label1) | (y_test_lb == label2)
         x_test = x_test[test_ids, :]
@@ -144,48 +148,63 @@ if __name__  == '__main__':
         y_test_lb[y_test_lb == label1] = 0
         y_test_lb[y_test_lb == label2] = 1
 
-        Y_test_org  = np.identity(2)[y_test_lb]
-
     log_filename = os.path.join(logdir, '{}_softmax.log'.format(basename))
     logger = get_module_logger(__name__, log_filename)
     logger.info(log_filename)
-    logger.info('shape x_train={}, y_train={},  x_test={}, y_test={}'.format(\
-        x_train.shape, Y_train_org.shape, x_test.shape, Y_test_org.shape))
+    logger.info(args)
+    logger.info('Original shape x_train={}, y_train={}, x_test={}, y_test={}'.format(\
+        x_train.shape, y_train_lb.shape, x_test.shape, y_test_lb.shape))
 
     buffer = imlength * transient
-    logger.info('Buffer to train {}'.format(buffer))
+    logger.info('Transient={}, buffer={}, train rate={}'.format(transient, buffer, rate))
     
-    datfs = dict()
+    for n in range(ntrials):
+        ranseed = rseed + 10000*n
+        np.random.seed(seed=ranseed)
+        # Permute data
+        N_train, N_test = len(y_train_lb), len(y_test_lb)
+        nm_train, nm_test = int(N_train*rate), int(N_test*rate)
+        train_idx = np.random.permutation(N_train)[:nm_train]
+        test_idx = np.random.permutation(N_test)
+        
+        x_train, y_train_lb = x_train[train_idx, :], y_train_lb[train_idx]
+        x_test, y_test_lb  = x_test[test_idx, :], y_test_lb[test_idx]
 
-    for datlb in ['train', 'test']:
-        if linear_reg > 0:
-            continue
-        if datlb == 'train':
-            Xt = x_train
+        logger.info('trials={}, ranseed={}, reduce shape x_train={}, y_train={}, x_test={}, y_test={}'.format(\
+            n, ranseed, x_train.shape, y_train_lb.shape, x_test.shape, y_test_lb.shape))
+
+        # Make input_seq to put in hqrc
+        train_seq['input'] = [x.reshape(n_qrs, -1) for x in x_train]
+        train_seq['input'] = np.concatenate(train_seq['input'], axis=1)
+
+        test_seq['input'] = [x.reshape(n_qrs, -1) for x in x_test]
+        test_seq['input'] = np.concatenate(test_seq['input'], axis=1)
+
+        if full_mnist > 0:
+            numlb = 10
         else:
-            Xt  = x_test
-        # Make Xs to put in hqrc
-        Xs = [x.reshape(n_qrs, -1) for x in Xt]
-        Xs = np.concatenate(Xs, axis=1)
-        # Create training/test file
-        (ns, ds) = Xt.shape
-        logger.info('{} file in time series {}'.format(datlb, Xs.shape))
+            numlb = 2
+        
+        train_seq['label']  = y_train_lb
+        train_seq['output'] = np.identity(numlb)[y_train_lb]
+        train_seq['output'] = np.repeat(train_seq['output'], imlength, axis=0)
+        
+        test_seq['label']  = y_test_lb
+        test_seq['output']  = np.identity(numlb)[y_test_lb]
+        test_seq['output'] = np.repeat(test_seq['output'], imlength, axis=0)
+        
         jobs, pipels = [], [] 
         for alpha in strengths:
             for tau in taudeltas:
+                #recv_end, send_end = multiprocessing.Pipe(False)
                 # Create params and model
                 qparams = QRCParams(n_units=n_spins-1, n_envs=1, max_energy=J,\
                     beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
-                model = hqrc.HQRC(nqrc=n_qrs, gamma=alpha, sparsity=1.0, sigma_input=1.0, use_corr=use_corr)
-                model.init_reservoir(qparams, ranseed=rseed)
-                init_rs, rs_seed, use_lastrho = False, 0, False
-                # create training and testing data
-                datfile = '{}_{}_alpha_{:.2f}_tau_{:.4f}_shape_{}_{}.bin'.format(datlb, basename, alpha, tau, ns, ds)
-                datfile = os.path.join(bindir, datfile)
-                datfs['{}_alpha_{:.2f}_tau_{:.4f}'.format(datlb, alpha, tau)] = datfile
-                p = multiprocessing.Process(target=dump_reservoir_states, \
-                    args=(logger, datfile, Xs, qparams, model, init_rs, rs_seed))
+                p = multiprocessing.Process(target=training_reservoir_states, \
+                    args=(logger, qparams, n_qrs, alpha, buffer, use_corr, train_seq, test_seq, ranseed))
                 jobs.append(p)
+                #pipels.append(recv_end)
+
         # Start the process
         for p in jobs:
             p.start()
@@ -196,83 +215,3 @@ if __name__  == '__main__':
 
         # Sleep 5s
         time.sleep(5)
-    
-    # perform regression
-    for alpha in strengths:
-        for tau in taudeltas:
-            if linear_reg > 0:
-                X_train = np.array(x_train)
-                X_train = [x.reshape(n_qrs, -1) for x in X_train]
-                X_train = np.concatenate(X_train, axis=1).T
-                #if full_mnist == 0:
-                #    X_train = X_train[train_ids, :]
-            else:
-                # Training
-                with open(datfs['train_alpha_{:.2f}_tau_{:.4f}'.format(alpha, tau)], 'rb') as rrs:
-                    X_train = pickle.load(rrs)
-                    logger.debug('Loaded train file {}'.format(X_train.shape))
-                    # if use_corr == 0:
-                    #     ids = np.array(range(X_train.shape[1]))
-                    #     ids = ids[ids % 15 < 5]
-                    #     X_train = X_train[:, ids]
-                    #if full_mnist == 0:
-                    #    X_train = X_train[train_ids, :]
-            Y_train = np.repeat(Y_train_org, imlength, axis=0)
-            X_train = np.hstack( [X_train, np.ones([X_train.shape[0], 1]) ] )
-            if linear_reg <= 0:
-                X_train = X_train[buffer:, :]
-                Y_train = Y_train[buffer:, :]
-                y_train_lb = y_train_lb[transient:]
-
-            logger.info('Nqr={}, V={}, alpha={}, tau={}, X_train shape={}, Y_train shape={}'.format(\
-                n_qrs, V, alpha, tau, X_train.shape, Y_train.shape))
-            logger.debug('Perform training')
-            #XTX = X_train.T @ X_train
-            #XTY = X_train.T @ Y_train
-            #I = np.identity(np.shape(XTX)[1])	
-            #pinv_ = scipypinv2(XTX + beta * I)
-            #W_out = pinv_ @ XTY
-            W_out = np.linalg.pinv(X_train, rcond = beta) @ Y_train
-            logger.info('Wout shape={}'.format(W_out.shape))
-            y_train_predict = X_train @ W_out
-            y_train_predict = np.array([softmax(a) for a in y_train_predict])
-            y_train_predict = group_avg(y_train_predict, imlength)
-            #print(y_train_predict)
-            logger.info('y_train_predict shape={}'.format(y_train_predict.shape))
-            
-            train_acc = get_acc(y_train_predict, y_train_lb)
-            #train_acc = get_acc_major_vote(X_train @ W_out, imlength, y_train_lb)
-            logger.info('Nqr={}, V={}, tau={}, alpha={}, Train acc={}'.format(n_qrs, V, tau, alpha, train_acc))
-
-            # Testing
-            if linear_reg > 0:
-                X_test = np.array(x_test)
-                X_test = [x.reshape(n_qrs, -1) for x in X_test]
-                X_test = np.concatenate(X_test, axis=1).T
-                #if full_mnist == 0:
-                #    X_test = X_test[test_ids, :]
-            else:
-                with open(datfs['test_alpha_{:.2f}_tau_{:.4f}'.format(alpha, tau)], 'rb') as rrs:
-                    X_test = pickle.load(rrs)
-                    logger.debug('Loaded test file {}'.format(X_test.shape))
-                    # if use_corr == 0:
-                    #     ids = np.array(range(X_test.shape[1]))
-                    #     ids = ids[ids % 15 < 5]
-                    #     X_test = X_test[:, ids]
-                    #if full_mnist == 0:
-                    #    X_test = X_test[test_ids, :]
-            Y_test = np.repeat(Y_test_org, imlength, axis=0)
-            X_test = np.hstack( [X_test, np.ones([X_test.shape[0], 1]) ] )
-            # if linear_reg <= 0:
-            #     X_test = X_test[buffer:, :]
-            #     Y_test = Y_test[buffer:, :]
-            #     y_test_lb = y_test_lb[transient:]
-
-            logger.info('Nqr={}, V={}, tau={}, alpha={}, X_test shape = {}'.format(n_qrs, V, tau, alpha, X_test.shape))
-            y_test_predict = X_test @ W_out
-            y_test_predict = np.array([softmax(a) for a in y_test_predict])
-            y_test_predict = group_avg(X_test @ W_out, imlength)
-            logger.info('y_test_predict shape={}'.format(y_test_predict.shape))
-            test_acc = get_acc(y_test_predict, y_test_lb)
-            #test_acc = get_acc_major_vote(X_test @ W_out, imlength, y_test_lb)
-            logger.info('Nqr={}, V={}, tau={}, alpha={}, Test acc={}'.format(n_qrs, V, tau, alpha, test_acc))
