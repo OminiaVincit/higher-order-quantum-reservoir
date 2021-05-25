@@ -154,7 +154,10 @@ class HQRC(object):
             for qindex2 in range(qindex1+1, Nspins):
                 Jij = np.abs(qindex2-qindex1)**(-a)
                 Nalpha += Jij / (Nspins-1)
-        B = self.max_energy / bc # Magnetic field
+        if bc > 0:
+            B = self.max_energy / bc # Magnetic field
+        else:
+            B = self.max_energy
 
         # Intialize evolution operators
         tmp_uops = []
