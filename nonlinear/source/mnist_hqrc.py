@@ -129,48 +129,51 @@ if __name__  == '__main__':
     basename = 'join_{}_{}_linear_{}_nqrs_{}_corr_{}_nspins_{}_V_{}_rate_{}_trials_{}'.format(\
         mnist_size, dynamic, linear_reg, n_qrs, use_corr, n_spins, V, rate, ntrials)
     
-    x_train, y_train_lb, x_test, y_test_lb = gen_mnist_dataset_join_test(mnist_dir, mnist_size)
-    imlength = int(x_train.shape[1] / n_qrs)
-    train_seq = dict()
-    test_seq  = dict()
-
+    x_train_org, y_train_lb_org, x_test_org, y_test_lb_org = gen_mnist_dataset_join_test(mnist_dir, mnist_size)
+    imlength = int(x_train_org.shape[1] / n_qrs)
+    
     if full_mnist <= 0:
         basename = '{}_lb_{}_{}'.format(basename, label1, label2)
         # Train data
-        train_ids = (y_train_lb == label1) | (y_train_lb == label2)
-        x_train = x_train[train_ids, :]
-        y_train_lb = y_train_lb[train_ids]
-        y_train_lb[y_train_lb == label1] = 0
-        y_train_lb[y_train_lb == label2] = 1
+        train_ids = (y_train_lb_org == label1) | (y_train_lb_org == label2)
+        x_train_org = x_train_org[train_ids, :]
+        y_train_lb_org = y_train_lb_org[train_ids]
+        y_train_lb_org[y_train_lb_org == label1] = 0
+        y_train_lb_org[y_train_lb_org == label2] = 1
 
         # Test data 
-        test_ids = (y_test_lb == label1) | (y_test_lb == label2)
-        x_test = x_test[test_ids, :]
-        y_test_lb = y_test_lb[test_ids]
-        y_test_lb[y_test_lb == label1] = 0
-        y_test_lb[y_test_lb == label2] = 1
+        test_ids = (y_test_lb_org == label1) | (y_test_lb_org == label2)
+        x_test_org = x_test_org[test_ids, :]
+        y_test_lb_org = y_test_lb_org[test_ids]
+        y_test_lb_org[y_test_lb_org == label1] = 0
+        y_test_lb_org[y_test_lb_org == label2] = 1
 
     log_filename = os.path.join(logdir, '{}_softmax.log'.format(basename))
     logger = get_module_logger(__name__, log_filename)
     logger.info(log_filename)
     logger.info(args)
     logger.info('Original shape x_train={}, y_train={}, x_test={}, y_test={}'.format(\
-        x_train.shape, y_train_lb.shape, x_test.shape, y_test_lb.shape))
+        x_train_org.shape, y_train_lb_org.shape, x_test_org.shape, y_test_lb_org.shape))
 
     buffer = imlength * transient
     logger.info('Transient={}, buffer={}, train rate={}'.format(transient, buffer, rate))
     
+    jobs, pipels = [], []
     for n in range(ntrials):
+    
+        train_seq = dict()
+        test_seq  = dict()
+
         ranseed = rseed + 10000*n
         np.random.seed(seed=ranseed)
         # Permute data
-        N_train, N_test = len(y_train_lb), len(y_test_lb)
+        N_train, N_test = len(y_train_lb_org), len(y_test_lb_org)
         nm_train, nm_test = int(N_train*rate), int(N_test*rate)
         train_idx = np.random.permutation(N_train)[:nm_train]
         test_idx = np.random.permutation(N_test)
         
-        x_train, y_train_lb = x_train[train_idx, :], y_train_lb[train_idx]
-        x_test, y_test_lb  = x_test[test_idx, :], y_test_lb[test_idx]
+        x_train, y_train_lb = x_train_org[train_idx, :], y_train_lb_org[train_idx]
+        x_test, y_test_lb  = x_test_org[test_idx, :], y_test_lb_org[test_idx]
 
         logger.info('trials={}, ranseed={}, reduce shape x_train={}, y_train={}, x_test={}, y_test={}'.format(\
             n, ranseed, x_train.shape, y_train_lb.shape, x_test.shape, y_test_lb.shape))
@@ -195,7 +198,6 @@ if __name__  == '__main__':
         test_seq['output']  = np.identity(numlb)[y_test_lb]
         test_seq['output'] = np.repeat(test_seq['output'], imlength, axis=0)
         
-        jobs, pipels = [], []
         for D in Ds: 
             for alpha in strengths:
                 for tau in taudeltas:
@@ -208,13 +210,13 @@ if __name__  == '__main__':
                     jobs.append(p)
                     #pipels.append(recv_end)
 
-        # Start the process
-        for p in jobs:
-            p.start()
+    # Start the process
+    for p in jobs:
+        p.start()
 
-        # Ensure all processes have finished execution
-        for p in jobs:
-            p.join()
+    # Ensure all processes have finished execution
+    for p in jobs:
+        p.join()
 
-        # Sleep 5s
-        time.sleep(5)
+    # Sleep 5s
+    time.sleep(5)
