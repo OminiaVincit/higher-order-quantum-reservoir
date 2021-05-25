@@ -165,6 +165,8 @@ class HQRC(object):
             for qindex in range(Nspins):
                 if self.dynamic == DYNAMIC_FULL_RANDOM:
                     coef = (np.random.rand()-0.5) * 2 * self.max_energy
+                elif self.dynamic == DINAMIC_PHASE_TRANS:
+                    coef = (np.random.rand()-0.5) * 2 * self.non_diag + self.max_energy
                 else:
                     coef = B
                 hamiltonian -= coef * self.Zop[qindex]

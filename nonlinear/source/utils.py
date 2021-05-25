@@ -22,6 +22,7 @@ DYNAMIC_HALF_RANDOM = 'half_random'
 DYNAMIC_FULL_CONST_TRANS = 'full_const_trans'
 DYNAMIC_FULL_CONST_COEFF = 'full_const_coeff'
 DYNAMIC_ION_TRAP = 'ion_trap'
+DINAMIC_PHASE_TRANS = 'phase_trans'
 
 class QRCParams():
     def __init__(self, n_units, n_envs, max_energy, virtual_nodes, tau, init_rho, \

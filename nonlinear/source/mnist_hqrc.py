@@ -32,9 +32,9 @@ def training_reservoir_states(logger, qparams, nqrs, alpha, buffer, use_corr, tr
     if linear_reg < 0:
         logger.debug('Linear regression')
     else:
-        tau = qparams.tau
-        logger.debug('ranseed={}, Start regression with QR by tau={}, alpha={}, shape train={}, test={}'.format(\
-            ranseed, tau, alpha, train_seq['input'].shape, test_seq['input'].shape))
+        tau, D = qparams.tau, qparams.non_diag
+        logger.debug('ranseed={}, Start regression with QR by D={}, tau={}, alpha={}, shape train={}, test={}'.format(\
+            ranseed, D, tau, alpha, train_seq['input'].shape, test_seq['input'].shape))
         #input_signals = np.array(Xs)
         #rstates = model.init_forward(qparams, input_signals, init_rs=init_rs, ranseed = ranseed)
         #_, rstates =  model.feed_forward(input_signals, predict=False, use_lastrho=use_lastrho)
@@ -43,13 +43,13 @@ def training_reservoir_states(logger, qparams, nqrs, alpha, buffer, use_corr, tr
             test_seq['input'], test_seq['output'], \
             nqrc=nqrs, gamma=alpha, ranseed=ranseed, deep=0, use_corr=use_corr)
         
-        logger.debug('ranseed={}, tau={}, alpha={}, (not real) loss train={}, val={}'.format(\
-            ranseed, tau, alpha, train_loss, val_loss))
+        logger.debug('ranseed={}, D={}, tau={}, alpha={}, (not real) loss train={}, val={}'.format(\
+            ranseed, D, tau, alpha, train_loss, val_loss))
         train_acc = get_acc_from_series(train_pred_seq, train_seq['label'])
         test_acc  = get_acc_from_series(test_pred_seq, test_seq['label'])
 
-        logger.info('ranseed={}, Finish regression with QR by tau={}, alpha={}, train_acc={}, test_acc={}'.format(\
-            ranseed, tau, alpha, train_acc, test_acc))
+        logger.info('ranseed={}, Finish regression with QR by D={}, tau={}, alpha={}, train_acc={}, test_acc={}'.format(\
+            ranseed, D, tau, alpha, train_acc, test_acc))
     #rstr = '{} {:.10f} {:.10f} {:.10f}'.format(alpha, qparams.tau, train_acc, test_acc)
     #send_end.send(rstr)
 
@@ -63,9 +63,10 @@ if __name__  == '__main__':
     parser.add_argument('--solver', type=str, default=LINEAR_PINV, \
         help='regression solver by linear_pinv,ridge_pinv,auto,svd,cholesky,lsqr,sparse_cg,sag')
     parser.add_argument('--dynamic', type=str, default=DYNAMIC_FULL_RANDOM,\
-        help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
+        help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap,phase_trans')
 
     parser.add_argument('--transient', type=int, default=0, help='Transitient time steps')
+    parser.add_argument('--non_diags', type=str, default='1.0', help='Nondiag for transverse field')
     
     parser.add_argument('--nqrs', type=int, default=1, help='Number of reservoirs')
     parser.add_argument('--ntrials', type=int, default=1)
@@ -102,6 +103,7 @@ if __name__  == '__main__':
     #taudeltas = list(np.arange(-7, 7.1, args.interval))
     taudeltas = [2**x for x in taudeltas]
     strengths = [float(x) for x in args.strengths.split(',')]
+    Ds = [float(x) for x in args.non_diags.split(',')]
 
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
         os.mkdir(savedir)
@@ -193,17 +195,18 @@ if __name__  == '__main__':
         test_seq['output']  = np.identity(numlb)[y_test_lb]
         test_seq['output'] = np.repeat(test_seq['output'], imlength, axis=0)
         
-        jobs, pipels = [], [] 
-        for alpha in strengths:
-            for tau in taudeltas:
-                #recv_end, send_end = multiprocessing.Pipe(False)
-                # Create params and model
-                qparams = QRCParams(n_units=n_spins-1, n_envs=1, max_energy=J,\
-                    beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
-                p = multiprocessing.Process(target=training_reservoir_states, \
-                    args=(logger, qparams, n_qrs, alpha, buffer, use_corr, train_seq, test_seq, ranseed))
-                jobs.append(p)
-                #pipels.append(recv_end)
+        jobs, pipels = [], []
+        for D in Ds: 
+            for alpha in strengths:
+                for tau in taudeltas:
+                    #recv_end, send_end = multiprocessing.Pipe(False)
+                    # Create params and model
+                    qparams = QRCParams(n_units=n_spins-1, n_envs=1, max_energy=J,non_diag=D,\
+                        beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
+                    p = multiprocessing.Process(target=training_reservoir_states, \
+                        args=(logger, qparams, n_qrs, alpha, buffer, use_corr, train_seq, test_seq, ranseed))
+                    jobs.append(p)
+                    #pipels.append(recv_end)
 
         # Start the process
         for p in jobs:
