@@ -10,7 +10,7 @@ import argparse
 import multiprocessing
 import matplotlib.pyplot as plt
 import time
-
+import scipy
 import hqrc as hqrc
 from loginit import get_module_logger
 
@@ -19,7 +19,7 @@ from mnist_utils import *
 
 MNIST_DIR = "../mnist"
 RES_MNIST_DIR = "../results/rs_mnist"
-MNIST_SIZE="10x10"
+MNIST_SIZE="28x28"
 
 def get_acc_from_series(y_preds, y_lbs):
     y_preds = np.array([softmax(a) for a in y_preds])
@@ -28,7 +28,7 @@ def get_acc_from_series(y_preds, y_lbs):
     acc = get_acc(y_preds, y_lbs)
     return acc
 
-def training_reservoir_states(logger, qparams, nqrs, alpha, buffer, use_corr, train_seq, test_seq, ranseed):
+def training_reservoir_states(logger, qparams, nqrs, alpha, buffer, use_corr, train_seq, test_seq, ranseed, send_end):
     if linear_reg < 0:
         logger.debug('Linear regression')
     else:
@@ -48,10 +48,11 @@ def training_reservoir_states(logger, qparams, nqrs, alpha, buffer, use_corr, tr
         train_acc = get_acc_from_series(train_pred_seq, train_seq['label'])
         test_acc  = get_acc_from_series(test_pred_seq, test_seq['label'])
 
-        logger.info('ranseed={}, Finish regression with QR by D={}, tau={}, alpha={}, train_acc={}, test_acc={}'.format(\
-            ranseed, D, tau, alpha, train_acc, test_acc))
+        rstr = 'ranseed={}, Finish regression with QR by D={}, tau={}, alpha={}, train_acc={}, test_acc={}'.format(\
+            ranseed, D, tau, alpha, train_acc, test_acc)
+        logger.debug(rstr)
     #rstr = '{} {:.10f} {:.10f} {:.10f}'.format(alpha, qparams.tau, train_acc, test_acc)
-    #send_end.send(rstr)
+    send_end.send('Final result: {}'.format(rstr))
 
 if __name__  == '__main__':
     # Check for command line arguments
@@ -68,11 +69,12 @@ if __name__  == '__main__':
     parser.add_argument('--transient', type=int, default=0, help='Transitient time steps')
     parser.add_argument('--non_diags', type=str, default='1.0', help='Nondiag for transverse field')
     
-    parser.add_argument('--nqrs', type=int, default=1, help='Number of reservoirs')
-    parser.add_argument('--ntrials', type=int, default=1)
+    parser.add_argument('--nqrs', type=int, default=1, help='Number of reservoirs=dimension of input')
+    parser.add_argument('--width', type=int, default=8, help='Width of input')
+    parser.add_argument('--ntrials', type=int, default=8)
     parser.add_argument('--virtuals', type=int, default=1)
     parser.add_argument('--strengths', type=str, default='0.0', help='Connection strengths')
-    parser.add_argument('--taudeltas', type=str, default='-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7')
+    parser.add_argument('--taudeltas', type=str, default='-5,-4,-3,-2,-1,0,1,2,3,4,5,6')
     parser.add_argument('--interval', type=float, default=0.2, help='tau-interval')
     
     parser.add_argument('--linear_reg', type=int, default=0)
@@ -91,7 +93,7 @@ if __name__  == '__main__':
     args = parser.parse_args()
     print(args)
 
-    n_qrs, n_spins, beta, rseed = args.nqrs, args.spins, args.beta, args.rseed
+    n_qrs, width, n_spins, beta, rseed = args.nqrs, args.width, args.spins, args.beta, args.rseed
     J, init_rho, V, transient = args.coupling, args.rho, args.virtuals, args.transient
     
     solver, linear_reg, use_corr, transient = args.solver, args.linear_reg, args.use_corr, args.transient
@@ -126,11 +128,10 @@ if __name__  == '__main__':
     if os.path.isdir(bindir) == False:
         os.mkdir(bindir)
 
-    basename = 'join_{}_{}_linear_{}_nqrs_{}_corr_{}_nspins_{}_V_{}_rate_{}_trials_{}'.format(\
-        mnist_size, dynamic, linear_reg, n_qrs, use_corr, n_spins, V, rate, ntrials)
+    basename = 'join_{}_{}_linear_{}_nqrs_{}_w_{}_corr_{}_nspins_{}_V_{}_rate_{}_trials_{}'.format(\
+        mnist_size, dynamic, linear_reg, n_qrs, width, use_corr, n_spins, V, rate, ntrials)
     
     x_train_org, y_train_lb_org, x_test_org, y_test_lb_org = gen_mnist_dataset_join_test(mnist_dir, mnist_size)
-    imlength = int(x_train_org.shape[1] / n_qrs)
     
     if full_mnist <= 0:
         basename = '{}_lb_{}_{}'.format(basename, label1, label2)
@@ -155,7 +156,7 @@ if __name__  == '__main__':
     logger.info('Original shape x_train={}, y_train={}, x_test={}, y_test={}'.format(\
         x_train_org.shape, y_train_lb_org.shape, x_test_org.shape, y_test_lb_org.shape))
 
-    buffer = imlength * transient
+    buffer = transient * width
     logger.info('Transient={}, buffer={}, train rate={}'.format(transient, buffer, rate))
     
     jobs, pipels = [], []
@@ -175,6 +176,15 @@ if __name__  == '__main__':
         x_train, y_train_lb = x_train_org[train_idx, :], y_train_lb_org[train_idx]
         x_test, y_test_lb  = x_test_org[test_idx, :], y_test_lb_org[test_idx]
 
+        # Multiply data with a fixed random matrix with size n_qrs x width
+        N_in = x_train.shape[1]
+        N_out = n_qrs * width
+        W_in = scipy.sparse.random(N_in, N_out, density=0.25, random_state = ranseed).A
+        logger.debug('trials={}, W_in shape ={}'.format(n, W_in.shape))
+        
+        x_train = np.matmul(x_train, W_in)
+        x_test  = np.matmul(x_test, W_in)
+
         logger.info('trials={}, ranseed={}, reduce shape x_train={}, y_train={}, x_test={}, y_test={}'.format(\
             n, ranseed, x_train.shape, y_train_lb.shape, x_test.shape, y_test_lb.shape))
 
@@ -192,23 +202,23 @@ if __name__  == '__main__':
         
         train_seq['label']  = y_train_lb
         train_seq['output'] = np.identity(numlb)[y_train_lb]
-        train_seq['output'] = np.repeat(train_seq['output'], imlength, axis=0)
+        train_seq['output'] = np.repeat(train_seq['output'], width, axis=0)
         
         test_seq['label']  = y_test_lb
         test_seq['output']  = np.identity(numlb)[y_test_lb]
-        test_seq['output'] = np.repeat(test_seq['output'], imlength, axis=0)
+        test_seq['output'] = np.repeat(test_seq['output'], width, axis=0)
         
         for D in Ds: 
             for alpha in strengths:
                 for tau in taudeltas:
-                    #recv_end, send_end = multiprocessing.Pipe(False)
+                    recv_end, send_end = multiprocessing.Pipe(False)
                     # Create params and model
                     qparams = QRCParams(n_units=n_spins-1, n_envs=1, max_energy=J,non_diag=D,\
                         beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
                     p = multiprocessing.Process(target=training_reservoir_states, \
-                        args=(logger, qparams, n_qrs, alpha, buffer, use_corr, train_seq, test_seq, ranseed))
+                        args=(logger, qparams, n_qrs, alpha, buffer, use_corr, train_seq, test_seq, ranseed, send_end))
                     jobs.append(p)
-                    #pipels.append(recv_end)
+                    pipels.append(recv_end)
 
     # Start the process
     for p in jobs:
@@ -220,3 +230,7 @@ if __name__  == '__main__':
 
     # Sleep 5s
     time.sleep(5)
+
+    for x in pipels:
+        rstr = x.recv()
+        logger.info(rstr)
