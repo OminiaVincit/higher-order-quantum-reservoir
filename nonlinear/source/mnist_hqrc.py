@@ -29,8 +29,23 @@ def get_acc_from_series(y_preds, y_lbs):
     return acc
 
 def training_reservoir_states(logger, qparams, nqrs, alpha, buffer, use_corr, train_seq, test_seq, ranseed, send_end):
-    if linear_reg < 0:
+    if linear_reg > 0:
         logger.debug('Linear regression')
+        X_train, Y_train = train_seq['input'].T, train_seq['output']
+        X_test, Y_test   = test_seq['input'].T, test_seq['output']
+        X_train = np.hstack( [X_train, np.ones([X_train.shape[0], 1]) ] )
+        X_test  = np.hstack( [X_test , np.ones([X_test.shape[0], 1]) ] )
+        
+        W_out = np.linalg.pinv(X_train, rcond = 1e-10) @ Y_train
+        #logger.debug('Wout shape={}'.format(W_out.shape))
+        y_train_predict = X_train @ W_out
+        y_test_predict = X_test @ W_out
+
+        train_acc = get_acc_from_series(y_train_predict, train_seq['label'])
+        test_acc  = get_acc_from_series(y_test_predict, test_seq['label'])
+        rstr = 'ranseed={}, Finish linear regression train_acc={}, test_acc={}'.format(\
+            ranseed, train_acc, test_acc)
+        logger.debug(rstr)
     else:
         tau, D = qparams.tau, qparams.non_diag
         logger.debug('ranseed={}, Start regression with QR by D={}, tau={}, alpha={}, shape train={}, test={}'.format(\
