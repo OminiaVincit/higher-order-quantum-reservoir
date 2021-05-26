@@ -96,7 +96,8 @@ if __name__  == '__main__':
         if full_mnist <= 0:
             basename = '{}_lb_{}_{}'.format(basename, label1, label2)
         logfile = os.path.join(logdir, '{}_softmax.log'.format(basename))
-        
+        if os.path.isfile(logfile) == False:
+            continue
         accs = dict()
         for alpha in strengths:
             key = '{:.2f}'.format(alpha)
