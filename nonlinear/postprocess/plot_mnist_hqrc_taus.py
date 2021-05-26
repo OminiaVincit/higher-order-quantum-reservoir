@@ -97,6 +97,7 @@ if __name__  == '__main__':
             basename = '{}_lb_{}_{}'.format(basename, label1, label2)
         logfile = os.path.join(logdir, '{}_softmax.log'.format(basename))
         if os.path.isfile(logfile) == False:
+            print('Not found file {}'.format(logfile))
             continue
         accs = dict()
         for alpha in strengths:
@@ -104,7 +105,7 @@ if __name__  == '__main__':
             accs[key] = defaultdict(list)
             
         with open(logfile, 'r') as rf:
-            print('Open {}'.format(logfile))
+            print('Opened {}'.format(logfile))
             lines = rf.readlines()
             for line in lines:
                 if 'test_acc=' in line: #and 'D={}'.format(D) in line
@@ -152,9 +153,10 @@ if __name__  == '__main__':
         ax.tick_params('both', length=8, width=1, which='major', labelsize=28)
     
     outbase = os.path.join(figdir, basename)
-    for ftype in ['png', 'svg']:
-        plt.savefig('{}_acc.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
-    plt.show()
+    if nc > 0:
+        for ftype in ['png', 'svg']:
+            plt.savefig('{}_acc.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
+        plt.show()
     
     
                 

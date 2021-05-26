@@ -89,6 +89,7 @@ if __name__  == '__main__':
             basename = '{}_lb_{}_{}'.format(basename, label1, label2)
         logfile = os.path.join(logdir, '{}_softmax.log'.format(basename))
         if os.path.isfile(logfile) == False:
+            print('Not found file {}'.format(logfile))
             continue
         accs = dict()
         for tau in taudeltas:
@@ -96,6 +97,7 @@ if __name__  == '__main__':
             accs[key] = defaultdict(list)
             
         with open(logfile, 'r') as rf:
+            print('Opened file {}'.format(logfile))
             lines = rf.readlines()
             for line in lines:
                 if 'test_acc=' in line and 'D={}'.format(D) in line:
