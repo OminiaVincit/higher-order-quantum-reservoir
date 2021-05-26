@@ -38,7 +38,7 @@ if __name__  == '__main__':
     parser.add_argument('--strengths', type=str, default='0.0,0.1,0.5,0.9', help='Connection strengths')
     parser.add_argument('--taudeltas', type=str, default='5.0')
     parser.add_argument('--xmin', type=float, default=1.0, help='xmin in plot inset')
-    parser.add_argument('--rate', type=float, default=0.1, help='training rate')
+    parser.add_argument('--rates', type=str, default='0.1,1.0', help='training rate')
     parser.add_argument('--non_diag', type=float, default=0.0, help='magnitude of transeverse field')
 
     parser.add_argument('--linear_reg', type=int, default=0)
@@ -56,7 +56,7 @@ if __name__  == '__main__':
     print(args)
 
     n_qrs, n_spins, rseed = args.nqrs, args.spins, args.rseed
-    V, xmin, inset, D, rate, N = args.virtuals, args.xmin, args.inset, args.non_diag, args.rate, args.ntrials
+    V, xmin, inset, D, N = args.virtuals, args.xmin, args.inset, args.non_diag, args.ntrials
     
     linear_reg, use_corr = args.linear_reg, args.use_corr
     full_mnist, label1, label2 = args.full, args.label1, args.label2
@@ -67,71 +67,73 @@ if __name__  == '__main__':
     #taudeltas = list(np.arange(-7, 7.1, args.interval))
     taudeltas = [2**x for x in taudeltas]
     strengths = [float(x) for x in args.strengths.split(',')]
+    rates = [float(x) for x in args.rates.split(',')]
 
     figdir = os.path.join(savedir, 'figs')
     if os.path.isdir(figdir) == False:
         os.mkdir(figdir)
 
     logdir = os.path.join(savedir, 'log')
-    basename = 'join_{}_{}_linear_{}_nqrs_{}_corr_{}_nspins_{}_V_{}_rate_{}_trials_{}'.format(\
-        mnist_size, dynamic, linear_reg, n_qrs, use_corr, n_spins, V, rate, N)
-    if full_mnist <= 0:
-        basename = '{}_lb_{}_{}'.format(basename, label1, label2)
-    logfile = os.path.join(logdir, '{}_softmax.log'.format(basename))
-    
-    accs = dict()
-    for tau in taudeltas:
-        key = '{:.2f}'.format(tau)
-        accs[key] = defaultdict(list)
-        
-    with open(logfile, 'r') as rf:
-        lines = rf.readlines()
-        for line in lines:
-            if 'test_acc=' in line and 'D={}'.format(D) in line:
-                tau = (float)(re.search('tau=([0-9.]*)', line).group(1))
-                alpha = (float)(re.search('alpha=([0-9.]*)', line).group(1))
-                key = '{:.2f}'.format(tau)
-                if key not in accs.keys():
-                    continue
-                acc = (float)(re.search('test_acc=([0-9.]*)', line).group(1))
-                accs[key][alpha].append(acc)
-    
+    colors = putils.cycle
+    nc = 0
     # Plot the accuracy
     putils.setPlot(fontsize=24, labelsize=24)
     fig, axs = plt.subplots(1, 1, figsize=(24, 10), squeeze=False, dpi=600)
     axs = axs.ravel()
     ax1 = axs[0]
 
-    if inset > 0:
-        # Create a set of inset Axes: these should fill the bounding box allocated to them.
-        ax2 = plt.axes([0,0,1,1])
-        # Manually set the position and relative size of the inset axes within ax1
-        # left, bottom, width, height
-        ip = InsetPosition(ax1, [0.50,0.10,0.45,0.57])
-        ax2.set_axes_locator(ip)
-        # Mark the region corresponding to the inset axes on ax1 and draw lines
-        # in grey linking the two axes.
-        # mark_inset(ax1, ax2, loc1=2, loc2=4, fc="none", ec='0.5')
-
-    
-    colors = putils.cycle
-    nc = 0
-    for tau in sorted(accs.keys()):
-        color = colors[nc % len(colors)]
-        xs = sorted(accs[tau].keys())
-        avg_accs, std_accs = [], []
-        for alpha in xs:
-            avg_accs.append(np.mean(accs[tau][alpha]))
-            std_accs.append(np.std(accs[tau][alpha]))
-        avg_accs, std_accs = np.array(avg_accs), np.array(std_accs)
-        ax1.plot(xs, avg_accs, 's-', label='$\\tau=${}, $D=${}'.format(tau, D), linewidth=4, \
-            alpha=0.8, markersize=16, mec='k', mew=0.5, color=color)
-        ax1.fill_between(xs, avg_accs - std_accs, avg_accs + std_accs, facecolor=color, alpha=0.2)
-        if inset > 0:
-            ax2.plot(xs[xs >= 2**xmin], avg_accs[xs >= 2**xmin], 's-', label='$\\tau=${}'.format(tau), linewidth=4, \
-                alpha=0.8, markersize=12, mec='k', mew=0.5, color=color)
+    for rate in rates:
+        basename = 'join_{}_{}_linear_{}_nqrs_{}_corr_{}_nspins_{}_V_{}_rate_{}_trials_{}'.format(\
+            mnist_size, dynamic, linear_reg, n_qrs, use_corr, n_spins, V, rate, N)
+        if full_mnist <= 0:
+            basename = '{}_lb_{}_{}'.format(basename, label1, label2)
+        logfile = os.path.join(logdir, '{}_softmax.log'.format(basename))
         
-        nc += 1
+        accs = dict()
+        for tau in taudeltas:
+            key = '{:.2f}'.format(tau)
+            accs[key] = defaultdict(list)
+            
+        with open(logfile, 'r') as rf:
+            lines = rf.readlines()
+            for line in lines:
+                if 'test_acc=' in line and 'D={}'.format(D) in line:
+                    tau = (float)(re.search('tau=([0-9.]*)', line).group(1))
+                    alpha = (float)(re.search('alpha=([0-9.]*)', line).group(1))
+                    key = '{:.2f}'.format(tau)
+                    if key not in accs.keys():
+                        continue
+                    acc = (float)(re.search('test_acc=([0-9.]*)', line).group(1))
+                    accs[key][alpha].append(acc)
+        
+        if inset > 0:
+            # Create a set of inset Axes: these should fill the bounding box allocated to them.
+            ax2 = plt.axes([0,0,1,1])
+            # Manually set the position and relative size of the inset axes within ax1
+            # left, bottom, width, height
+            ip = InsetPosition(ax1, [0.50,0.10,0.45,0.57])
+            ax2.set_axes_locator(ip)
+            # Mark the region corresponding to the inset axes on ax1 and draw lines
+            # in grey linking the two axes.
+            # mark_inset(ax1, ax2, loc1=2, loc2=4, fc="none", ec='0.5')
+
+        
+        for tau in sorted(accs.keys()):
+            color = colors[nc % len(colors)]
+            xs = sorted(accs[tau].keys())
+            avg_accs, std_accs = [], []
+            for alpha in xs:
+                avg_accs.append(np.mean(accs[tau][alpha]))
+                std_accs.append(np.std(accs[tau][alpha]))
+            avg_accs, std_accs = np.array(avg_accs), np.array(std_accs)
+            ax1.plot(xs, avg_accs, 's-', label='$\\tau=${}, $D=${}, rate={}'.format(tau, D, rate), linewidth=4, \
+                alpha=0.8, markersize=16, mec='k', mew=0.5, color=color)
+            ax1.fill_between(xs, avg_accs - std_accs, avg_accs + std_accs, facecolor=color, alpha=0.2)
+            if inset > 0:
+                ax2.plot(xs[xs >= 2**xmin], avg_accs[xs >= 2**xmin], 's-', label='$\\tau=${}'.format(tau), linewidth=4, \
+                    alpha=0.8, markersize=12, mec='k', mew=0.5, color=color)
+            
+            nc += 1
     
     ax1.set_title('{}'.format(basename), fontsize=16)
     ax1.set_xticks(np.arange(0.0,0.91,0.1))
