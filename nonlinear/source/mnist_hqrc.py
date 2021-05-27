@@ -21,13 +21,6 @@ MNIST_DIR = "../mnist"
 RES_MNIST_DIR = "../results/rs_mnist"
 MNIST_SIZE="28x28"
 
-def get_acc_from_series(y_preds, y_lbs):
-    y_preds = np.array([softmax(a) for a in y_preds])
-    imlength = int(y_preds.shape[0] / len(y_lbs))
-    y_preds = group_avg(y_preds, imlength)
-    acc = get_acc(y_preds, y_lbs)
-    return acc
-
 def training_reservoir_states(logger, qparams, nqrs, alpha, buffer, use_corr, train_seq, test_seq, ranseed, send_end):
     if linear_reg > 0:
         logger.debug('Linear regression')
@@ -194,11 +187,12 @@ if __name__  == '__main__':
         # Multiply data with a fixed random matrix with size n_qrs x width
         N_in = x_train.shape[1]
         N_out = n_qrs * width
-        W_in = scipy.sparse.random(N_in, N_out, density=0.25, random_state = ranseed).A
-        logger.debug('trials={}, W_in shape ={}'.format(n, W_in.shape))
-        
-        x_train = np.matmul(x_train, W_in)
-        x_test  = np.matmul(x_test, W_in)
+        if N_in != N_out:
+            W_in = scipy.sparse.random(N_in, N_out, density=0.25, random_state = ranseed).A
+            logger.debug('Multiply with random matrix: trials={}, W_in shape ={}'.format(n, W_in.shape))
+            
+            x_train = np.matmul(x_train, W_in)
+            x_test  = np.matmul(x_test, W_in)
 
         logger.info('trials={}, ranseed={}, reduce shape x_train={}, y_train={}, x_test={}, y_test={}'.format(\
             n, ranseed, x_train.shape, y_train_lb.shape, x_test.shape, y_test_lb.shape))

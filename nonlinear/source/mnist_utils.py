@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from scipy.special import softmax
 
 # Generate MNIST dataset with appropriate size
 def gen_mnist_dataset(mnist_dir, mnist_size):
@@ -54,4 +55,11 @@ def get_acc_major_vote(arr, N, out_lb):
         ed = bg + N
     pred_lb = np.array(pred_lb)
     acc = np.sum(pred_lb == out_lb) / pred_lb.shape[0]
+    return acc
+
+def get_acc_from_series(y_preds, y_lbs):
+    y_preds = np.array([softmax(a) for a in y_preds])
+    imlength = int(y_preds.shape[0] / len(y_lbs))
+    y_preds = group_avg(y_preds, imlength)
+    acc = get_acc(y_preds, y_lbs)
     return acc
