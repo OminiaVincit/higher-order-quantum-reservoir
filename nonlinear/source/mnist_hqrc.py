@@ -193,6 +193,7 @@ if __name__  == '__main__':
         N_out = n_qrs * width
         if N_in != N_out:
             W_in = scipy.sparse.random(N_in, N_out, density=0.25, random_state = ranseed).A
+            W_in = W_in / N_in
             logger.debug('Multiply with random matrix: trials={}, W_in shape ={}'.format(n, W_in.shape))
             
             x_train = np.matmul(x_train, W_in)
