@@ -183,7 +183,9 @@ if __name__  == '__main__':
         
         x_train, y_train_lb = x_train_org[train_idx, :], y_train_lb_org[train_idx]
         x_test, y_test_lb  = x_test_org[test_idx, :], y_test_lb_org[test_idx]
-
+        logger.debug('Train min={}, max={}; Test min={}, max={}'.format(\
+            np.min(x_train), np.max(x_train), np.min(x_test), np.max(x_test)))
+        
         # Multiply data with a fixed random matrix with size n_qrs x width
         N_in = x_train.shape[1]
         N_out = n_qrs * width

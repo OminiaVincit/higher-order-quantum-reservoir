@@ -16,9 +16,9 @@ def gen_mnist_dataset(mnist_dir, mnist_size):
     xs_test, ys_test = test_set
     xs_val, ys_val = valid_set
 
-    xs_train = xs_train / 255.0
-    xs_test = xs_test / 255.0
-    xs_val  = xs_val / 255.0
+    xs_train = xs_train
+    xs_test = xs_test
+    xs_val  = xs_val
 
     return xs_train, ys_train, xs_test, ys_test, xs_val, ys_val
 
