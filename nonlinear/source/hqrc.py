@@ -377,10 +377,10 @@ class HQRC(object):
         return state_list
 
 def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, val_output_seq, \
-        ranseed, nqrc, gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, deep=0, use_corr=0):
+        ranseed, nqrc, gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, deep=0, use_corr=0, nonlinear=0):
 
     model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, \
-        sigma_input=sigma_input, type_input=type_input, deep=deep, use_corr=use_corr)
+        sigma_input=sigma_input, type_input=type_input, deep=deep, use_corr=use_corr, nonlinear=nonlinear)
 
     train_input_seq = np.array(train_input_seq)
     train_output_seq = np.array(train_output_seq)
