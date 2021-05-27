@@ -33,6 +33,8 @@ if __name__  == '__main__':
         help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap,phase_trans')
     
     parser.add_argument('--nqrs', type=int, default=1, help='Number of reservoirs')
+    parser.add_argument('--width', type=int, default=1, help='Width of image')
+    
     parser.add_argument('--ntrials', type=int, default=1)
     parser.add_argument('--virtuals', type=int, default=1)
     parser.add_argument('--strengths', type=str, default='0.0,0.1,0.5,0.9', help='Connection strengths')
@@ -55,7 +57,7 @@ if __name__  == '__main__':
     args = parser.parse_args()
     print(args)
 
-    n_qrs, n_spins, rseed = args.nqrs, args.spins, args.rseed
+    n_qrs, width, n_spins, rseed = args.nqrs, args.width, args.spins, args.rseed
     V, xmin, inset, D, N = args.virtuals, args.xmin, args.inset, args.non_diag, args.ntrials
     
     linear_reg, use_corr = args.linear_reg, args.use_corr
@@ -83,8 +85,8 @@ if __name__  == '__main__':
     ax1 = axs[0]
 
     for rate in rates:
-        basename = 'join_{}_{}_linear_{}_nqrs_{}_corr_{}_nspins_{}_V_{}_rate_{}_trials_{}'.format(\
-            mnist_size, dynamic, linear_reg, n_qrs, use_corr, n_spins, V, rate, N)
+        basename = 'join_{}_{}_linear_{}_nqrs_{}_w_{}_corr_{}_nspins_{}_V_{}_rate_{}_trials_{}'.format(\
+            mnist_size, dynamic, linear_reg, n_qrs, width, use_corr, n_spins, V, rate, N)
         if full_mnist <= 0:
             basename = '{}_lb_{}_{}'.format(basename, label1, label2)
         logfile = os.path.join(logdir, '{}_softmax.log'.format(basename))
@@ -155,10 +157,11 @@ if __name__  == '__main__':
         ax.tick_params('both', length=8, width=1, which='major', labelsize=28)
     
     outbase = os.path.join(figdir, basename)
-    for ftype in ['png', 'svg']:
-        plt.savefig('{}_acc.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
-    plt.show()
-    
+    if nc > 0:
+        for ftype in ['png', 'svg']:
+            plt.savefig('{}_acc.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
+        plt.show()
+        
     
                 
 
