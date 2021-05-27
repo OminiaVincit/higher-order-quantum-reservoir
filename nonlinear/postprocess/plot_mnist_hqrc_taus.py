@@ -31,7 +31,8 @@ if __name__  == '__main__':
     parser.add_argument('--width', type=int, default=1, help='Width of image')
 
     parser.add_argument('--ntrials', type=int, default=1)
-    parser.add_argument('--virtuals', type=int, default=1)
+    parser.add_argument('--virtuals', type=str, default='1')
+    
     parser.add_argument('--strengths', type=str, default='0.5', help='Connection strengths')
     parser.add_argument('--rates', type=str, default='0.1,0.5,1.0', help='Training rate')
     parser.add_argument('--non_diag', type=float, default=0.0, help='magnitude of transeverse field')
@@ -66,6 +67,7 @@ if __name__  == '__main__':
     taudeltas = [2**x for x in taudeltas]
     strengths = [float(x) for x in args.strengths.split(',')]
     rates = [float(x) for x in args.rates.split(',')]
+    Vs = [int(x) for x in args.virtuals.split(',')]
 
     figdir = os.path.join(savedir, 'figs')
     if os.path.isdir(figdir) == False:
@@ -93,55 +95,56 @@ if __name__  == '__main__':
     nc = 0
 
     for rate in rates:
-        basename = 'join_{}_{}_linear_{}_nqrs_{}_w_{}_corr_{}_nspins_{}_V_{}_rate_{}_trials_{}'.format(\
-            mnist_size, dynamic, linear_reg, n_qrs, width, use_corr, n_spins, V, rate, N)
-        if full_mnist <= 0:
-            basename = '{}_lb_{}_{}'.format(basename, label1, label2)
-        logfile = os.path.join(logdir, '{}_softmax.log'.format(basename))
-        if os.path.isfile(logfile) == False:
-            print('Not found file {}'.format(logfile))
-            continue
-        accs = dict()
-        for alpha in strengths:
-            key = '{:.2f}'.format(alpha)
-            accs[key] = defaultdict(list)
+        for V in Vs:
+            basename = 'join_{}_{}_linear_{}_nqrs_{}_w_{}_corr_{}_nspins_{}_V_{}_rate_{}_trials_{}'.format(\
+                mnist_size, dynamic, linear_reg, n_qrs, width, use_corr, n_spins, V, rate, N)
+            if full_mnist <= 0:
+                basename = '{}_lb_{}_{}'.format(basename, label1, label2)
+            logfile = os.path.join(logdir, '{}_softmax.log'.format(basename))
+            if os.path.isfile(logfile) == False:
+                print('Not found file {}'.format(logfile))
+                continue
+            accs = dict()
+            for alpha in strengths:
+                key = '{:.2f}'.format(alpha)
+                accs[key] = defaultdict(list)
+                
+            with open(logfile, 'r') as rf:
+                print('Opened {}'.format(logfile))
+                lines = rf.readlines()
+                for line in lines:
+                    if 'test_acc=' in line: #and 'D={}'.format(D) in line
+                        tau = (float)(re.search('tau=([0-9.]*)', line).group(1))
+                        alpha = (float)(re.search('alpha=([0-9.]*)', line).group(1))
+                        key = '{:.2f}'.format(alpha)
+                        if key not in accs.keys():
+                            continue
+                        acc = (float)(re.search('test_acc=([0-9.]*)', line).group(1))
+                        accs[key][tau].append(acc)
             
-        with open(logfile, 'r') as rf:
-            print('Opened {}'.format(logfile))
-            lines = rf.readlines()
-            for line in lines:
-                if 'test_acc=' in line: #and 'D={}'.format(D) in line
-                    tau = (float)(re.search('tau=([0-9.]*)', line).group(1))
-                    alpha = (float)(re.search('alpha=([0-9.]*)', line).group(1))
-                    key = '{:.2f}'.format(alpha)
-                    if key not in accs.keys():
-                        continue
-                    acc = (float)(re.search('test_acc=([0-9.]*)', line).group(1))
-                    accs[key][tau].append(acc)
-        
-        for alpha in sorted(accs.keys()):
-            color = colors[nc % len(colors)]
-            xs = np.array(sorted(accs[alpha].keys()))
-            avg_accs, std_accs = [], []
-            for tau in xs:
-                avg_accs.append(np.mean(accs[alpha][tau]))
-                std_accs.append(np.std(accs[alpha][tau]))
-            if len(avg_accs) > 0:
-                avg_accs, std_accs = np.array(avg_accs), np.array(std_accs)
-                ax1.plot(xs, avg_accs, 's-', label='$\\alpha=${}, $D=${}, rate={}'.format(alpha, D, rate), linewidth=4, \
-                    alpha=0.8, markersize=16, mec='k', mew=0.5, color=color)
-                ax1.fill_between(xs, avg_accs - std_accs, avg_accs + std_accs, facecolor=color, alpha=0.2)
-                if inset > 0:
-                    ax2.plot(xs[xs >= 2**xmin], avg_accs[xs >= 2**xmin], 's-', label='$\\alpha=${}'.format(alpha), linewidth=4, \
-                        alpha=0.8, markersize=12, mec='k', mew=0.5, color=color)
-                nc += 1
+            for alpha in sorted(accs.keys()):
+                color = colors[nc % len(colors)]
+                xs = np.array(sorted(accs[alpha].keys()))
+                avg_accs, std_accs = [], []
+                for tau in xs:
+                    avg_accs.append(np.mean(accs[alpha][tau]))
+                    std_accs.append(np.std(accs[alpha][tau]))
+                if len(avg_accs) > 0:
+                    avg_accs, std_accs = np.array(avg_accs), np.array(std_accs)
+                    ax1.plot(xs, avg_accs, 's-', label='$\\alpha=${}, $V=${}, rate={}'.format(alpha, V, rate), linewidth=4, \
+                        alpha=0.8, markersize=16, mec='k', mew=0.5, color=color)
+                    ax1.fill_between(xs, avg_accs - std_accs, avg_accs + std_accs, facecolor=color, alpha=0.2)
+                    if inset > 0:
+                        ax2.plot(xs[xs >= 2**xmin], avg_accs[xs >= 2**xmin], 's-', label='$\\alpha=${}, $V=${}, rate={}'.format(alpha, V, rate), linewidth=4, \
+                            alpha=0.8, markersize=12, mec='k', mew=0.5, color=color)
+                    nc += 1
     
     ax1.set_title('{}'.format(basename), fontsize=16)
     ax1.set_xscale("log", basex=2)
-    ax1.set_xticks([2**x for x in np.arange(-7,7.01,1.0)])
-    ax1.set_xlim([2**(-7), 2**7])
+    ax1.set_xticks([2**x for x in np.arange(-5,6.01,1.0)])
+    ax1.set_xlim([2**(-5), 2**6])
     #ax1.set_ylim([0.95, 0.99])
-    ax1.legend()
+    ax2.legend()
     ax1.grid(True, which="both", ls="-", color='0.65')
     ax1.set_xlabel('$\\tau$', fontsize=32)
     ax1.set_ylabel('Accuracy', fontsize=28)
