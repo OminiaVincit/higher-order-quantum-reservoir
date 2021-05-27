@@ -207,7 +207,12 @@ class HQRC(object):
         self.__init_reservoir(qparams, ranseed)
 
     def __get_qr_nodes(self):
-        return self.n_qubits * self.virtual_nodes
+        if self.use_corr > 0:
+            qrnodes = self.n_qubits + int((self.n_qubits * (self.n_qubits + 1)) / 2)
+        else:
+            qrnodes = self.n_qubits
+        qrnodes = qrnodes * self.virtual_nodes
+        return qrnodes
 
     def __get_comput_nodes(self):
         return self.__get_qr_nodes() * self.nqrc
