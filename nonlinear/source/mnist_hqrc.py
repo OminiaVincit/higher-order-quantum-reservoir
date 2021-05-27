@@ -97,7 +97,8 @@ if __name__  == '__main__':
     parser.add_argument('--nproc', type=int, default=100)
     parser.add_argument('--rseed', type=int, default=0)
     parser.add_argument('--rate', type=float, default=1.0)
-    
+    parser.add_argument('--input_scaling', type=float, default=1.0)
+
     args = parser.parse_args()
     print(args)
 
@@ -107,7 +108,7 @@ if __name__  == '__main__':
     solver, linear_reg, use_corr, transient = args.solver, args.linear_reg, args.use_corr, args.transient
     full_mnist, label1, label2 = args.full, args.label1, args.label2
     ntrials, dynamic, savedir = args.ntrials, args.dynamic, args.savedir
-    mnist_dir, mnist_size, nproc, rate = args.mnist_dir, args.mnist_size, args.nproc, args.rate
+    mnist_dir, mnist_size, nproc, rate, input_scaling = args.mnist_dir, args.mnist_size, args.nproc, args.rate, args.input_scaling
 
     taudeltas = [float(x) for x in args.taudeltas.split(',')]
     #taudeltas = list(np.arange(-7, 7.1, args.interval))
@@ -136,8 +137,8 @@ if __name__  == '__main__':
     if os.path.isdir(bindir) == False:
         os.mkdir(bindir)
 
-    basename = 'join_{}_{}_linear_{}_nqrs_{}_w_{}_corr_{}_nspins_{}_V_{}_rate_{}_trials_{}'.format(\
-        mnist_size, dynamic, linear_reg, n_qrs, width, use_corr, n_spins, V, rate, ntrials)
+    basename = 'join_{}_{}_linear_{}_nqrs_{}_w_{}_corr_{}_nspins_{}_V_{}_rate_{}_scalein_{}_trials_{}'.format(\
+        mnist_size, dynamic, linear_reg, n_qrs, width, use_corr, n_spins, V, rate, input_scaling, ntrials)
     
     x_train_org, y_train_lb_org, x_test_org, y_test_lb_org = gen_mnist_dataset_join_test(mnist_dir, mnist_size)
     
@@ -181,8 +182,8 @@ if __name__  == '__main__':
         train_idx = np.random.permutation(N_train)[:nm_train]
         test_idx = np.random.permutation(N_test)
         
-        x_train, y_train_lb = x_train_org[train_idx, :], y_train_lb_org[train_idx]
-        x_test, y_test_lb  = x_test_org[test_idx, :], y_test_lb_org[test_idx]
+        x_train, y_train_lb = x_train_org[train_idx, :] * input_scaling, y_train_lb_org[train_idx]
+        x_test, y_test_lb  = x_test_org[test_idx, :]  * input_scaling, y_test_lb_org[test_idx]
         logger.debug('Train min={}, max={}; Test min={}, max={}'.format(\
             np.min(x_train), np.max(x_train), np.min(x_test), np.max(x_test)))
         
