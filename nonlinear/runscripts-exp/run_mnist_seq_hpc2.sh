@@ -17,7 +17,7 @@ TRANS=100
 N=10
 DYNAMIC='phase_trans'
 #'full_random,half_random,full_const_trans,full_const_coeff,ion_trap,phase_trans'
-STRENGTHS='0.0'
+STRENGTHS='0.5'
 TAUS=\'-5,-4,-3,-2,-1,0,1,2,3,4,5,6\'
 WIDTH=10
 

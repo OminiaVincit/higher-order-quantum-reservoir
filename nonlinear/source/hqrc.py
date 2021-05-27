@@ -208,7 +208,7 @@ class HQRC(object):
 
     def __get_qr_nodes(self):
         if self.use_corr > 0:
-            qrnodes = self.n_qubits + int((self.n_qubits * (self.n_qubits + 1)) / 2)
+            qrnodes = int((self.n_qubits * (self.n_qubits + 1)) / 2)
         else:
             qrnodes = self.n_qubits
         qrnodes = qrnodes * self.virtual_nodes
@@ -286,6 +286,10 @@ class HQRC(object):
 
             # Size of current_state is Nqubits x Nvirtuals)
             self.cur_states[i] = np.array(current_state, dtype=np.float64)
+            # if self.cur_states[i] is not None:
+            #     self.cur_states[i] = 0.9*upstates + 0.1*self.cur_states[i]
+            # else:
+            #     self.cur_states[i] = upstates
             local_rhos[i] = rho
         return local_rhos
 
