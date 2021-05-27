@@ -109,7 +109,8 @@ if __name__  == '__main__':
     ntrials, dynamic, savedir = args.ntrials, args.dynamic, args.savedir
     mnist_dir, mnist_size, nproc, rate = args.mnist_dir, args.mnist_size, args.nproc, args.rate
 
-    taudeltas = [float(x) for x in args.taudeltas.split(',')]
+    taudeltas = args.taudeltas.replace('\'','')
+    taudeltas = [float(x) for x in taudeltas.split(',')]
     #taudeltas = list(np.arange(-7, 7.1, args.interval))
     taudeltas = [2**x for x in taudeltas]
     strengths = [float(x) for x in args.strengths.split(',')]
