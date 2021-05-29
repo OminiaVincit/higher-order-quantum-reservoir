@@ -144,7 +144,10 @@ if __name__  == '__main__':
     ax1.set_xticks([2**x for x in np.arange(-5,6.01,1.0)])
     ax1.set_xlim([2**(-5), 2**6])
     #ax1.set_ylim([0.95, 0.99])
-    ax2.legend()
+    if inset > 0:
+        ax2.legend()
+    else:
+        ax1.legend()
     ax1.grid(True, which="both", ls="-", color='0.65')
     ax1.set_xlabel('$\\tau$', fontsize=32)
     ax1.set_ylabel('Accuracy', fontsize=28)
