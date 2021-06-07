@@ -89,6 +89,34 @@ def make_data_for_narma(length, orders, ranseed=0):
         Y[:,j] = y
     return xs, Y
 
+def partial_trace(rho, keep, dims, optimize=False):
+    """
+    Calculate the partial trace.
+    Consider a joint state ρ on the Hilbert space :math:`H_a \otimes H_b`. We wish to trace out
+    :math:`H_b`
+    .. math::
+        ρ_a = Tr_b(ρ)
+    :param rho: 2D array, the matrix to trace.
+    :param keep: An array of indices of the spaces to keep after being traced. For instance,
+                 if the space is A x B x C x D and we want to trace out B and D, keep = [0, 2].
+    :param dims: An array of the dimensions of each space. For example, if the space is
+                 A x B x C x D, dims = [dim_A, dim_B, dim_C, dim_D].
+    :param optimize: optimize argument in einsum
+    :return:  ρ_a, a 2D array i.e. the traced matrix
+    """
+    # Code from
+    # https://scicomp.stackexchange.com/questions/30052/calculate-partial-trace-of-an-outer-product-in-python
+    keep = np.asarray(keep)
+    dims = np.asarray(dims)
+    Ndim = dims.size
+    Nkeep = np.prod(dims[keep])
+
+    idx1 = [i for i in range(Ndim)]
+    idx2 = [Ndim + i if i in keep else i for i in range(Ndim)]
+    rho_a = rho.reshape(np.tile(dims, 2))
+    rho_a = np.einsum(rho_a, idx1 + idx2, optimize=optimize)
+    return rho_a.reshape(Nkeep, Nkeep)
+
 
 # Reference from
 # https://qiskit.org/documentation/_modules/qiskit/quantum_info/random/utils.html
