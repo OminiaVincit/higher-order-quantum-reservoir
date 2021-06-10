@@ -37,6 +37,7 @@ class HQRC(object):
         X = [[0,1],[1,0]]
         P0 = [[1,0],[0,0]]
         P1 = [[0,0],[0,1]]
+
         self.n_units = qparams.n_units
         self.n_envs = qparams.n_envs
         self.virtual_nodes = qparams.virtual_nodes
@@ -233,6 +234,9 @@ class HQRC(object):
         nqrc = self.nqrc
         update_input = input_val.copy().ravel()
 
+        q0 = np.array([1, 0]).reshape((2, 1))
+        q1 = np.array([0, 1]).reshape((2, 1))
+
         if self.gamma > 0 and self.cur_states[0] is not None:
             tmp_states = np.array(self.cur_states, dtype=np.float64).reshape(1, -1)
             tmp_states = tmp_states @ self.W_feed
@@ -249,18 +253,26 @@ class HQRC(object):
             value = update_input[i]
 
             # Replace the density matrix
-            rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
+            # rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
             # (1 + u Z)/2 = (1+u)/2 |0><0| + (1-u)/2 |1><1|
             # inv1 = (self.affine[1] + self.value) / self.affine[0]
             # inv2 = (self.affine[1] - self.value) / self.affine[0]
 
             if self.type_input == 0:
+                rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
                 # for input in [0, 1]
                 rho = (1 - value) * rho + value * self.Xop[0] @ rho @ self.Xop[0]
-            else:
+            elif self.type_input == 1:
+                rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
                 # for input in [-1, 1]
                 rho = ((1+value)/2) * rho + ((1-value)/2) *self.Xop[0] @ rho @ self.Xop[0]
-            
+            else:
+                par_rho = partial_trace(rho, keep=[1], dims=[2**self.n_envs, 2**self.n_units], optimize=False)
+                input_state = np.sqrt(1-value) * q0 + np.sqrt(value) * q1
+                input_state = input_state @ input_state.T.conj() 
+                rho = np.kron(input_state, par_rho)
+
+
             current_state = []
             for v in range(self.virtual_nodes):
                 # Time evolution of density matrix

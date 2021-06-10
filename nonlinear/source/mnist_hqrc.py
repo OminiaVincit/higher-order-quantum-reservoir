@@ -21,7 +21,8 @@ MNIST_DIR = "../mnist"
 RES_MNIST_DIR = "../results/rs_mnist"
 MNIST_SIZE="28x28"
 
-def training_reservoir_states(logger, qparams, nqrs, alpha, buffer, use_corr, nonlinear, train_seq, test_seq, ranseed, send_end):
+def training_reservoir_states(logger, qparams, nqrs, alpha, buffer, use_corr, nonlinear, input_type,\
+    train_seq, test_seq, ranseed, send_end):
     if linear_reg > 0:
         logger.debug('Linear regression')
         X_train, Y_train = train_seq['input'].T, train_seq['output']
@@ -49,7 +50,7 @@ def training_reservoir_states(logger, qparams, nqrs, alpha, buffer, use_corr, no
         train_pred_seq, train_loss, test_pred_seq, val_loss = hqrc.get_loss(qparams, buffer, \
             train_seq['input'], train_seq['output'], \
             test_seq['input'], test_seq['output'], \
-            nqrc=nqrs, gamma=alpha, ranseed=ranseed, deep=0, use_corr=use_corr, nonlinear=nonlinear)
+            nqrc=nqrs, gamma=alpha, ranseed=ranseed, deep=0, use_corr=use_corr, nonlinear=nonlinear, type_input=input_type)
         
         logger.debug('ranseed={}, D={}, tau={}, alpha={}, (not real) loss train={}, val={}'.format(\
             ranseed, D, tau, alpha, train_loss, val_loss))
@@ -77,6 +78,7 @@ if __name__  == '__main__':
     parser.add_argument('--transient', type=int, default=0, help='Transitient time steps')
     parser.add_argument('--non_diags', type=str, default='1.0', help='Nondiag for transverse field')
     parser.add_argument('--nonlinear', type=int, default=0, help='Nonlinear tag')
+    parser.add_argument('--input_type', type=int, default=0, help='Type of input')
 
     parser.add_argument('--nqrs', type=int, default=1, help='Number of reservoirs=dimension of input')
     parser.add_argument('--width', type=int, default=8, help='Width of input')
@@ -104,7 +106,8 @@ if __name__  == '__main__':
 
     n_qrs, width, n_spins, beta, rseed = args.nqrs, args.width, args.spins, args.beta, args.rseed
     J, init_rho, V, transient, nonlinear = args.coupling, args.rho, args.virtuals, args.transient, args.nonlinear
-    
+    input_type = args.input_type
+
     solver, linear_reg, use_corr, transient = args.solver, args.linear_reg, args.use_corr, args.transient
     full_mnist, label1, label2 = args.full, args.label1, args.label2
     ntrials, dynamic, savedir = args.ntrials, args.dynamic, args.savedir
@@ -142,6 +145,8 @@ if __name__  == '__main__':
         mnist_size, dynamic, linear_reg, n_qrs, width, use_corr, n_spins, V, rate, ntrials)
     if nonlinear > 0:
         basename = '{}_sigmoid'.format(basename)
+    if input_type > 0:
+        basename = '{}_input_{}'.format(basename, input_type)
 
     x_train_org, y_train_lb_org, x_test_org, y_test_lb_org = gen_mnist_dataset_join_test(mnist_dir, mnist_size)
     
@@ -232,7 +237,8 @@ if __name__  == '__main__':
                     qparams = QRCParams(n_units=n_spins-1, n_envs=1, max_energy=J,non_diag=D,\
                         beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
                     p = multiprocessing.Process(target=training_reservoir_states, \
-                        args=(logger, qparams, n_qrs, alpha, buffer, use_corr, nonlinear, train_seq, test_seq, ranseed, send_end))
+                        args=(logger, qparams, n_qrs, alpha, buffer, use_corr, nonlinear, input_type, \
+                            train_seq, test_seq, ranseed, send_end))
                     jobs.append(p)
                     pipels.append(recv_end)
 
