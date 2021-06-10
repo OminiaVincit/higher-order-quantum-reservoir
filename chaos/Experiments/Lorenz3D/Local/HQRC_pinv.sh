@@ -22,9 +22,9 @@
 cd ../../../Methods
 export OMP_NUM_THREADS=12
 
-for V in 10 15 20
+for V in 5
 do
-for ALPHA in 0.0 0.1
+for ALPHA in 0.0
 do
 for BETA in 1e-7
 do
@@ -34,7 +34,7 @@ python3 RUN.py hqrc \
     --system_name Lorenz3D \
     --write_to_log 1 \
     --N 100000 \
-    --N_used 1000 \
+    --N_used 10000 \
     --RDIM 1 \
     --noise_level 1 \
     --scaler MinMaxZeroOne \
@@ -45,8 +45,8 @@ python3 RUN.py hqrc \
     --tau 4.0 \
     --n_units 6 \
     --reg $BETA \
-    --dynamics_length 200 \
-    --it_pred_length 100 \
+    --dynamics_length 2000 \
+    --it_pred_length 1000 \
     --n_tests 2 \
     --solver pinv \
     --augment 0
