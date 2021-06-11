@@ -20,6 +20,10 @@ import utils
 from utils import *
 from loginit import get_module_logger
 import pickle
+import umap
+import umap.plot
+from scipy import sparse
+from sklearn.metrics.pairwise import pairwise_distances
 
 UNITS=5
 BETA=1e-14
@@ -27,7 +31,31 @@ INIT_RHO=0
 V=1
 INTERVAL=0.05
 
-def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, nonlinear, sigma_input, sparsity,\
+def makeSparseDM(X, thresh):
+    N = X.shape[0]
+    D = pairwise_distances(X, metric='euclidean')
+    [I, J] = np.meshgrid(np.arange(N), np.arange(N))
+    I = I[D <= thresh]
+    J = J[D <= thresh]
+    V = D[D <= thresh]
+    return sparse.coo_matrix((V, (I, J)), shape=(N, N)).tocsr()
+
+def reduce_states_dimension(arr, n_neighbors=15, min_dist=0.1, n_components=2, norm=False):
+    D = makeSparseDM(arr, thresh=100)
+    if norm:
+        D = D/np.max(D)
+
+    fit = umap.UMAP(
+        random_state=42,
+        n_neighbors=n_neighbors,
+        min_dist=min_dist,
+        n_components=n_components
+    )
+    mapper = fit.fit(D)
+    return mapper
+
+
+def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, nonlinear, sigma_input, sparsity, mask,\
     xs, idx, send_end):
     """
     Dump raw data of states
@@ -42,8 +70,8 @@ def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, nonlinear,
         state_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = 0)
         results[x] = state_list*2.0-1.0
     
-    outbase = os.path.join(savedir, '{}_layers_{}_V_{}_nonlinear_{}_strength_{}_sigma_{}_sparse_{}'.format(dynamic, \
-        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity))
+    outbase = os.path.join(savedir, '{}_layers_{}_V_{}_nonlinear_{}_strength_{}_sigma_{}_sparse_{}_mask_{}'.format(dynamic, \
+        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity, mask))
     filename = '{}_states_id_{}.binaryfile'.format(outbase, idx)
     with open(filename, 'wb') as wrs:
         pickle.dump(results, wrs)
@@ -62,6 +90,8 @@ if __name__  == '__main__':
     parser.add_argument('--sparsity', type=float, default=1.0, help='The sparsity of the connection strength')
     parser.add_argument('--sigma_input', type=float, default=1.0, help='The sigma input for the feedback')
     parser.add_argument('--nonlinear', type=int, default=0, help='The nonlinear of feedback matrix')
+    parser.add_argument('--mask', type=int, default=0, help='Mask input')
+    
     parser.add_argument('--nproc', type=int, default=50)
     parser.add_argument('--dynamic', type=str, default=DYNAMIC_FULL_RANDOM,\
         help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
@@ -74,9 +104,9 @@ if __name__  == '__main__':
     length, nqrc, nproc, dynamic = args.length, args.nqrc, args.nproc, args.dynamic
     bg, ed = args.bg, args.ed
     layer_strength, nonlinear, sparsity, sigma_input = args.strength, args.nonlinear, args.sparsity, args.sigma_input
-    const_input = args.const
-    basename = '{}_nqrc_{}_V_{}_sm_{}_a_{}_sigma_{}_sparse_{}'.format(dynamic, \
-        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity)
+    const_input, mask = args.const, args.mask
+    basename = '{}_nqrc_{}_V_{}_sm_{}_a_{}_sigma_{}_sparse_{}_mask_{}'.format(dynamic, \
+        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity, mask)
 
     savedir = args.savedir
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
@@ -94,6 +124,8 @@ if __name__  == '__main__':
             data = np.random.rand(length)
         else:
             data = np.zeros(length)
+        if mask > 0:
+            data[1::2] = -1
         input_seq = np.array(data)
         input_seq = np.tile(input_seq, (nqrc, 1))
         
@@ -102,7 +134,7 @@ if __name__  == '__main__':
             xs = lst[pid]
             recv_end, send_end = multiprocessing.Pipe(False)
             p = multiprocessing.Process(target=dumpstates_job, args=(savedir, dynamic, input_seq, \
-                nqrc, layer_strength, nonlinear, sigma_input, sparsity, xs, pid, send_end))
+                nqrc, layer_strength, nonlinear, sigma_input, sparsity, mask, xs, pid, send_end))
             jobs.append(p)
             pipels.append(recv_end)
         # Start the process
@@ -143,7 +175,7 @@ if __name__  == '__main__':
     #ax1 = axs.ravel()[0]
     #ax.plot(ts, rs, ls="", marker=",")
 
-    fig = plt.figure(figsize=(8, 10), dpi=600)
+    fig = plt.figure(figsize=(16, 16), dpi=600)
     for i in range(nqrc):
         sbg = 1 + i*UNITS
         sed = (i+1)*UNITS
@@ -156,7 +188,7 @@ if __name__  == '__main__':
         ts = np.array(ts).ravel()
         rs = np.array(rs).ravel()
 
-        ax1 = plt.subplot2grid((nqrc,3), (i,0), colspan=2, rowspan=1)
+        ax1 = plt.subplot2grid((nqrc,4), (i,0), colspan=2, rowspan=1)
         
         if False:
             # Very slow to run density plot
@@ -177,9 +209,11 @@ if __name__  == '__main__':
         ax1.tick_params('both', length=3, width=1, which='minor')
         ax1.set_xlim([2**tx[0], 2**tx[-1]])
 
-    ids = [20, 60, 80, 180]
+    ids = [20, 60, 80, 100, 180]
+    N = ed - bg
+    colors = plt.cm.viridis(np.linspace(0, 1, N))
     for i in range(len(ids)):
-        ax2 = plt.subplot2grid((nqrc,3), (i,2))
+        ax2 = plt.subplot2grid((nqrc,4), (i,2))
         x = tx[ids[i]]
         state_list = z[x]
         for j in range(1, UNITS):
@@ -188,7 +222,14 @@ if __name__  == '__main__':
         ax2.set_title('2^{:.1f}'.format(x))
         ax2.set_yticklabels([])
         ax2.set_xticklabels([])
+
+        ax3 = plt.subplot2grid((nqrc,4), (i,3))
+        states = state_list[bg:ed, :UNITS]
+        mapper = reduce_states_dimension(states)
+        umap.plot.points(mapper, ax=ax3, theme='fire')
+
         
+
     outbase = filename.replace('.binaryfile', '_bg_{}_ed_{}'.format(bg, ed))
     for ftype in ['png', 'svg']:
         plt.savefig('{}_v4.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)

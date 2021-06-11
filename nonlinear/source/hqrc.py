@@ -245,6 +245,12 @@ class HQRC(object):
             if self.nonlinear > 0:
                 tmp_states = expit(tmp_states)
             update_input = self.gamma * tmp_states + (1.0 - self.gamma) * update_input
+
+        # insert feedback between input
+        if self.gamma == 0 and input_val[0] < 0 and self.cur_states[0] is not None:
+            tmp_states = np.array(self.cur_states, dtype=np.float64).reshape(1, -1)
+            tmp_states = tmp_states @ self.W_feed
+            update_input = tmp_states.ravel()
             
         for i in range(nqrc):
             Uop = self.Uops[i]
