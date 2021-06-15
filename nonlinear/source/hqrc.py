@@ -246,75 +246,71 @@ class HQRC(object):
             #tmp_states = np.exp(-1.0*tmp_states)
             if self.nonlinear > 0:
                 tmp_states = expit(tmp_states)
-            update_input = self.gamma * tmp_states + (1.0 - self.gamma) * update_input
-
-        # insert feedback between input
-        if self.gamma == 0 and input_val[0] < 0 and self.cur_states[0] is not None:
-            tmp_states = np.array(self.cur_states, dtype=np.float64).reshape(1, -1)
-            tmp_states = tmp_states @ self.W_feed
-            tmp_states = tmp_states.ravel()
-            
-            if self.nonlinear > 0:
-                tmp_states = expit(tmp_states)
-            update_input = tmp_states
-            
-        for i in range(nqrc):
-            Uop = self.Uops[i]
-            rho = local_rhos[i]
-            # Obtain value from the input
-            value = update_input[i]
-
-            # Replace the density matrix
-            # rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
-            # (1 + u Z)/2 = (1+u)/2 |0><0| + (1-u)/2 |1><1|
-            # inv1 = (self.affine[1] + self.value) / self.affine[0]
-            # inv2 = (self.affine[1] - self.value) / self.affine[0]
-
-            if self.type_input == 0:
-                rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
-                # for input in [0, 1]
-                rho = (1 - value) * rho + value * self.Xop[0] @ rho @ self.Xop[0]
-            elif self.type_input == 1:
-                rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
-                # for input in [-1, 1]
-                rho = ((1+value)/2) * rho + ((1-value)/2) *self.Xop[0] @ rho @ self.Xop[0]
+            if update_input[0] < -1.0:
+                # insert feedback between input
+                update_input = self.gamma * tmp_states
             else:
-                par_rho = partial_trace(rho, keep=[1], dims=[2**self.n_envs, 2**self.n_units], optimize=False)
-                input_state = np.sqrt(1-value) * q0 + np.sqrt(value) * q1
-                input_state = input_state @ input_state.T.conj() 
-                rho = np.kron(input_state, par_rho)
+                # combine input
+                update_input = self.gamma * tmp_states + (1.0 - self.gamma) * update_input
+        
+        if update_input[0] >= -1.0 and update_input[0] <= 1.0:
+            for i in range(nqrc):
+                Uop = self.Uops[i]
+                rho = local_rhos[i]
+                # Obtain value from the input
+                value = update_input[i]
+
+                # Replace the density matrix
+                # rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
+                # (1 + u Z)/2 = (1+u)/2 |0><0| + (1-u)/2 |1><1|
+                # inv1 = (self.affine[1] + self.value) / self.affine[0]
+                # inv2 = (self.affine[1] - self.value) / self.affine[0]
+
+                if self.type_input == 0:
+                    rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
+                    # for input in [0, 1]
+                    rho = (1 - value) * rho + value * self.Xop[0] @ rho @ self.Xop[0]
+                elif self.type_input == 1:
+                    rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
+                    # for input in [-1, 1]
+                    rho = ((1+value)/2) * rho + ((1-value)/2) *self.Xop[0] @ rho @ self.Xop[0]
+                else:
+                    par_rho = partial_trace(rho, keep=[1], dims=[2**self.n_envs, 2**self.n_units], optimize=False)
+                    input_state = np.sqrt(1-value) * q0 + np.sqrt(value) * q1
+                    input_state = input_state @ input_state.T.conj() 
+                    rho = np.kron(input_state, par_rho)
 
 
-            current_state = []
-            for v in range(self.virtual_nodes):
-                # Time evolution of density matrix
-                rho = Uop @ rho @ Uop.T.conj()
-                for qindex in range(0, self.n_qubits):
-                    expectation_value = np.real(np.trace(self.Zop[qindex] @ rho))
-                    if self.type_input == 0:
-                        rvstate = (1.0 + expectation_value) / 2.0
-                    else:
-                        rvstate = expectation_value
-                    current_state.append(rvstate)
-                
-                if self.use_corr > 0:
-                    for q1 in range(0, self.n_qubits):
-                        for q2 in range(q1+1, self.n_qubits):
-                            cindex = (q1, q2)
-                            expectation_value = np.real(np.trace(self.Zop_corr[cindex] @ rho))
-                            if self.type_input == 0:
-                                rvstate = (1.0 + expectation_value) / 2.0
-                            else:
-                                rvstate = expectation_value
-                            current_state.append(rvstate)
+                current_state = []
+                for v in range(self.virtual_nodes):
+                    # Time evolution of density matrix
+                    rho = Uop @ rho @ Uop.T.conj()
+                    for qindex in range(0, self.n_qubits):
+                        expectation_value = np.real(np.trace(self.Zop[qindex] @ rho))
+                        if self.type_input == 0:
+                            rvstate = (1.0 + expectation_value) / 2.0
+                        else:
+                            rvstate = expectation_value
+                        current_state.append(rvstate)
+                    
+                    if self.use_corr > 0:
+                        for q1 in range(0, self.n_qubits):
+                            for q2 in range(q1+1, self.n_qubits):
+                                cindex = (q1, q2)
+                                expectation_value = np.real(np.trace(self.Zop_corr[cindex] @ rho))
+                                if self.type_input == 0:
+                                    rvstate = (1.0 + expectation_value) / 2.0
+                                else:
+                                    rvstate = expectation_value
+                                current_state.append(rvstate)
 
-            # Size of current_state is Nqubits x Nvirtuals)
-            self.cur_states[i] = np.array(current_state, dtype=np.float64)
-            # if self.cur_states[i] is not None:
-            #     self.cur_states[i] = 0.9*upstates + 0.1*self.cur_states[i]
-            # else:
-            #     self.cur_states[i] = upstates
-            local_rhos[i] = rho
+                # Size of current_state is Nqubits x Nvirtuals)
+                self.cur_states[i] = np.array(current_state, dtype=np.float64)
+                # if self.cur_states[i] is not None:
+                #     self.cur_states[i] = 0.9*upstates + 0.1*self.cur_states[i]
+                # else:
+                #     self.cur_states[i] = upstates
+                local_rhos[i] = rho
         return local_rhos
 
     def feed_forward(self, input_seq, predict, use_lastrho):
@@ -530,7 +526,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
     
     return np.array(list(zip(dlist, MFlist, MFstds, train_list, val_list)))
 
-def effective_dim(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, nonlinear, ranseed, Ntrials):
+def effective_dim(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, mask_input, nonlinear, ranseed, Ntrials):
     # Calculate effective dimension for reservoir
     from numpy import linalg as LA
     
@@ -538,6 +534,9 @@ def effective_dim(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, n
         np.random.seed(seed=ranseed)
 
     data = np.random.rand(length)
+    if mask_input > 0:
+        data[1::(mask_input+1)] = -100
+    
     input_seq = np.array(data)
     input_seq = np.tile(input_seq, (nqrc, 1))
 
@@ -555,10 +554,10 @@ def effective_dim(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, n
         # D = Number of virtual nodes x Number of qubits
         locls = []
         for i in range(D):
-            ri = state_list[buffer:, i] * 2.0 - 1.0
+            ri = state_list[buffer::(mask_input+1), i] * 2.0 - 1.0
             mi = np.mean(ri)
             for j in range(D):
-                rj = state_list[buffer:, j] * 2.0 - 1.0
+                rj = state_list[buffer::(mask_input+1), j] * 2.0 - 1.0
                 mj = np.mean(rj)
                 locls.append(np.mean((ri-mi)*(rj-mj)))
         locls = np.array(locls).reshape(D, D)

@@ -130,7 +130,7 @@ if __name__  == '__main__':
         else:
             data = np.zeros(length)
         if mask > 0:
-            data[1::2] = -1
+            data[1::2] = -100
         input_seq = np.array(data)
         input_seq = np.tile(input_seq, (nqrc, 1))
         
