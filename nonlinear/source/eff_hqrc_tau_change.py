@@ -22,13 +22,13 @@ from loginit import get_module_logger
 
 INTERVAL=0.1
 
-def effdim_job(qparams, nqrc, layer_strength, sparsity, buffer, length, Ntrials, send_end):
+def effdim_job(qparams, nqrc, layer_strength, sparsity, nonlinear, sigma_input, buffer, length, Ntrials, send_end):
     print('Start process layer={}, taudelta={}, virtual={}, sparsity={}'.format(nqrc, qparams.tau, qparams.virtual_nodes, sparsity))
     btime = int(time.time() * 1000.0)
     effd_ls = []
     for n in range(Ntrials):
         effd, _ = hqrc.effective_dim(qparams, buffer=buffer, length=length, nqrc=nqrc, \
-            gamma=layer_strength, sparsity=sparsity, sigma_input=1.0, ranseed=n, Ntrials=1)
+            gamma=layer_strength, sparsity=sparsity, sigma_input=sigma_input, nonlinear=nonlinear, ranseed=n, Ntrials=1)
         effd_ls.append(effd)
 
     mean_effd, std_effd = np.mean(effd_ls), np.std(effd_ls)
@@ -59,6 +59,9 @@ if __name__  == '__main__':
     parser.add_argument('--layers', type=str, default='5')
     parser.add_argument('--strength', type=float, default=0.0)
     parser.add_argument('--virtuals', type=int, default=1)
+    parser.add_argument('--nonlinear', type=int, default=0)
+    parser.add_argument('--sigma_input', type=float, default=1.0)
+    
     parser.add_argument('--plot', type=int, default=0)
     parser.add_argument('--interval', type=float, default=INTERVAL, help='tau-interval')
     parser.add_argument('--dynamic', type=str, default=DYNAMIC_FULL_RANDOM)
@@ -70,6 +73,7 @@ if __name__  == '__main__':
         args.units, args.coupling, args.trotter, args.beta
     length, buffer, sparsity = args.length, args.buffer, args.sparsity
     nproc, layer_strength, V = args.nproc, args.strength, args.virtuals
+    nonlinear, sigma_input = args.nonlinear, args.sigma_input
     init_rho = args.rho
     Ntrials = args.ntrials
 
@@ -89,8 +93,12 @@ if __name__  == '__main__':
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
-    outbase = os.path.join(savedir, '{}_{}_strength_{:.2f}_sparsity_{}_V_{}_layers_{}_eff_ntrials_{}'.format(\
-        dynamic, datestr, layer_strength, sparsity, V, '_'.join([str(o) for o in layers]), Ntrials))
+    outbase = os.path.join(savedir, '{}_{}_strength_{:.2f}_sparsity_{}_V_{}_layers_{}_nonlinear_{}_sm_{}_ntrials_{}'.format(\
+        dynamic, datestr, layer_strength, sparsity, V, '_'.join([str(o) for o in layers]), nonlinear, sigma_input, Ntrials))
+    outfile = '{}_eff.txt'.format(outbase)
+    if os.path.isfile(outfile) == True:
+        print('File existed {}'.format(outfile))
+        exit(1)
     if os.path.isfile(savedir) == False:
         jobs, pipels = [], []
         for nqrc in layers:
@@ -98,7 +106,7 @@ if __name__  == '__main__':
                 recv_end, send_end = multiprocessing.Pipe(False)
                 qparams = QRCParams(n_units=n_units-1, n_envs=1, max_energy=max_energy,\
                     beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, dynamic=dynamic, solver=LINEAR_PINV)
-                p = multiprocessing.Process(target=effdim_job, args=(qparams, nqrc, layer_strength, sparsity, buffer, length, Ntrials, send_end))
+                p = multiprocessing.Process(target=effdim_job, args=(qparams, nqrc, layer_strength, sparsity, nonlinear, sigma_input, buffer, length, Ntrials, send_end))
                 jobs.append(p)
                 pipels.append(recv_end)
 
@@ -116,14 +124,14 @@ if __name__  == '__main__':
         result_list = [np.array( [float(y) for y in x.recv().split(' ')]  ) for x in pipels]
         rsarr = np.array(result_list)
         # save the result
-        np.savetxt('{}_eff.txt'.format(outbase), rsarr, delimiter=' ')
+        np.savetxt(outfile, rsarr, delimiter=' ')
 
         # save experiments setting
         with open('{}_setting.txt'.format(outbase), 'w') as sfile:
             sfile.write('length={}, buffer={}\n'.format(length, buffer))
             sfile.write('n_units={}\n'.format(n_units))
             sfile.write('max_energy={}\n'.format(max_energy))
-            sfile.write('sparsity={}\n'.format(sparsity))
+            sfile.write('sparsity={}, nonlinear={}, sigma_input={}\n'.format(sparsity, nonlinear, sigma_input))
             sfile.write('beta={}\n'.format(beta))
             sfile.write('taudeltas={}\n'.format(' '.join([str(v) for v in taudeltas])))
             sfile.write('layers={}\n'.format(' '.join([str(l) for l in layers])))

@@ -77,7 +77,8 @@ class HQRC(object):
                     if self.nonlinear <= 0:
                         smat = np.random.rand(n_nodes)
                     else:
-                        smat = np.random.randn(n_nodes) * self.sigma_input
+                        #smat = np.random.randn(n_nodes) * self.sigma_input
+                        smat = np.random.normal(loc=0, scale=self.sigma_input, size=(n_nodes, 1))
                     smat = smat.ravel()
                     bg = i * n_local_nodes
                     ed = bg + n_local_nodes 
@@ -98,7 +99,8 @@ class HQRC(object):
                         if self.nonlinear <= 0:
                             smat = np.random.rand(n_nodes)
                         else:
-                            smat = np.random.randn(n_nodes) * self.sigma_input
+                            #smat = np.random.randn(n_nodes) * self.sigma_input
+                            smat = np.random.normal(loc=0, scale=self.sigma_input, size=(n_nodes, 1))
                     
                         smat = smat.ravel()
                         if self.nonlinear <= 0:
@@ -250,7 +252,11 @@ class HQRC(object):
         if self.gamma == 0 and input_val[0] < 0 and self.cur_states[0] is not None:
             tmp_states = np.array(self.cur_states, dtype=np.float64).reshape(1, -1)
             tmp_states = tmp_states @ self.W_feed
-            update_input = tmp_states.ravel()
+            tmp_states = tmp_states.ravel()
+            
+            if self.nonlinear > 0:
+                tmp_states = expit(tmp_states)
+            update_input = tmp_states
             
         for i in range(nqrc):
             Uop = self.Uops[i]
@@ -524,7 +530,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
     
     return np.array(list(zip(dlist, MFlist, MFstds, train_list, val_list)))
 
-def effective_dim(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, ranseed, Ntrials):
+def effective_dim(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, nonlinear, ranseed, Ntrials):
     # Calculate effective dimension for reservoir
     from numpy import linalg as LA
     
@@ -535,7 +541,7 @@ def effective_dim(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, r
     input_seq = np.array(data)
     input_seq = np.tile(input_seq, (nqrc, 1))
 
-    model = HQRC(nqrc, gamma, sparsity, sigma_input)
+    model = HQRC(nqrc, gamma, sparsity, sigma_input, nonlinear=nonlinear)
 
     effdims = []
     for n in range(Ntrials):
@@ -549,10 +555,12 @@ def effective_dim(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, r
         # D = Number of virtual nodes x Number of qubits
         locls = []
         for i in range(D):
+            ri = state_list[buffer:, i] * 2.0 - 1.0
+            mi = np.mean(ri)
             for j in range(D):
-                ri = state_list[buffer:, i] * 2.0 - 1.0
                 rj = state_list[buffer:, j] * 2.0 - 1.0
-                locls.append(np.mean(ri*rj))
+                mj = np.mean(rj)
+                locls.append(np.mean((ri-mi)*(rj-mj)))
         locls = np.array(locls).reshape(D, D)
         w, v = LA.eig(locls)
         #print(w)

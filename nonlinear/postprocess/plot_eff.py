@@ -11,7 +11,7 @@ if __name__  == '__main__':
     # Check for command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--folder', type=str, default='res_high_eff_tau')
-    parser.add_argument('--prefix', type=str, default='full_random_2021-05-0')
+    parser.add_argument('--prefix', type=str, default='full_random_2021-06')
     parser.add_argument('--posfix', type=str, default='layers_5_eff_ntrials_10_eff')
     parser.add_argument('--sparsity', type=float, default=1.0)
     parser.add_argument('--virtuals', type=int, default=1)
@@ -65,11 +65,15 @@ if __name__  == '__main__':
 
     xticks = np.linspace(0, nt-1, int(tmax-tmin)+1)
     ax1.set_xticks(xticks)
-    ax1.set_xticklabels(labels=['{:d}'.format(int(t*(tmax-tmin)/(nt-1) + tmin)) for t in xticks])
+
+    #ax1.set_xticklabels(labels=['$2^{:d}$'.format(int(t*(tmax-tmin)/(nt-1) + tmin)) for t in xticks])
+    labels = ['$2^{-7}$', '$2^{-6}$', '$2^{-5}$', '$2^{-4}$', '$2^{-3}$', '$2^{-2}$', '$2^{-1}$']
+    labels.extend(['$2^{:d}$'.format(x) for x in range(8)])
+    ax1.set_xticklabels(labels)
 
     for ax in axs:
         #ax.minorticks_on()
-        ax.tick_params('both', length=6, width=1, which='major', labelsize=28)
+        ax.tick_params('both', length=10, width=2, which='major', labelsize=28)
         #ax.tick_params('both', length=3, width=1, which='minor')
 
     fig.colorbar(im1, ax=[ax1], orientation="vertical", format='%.2f')

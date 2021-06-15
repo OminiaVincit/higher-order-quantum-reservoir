@@ -11,13 +11,12 @@ QR=5
 PROC=100
 CONST=0
 INT=0.05
-SM=0
+SM=1
 SP=1.0
-SG=1.0
 
-for MS in 0 1
+for MS in 1
 do
-for SG in 1.0
+for SG in 10.0
 do
 for ALPHA in 0.0
 do

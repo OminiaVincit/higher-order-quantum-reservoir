@@ -3,20 +3,23 @@
 export OMP_NUM_THREADS=1
 
 BIN=../source/eff_hqrc_tau_change.py
-SAVE=../../../data/hqrc/eff_dim
-vals=$(seq 0.00 0.01 1.00)
+SAVE=../../../data/hqrc/eff_dim_nonlinear
+vals=$(seq 0.00 0.05 1.00)
 N=10
 
-BUFFER=10000
-LENGTH=11000
+BUFFER=1000
+LENGTH=1100
 
-for V in 5 15
+SM=1
+SG=10.0
+
+for V in 1
 do
 for SP in 1.0
 do
 for p in $vals
 do
-python $BIN --savedir $SAVE --buffer $BUFFER --length $LENGTH --sparsity $SP --strength $p --ntrials $N --virtuals $V
+python $BIN --savedir $SAVE --buffer $BUFFER --length $LENGTH --sparsity $SP --nonlinear $SM --sigma_input $SG --strength $p --ntrials $N --virtuals $V
 done
 done
 done

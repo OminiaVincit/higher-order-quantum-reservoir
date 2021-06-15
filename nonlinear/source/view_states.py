@@ -24,6 +24,8 @@ import umap
 import umap.plot
 from scipy import sparse
 from sklearn.metrics.pairwise import pairwise_distances
+import nolds # to calculate lyapunov eff
+from collections import defaultdict
 
 UNITS=5
 BETA=1e-14
@@ -98,11 +100,13 @@ if __name__  == '__main__':
 
     parser.add_argument('--interval', type=float, default=INTERVAL, help='tau-interval')
     parser.add_argument('--savedir', type=str, default='res_states')
+    parser.add_argument('--lyap', type=int, default=0)
+    
     args = parser.parse_args()
     print(args)
 
     length, nqrc, nproc, dynamic = args.length, args.nqrc, args.nproc, args.dynamic
-    bg, ed = args.bg, args.ed
+    bg, ed, lyap = args.bg, args.ed, args.lyap
     layer_strength, nonlinear, sparsity, sigma_input = args.strength, args.nonlinear, args.sparsity, args.sigma_input
     const_input, mask = args.const, args.mask
     basename = '{}_nqrc_{}_V_{}_sm_{}_a_{}_sigma_{}_sparse_{}_mask_{}'.format(dynamic, \
@@ -114,6 +118,7 @@ if __name__  == '__main__':
     
     # KEEP CONSTANT interval = 0.05
     tx = list(np.arange(-7, 7.1, args.interval))
+    stx = [2**x for x in tx]
     nproc = min(len(tx), nproc)
     lst = np.array_split(tx, nproc)
 
@@ -177,31 +182,50 @@ if __name__  == '__main__':
 
     fig = plt.figure(figsize=(16, 16), dpi=600)
     for i in range(nqrc):
+        ax1 = plt.subplot2grid((nqrc,4), (i,0), colspan=2, rowspan=1)
         sbg = 1 + i*UNITS
         sed = (i+1)*UNITS
-        rs, ts = [], []
+        
+        if lyap > 0:
+            # # Very slow to run density plot
+            # xy = np.vstack([ts, rs])
+            # z = gaussian_kde(xy)(xy)
+            # ax1.scatter(ts, rs, c=z, s=(12*72./fig.dpi)**2, marker='o', cmap='brg', lw=0, rasterized=True)
+            rs_units = defaultdict(list)
+            for x in tx:
+                state_list = z[x]
+                for k in range(1, 2):
+                    ys = state_list[bg:ed, sbg+k].ravel()
+                    # Calculate maximum lyapunov
+                    lypval = nolds.lyap_r(ys, tau=1)
+                    rs_units[k].append(lypval)
+            
+            for k in range(1, 2):
+                print(rs_units[k], len(rs_units[k]), np.min(rs_units[k]), np.max(rs_units[k]))
+                ax1.plot(stx, rs_units[k], linewidth=2)
+        else:
+            rs, ts = [], []
+            for x in tx:
+                state_list = z[x]
+                ys = state_list[bg:ed, sbg:sed].ravel()
+                rs.extend(ys)
+                ts.extend([2**x] * len(ys))
+            ts = np.array(ts).ravel()
+            rs = np.array(rs).ravel()
+
+            ax1.scatter(ts, rs, s=(12*72./fig.dpi)**2, marker='o', lw=0, rasterized=True)
+            ax1.set_yscale("symlog", base=10, linthresh=1e-5)
+        
+        # Calculate maximum lyapunov exponent
+        lya_maxs = []
         for x in tx:
             state_list = z[x]
-            ys = state_list[bg:ed, sbg:sed].ravel()
-            rs.extend(ys)
-            ts.extend([2**x] * len(ys))
-        ts = np.array(ts).ravel()
-        rs = np.array(rs).ravel()
+        
 
-        ax1 = plt.subplot2grid((nqrc,4), (i,0), colspan=2, rowspan=1)
-        
-        if False:
-            # Very slow to run density plot
-            xy = np.vstack([ts, rs])
-            z = gaussian_kde(xy)(xy)
-            ax1.scatter(ts, rs, c=z, s=(12*72./fig.dpi)**2, marker='o', cmap='brg', lw=0, rasterized=True)
-        else:
-            ax1.scatter(ts, rs, s=(12*72./fig.dpi)**2, marker='o', lw=0, rasterized=True)
-        
         if i == 0:
-            ax1.set_title('{}_QR_{}'.format(basename, i+1), fontsize=8)
+            ax1.set_title('{}_QR_{}'.format(os.path.basename(filename), i+1), fontsize=8)
         ax1.set_xscale("log", base=2)
-        ax1.set_yscale("symlog", base=10, linthresh=1e-5)
+        
         ax1.grid(alpha=0.8, axis='x')
         ax1.set_xticks([2**x for x in np.arange(-7,7.1,1.0)])
         ax1.minorticks_on()
@@ -230,7 +254,7 @@ if __name__  == '__main__':
 
         
 
-    outbase = filename.replace('.binaryfile', '_bg_{}_ed_{}'.format(bg, ed))
+    outbase = filename.replace('.binaryfile', '_bg_{}_ed_{}_lyap_{}'.format(bg, ed, lyap))
     for ftype in ['png', 'svg']:
         plt.savefig('{}_v4.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
     plt.show()
