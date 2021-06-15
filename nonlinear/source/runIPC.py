@@ -60,7 +60,7 @@ if __name__  == '__main__':
     parser.add_argument('--virtuals', type=str, default='1')
     parser.add_argument('--taus', type=str, default='8.0')
 
-    parser.add_argument('--dynamic', type=str, default='full_random', help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
+    parser.add_argument('--dynamic', type=str, default='full_random', help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap,phase_trans')
     parser.add_argument('--basename', type=str, default='hqrc_IPC')
     parser.add_argument('--savedir', type=str, default='IPC_hqrc')
     parser.add_argument('--solver', type=str, default=LINEAR_PINV, \

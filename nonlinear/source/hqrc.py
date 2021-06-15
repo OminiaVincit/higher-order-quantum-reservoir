@@ -18,7 +18,7 @@ from scipy.special import expit
 
 class HQRC(object):
     def __init__(self, nqrc, gamma, sparsity, sigma_input, \
-        type_input=0, use_corr=0, deep=0,nonlinear=0):
+        type_input=0, use_corr=0, deep=0, nonlinear=0, mask_input=0):
         self.nqrc = nqrc
         self.gamma = gamma
         self.sparsity = sparsity
@@ -27,6 +27,7 @@ class HQRC(object):
         self.use_corr = use_corr
         self.deep = deep
         self.nonlinear = nonlinear
+        self.mask_input = mask_input # feedback between inputs
 
     def __init_reservoir(self, qparams, ranseed):
         if ranseed >= 0:
@@ -326,8 +327,11 @@ class HQRC(object):
         state_list = []
         for time_step in range(0, input_length):
             input_val = input_seq[:, time_step].ravel()
+            if self.mask_input > 0:
+                # put the feedback between the inputs
+                dummy_input = np.zeros(input_val.shape) - 100.0
+                local_rhos = self.step_forward(local_rhos, dummy_input)
             local_rhos = self.step_forward(local_rhos, input_val)
-
             state = np.array(self.cur_states.copy(), dtype=np.float64)
             state_list.append(state.flatten())
 
@@ -397,10 +401,11 @@ class HQRC(object):
         return state_list
 
 def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, val_output_seq, \
-        ranseed, nqrc, gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, deep=0, use_corr=0, nonlinear=0):
+        ranseed, nqrc, gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, mask_input=0, \
+        deep=0, use_corr=0, nonlinear=0):
 
     model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, \
-        sigma_input=sigma_input, type_input=type_input, deep=deep, use_corr=use_corr, nonlinear=nonlinear)
+        sigma_input=sigma_input, type_input=type_input, mask_input=mask_input, deep=deep, use_corr=use_corr, nonlinear=nonlinear)
 
     train_input_seq = np.array(train_input_seq)
     train_output_seq = np.array(train_output_seq)
@@ -445,7 +450,7 @@ def get_IPC(qparams, ipcparams, length, logger, nqrc=1, gamma=0.0, ranseed=-1, N
     logger.info('{}: Executed time {}'.format(fname, timedelta(seconds=end_time - start_time)))
 
 def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
-        nqrc, gamma, sparsity, sigma_input, ranseed=-1, Ntrials=1, type_input=0):    
+        nqrc, gamma, sparsity, sigma_input, mask_input=0, ranseed=-1, Ntrials=1, type_input=0):    
     MFlist = []
     MFstds = []
     train_list, val_list = [], []
@@ -505,7 +510,8 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
             # Use the same ranseed the same trial
             train_pred_seq, train_loss, val_pred_seq, val_loss = \
             get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, val_output_seq, \
-                nqrc=nqrc, gamma=gamma, sparsity=sparsity, sigma_input=sigma_input, ranseed=ranseed_net, type_input=type_input)
+                nqrc=nqrc, gamma=gamma, sparsity=sparsity, sigma_input=sigma_input, ranseed=ranseed_net, \
+                type_input=type_input, mask_input=mask_input)
 
             # Compute memory function
             val_out_seq, val_pred_seq = val_output_seq.flatten(), val_pred_seq.flatten()
@@ -534,13 +540,11 @@ def effective_dim(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, m
         np.random.seed(seed=ranseed)
 
     data = np.random.rand(length)
-    if mask_input > 0:
-        data[1::(mask_input+1)] = -100
-    
+
     input_seq = np.array(data)
     input_seq = np.tile(input_seq, (nqrc, 1))
 
-    model = HQRC(nqrc, gamma, sparsity, sigma_input, nonlinear=nonlinear)
+    model = HQRC(nqrc, gamma, sparsity, sigma_input, nonlinear=nonlinear, mask_input=mask_input)
 
     effdims = []
     for n in range(Ntrials):
@@ -554,10 +558,10 @@ def effective_dim(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, m
         # D = Number of virtual nodes x Number of qubits
         locls = []
         for i in range(D):
-            ri = state_list[buffer::(mask_input+1), i] * 2.0 - 1.0
+            ri = state_list[buffer:, i] * 2.0 - 1.0
             mi = np.mean(ri)
             for j in range(D):
-                rj = state_list[buffer::(mask_input+1), j] * 2.0 - 1.0
+                rj = state_list[buffer:, j] * 2.0 - 1.0
                 mj = np.mean(rj)
                 locls.append(np.mean((ri-mi)*(rj-mj)))
         locls = np.array(locls).reshape(D, D)
