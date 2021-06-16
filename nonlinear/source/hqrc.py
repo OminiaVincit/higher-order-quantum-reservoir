@@ -247,11 +247,15 @@ class HQRC(object):
             tmp_states = tmp_states @ self.W_feed
             tmp_states = tmp_states.ravel()
             #tmp_states = np.exp(-1.0*tmp_states)
-            if self.nonlinear > 0:
+            if self.nonlinear == 1:
                 tmp_states = expit(tmp_states)
+            elif self.nonlinear == 2:
+                # Min-max norm
+                tmp_states = (tmp_states - np.min(tmp_states)) / (np.max(tmp_states) - np.min(tmp_states))
             if update_input[0] < -1.0:
                 # insert feedback between input
                 update_input = self.gamma * tmp_states
+                #print(self.gamma, update_input)
             else:
                 # combine input
                 update_input = self.gamma * tmp_states + (1.0 - self.gamma) * update_input
