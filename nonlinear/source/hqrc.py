@@ -290,7 +290,7 @@ class HQRC(object):
                     rho = Uop @ rho @ Uop.T.conj()
                     for qindex in range(0, self.n_qubits):
                         expectation_value = np.real(np.trace(self.Zop[qindex] @ rho))
-                        if self.type_input == 0:
+                        if self.type_input != 1:
                             rvstate = (1.0 + expectation_value) / 2.0
                         else:
                             rvstate = expectation_value
@@ -301,7 +301,7 @@ class HQRC(object):
                             for q2 in range(q1+1, self.n_qubits):
                                 cindex = (q1, q2)
                                 expectation_value = np.real(np.trace(self.Zop_corr[cindex] @ rho))
-                                if self.type_input == 0:
+                                if self.type_input != 1:
                                     rvstate = (1.0 + expectation_value) / 2.0
                                 else:
                                     rvstate = expectation_value
@@ -435,7 +435,7 @@ def get_IPC(qparams, ipcparams, length, logger, nqrc=1, gamma=0.0, ranseed=-1, N
     if ranseed >= 0:
         np.random.seed(seed=ranseed)
     for n in range(Ntrials):
-        if type_input == 0:
+        if type_input != 1:
             input_signals = np.random.uniform(0, 1, length) 
         else:
             input_signals = np.random.uniform(-1, 1, length)
@@ -471,7 +471,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
         data = np.random.randint(0, 2, length)
     else:
         print('Generate STM task data')
-        if type_input == 0:
+        if type_input != 1:
             data = np.random.rand(length)
         else:
             data = 2.0*np.random.rand(length) - 1.0
