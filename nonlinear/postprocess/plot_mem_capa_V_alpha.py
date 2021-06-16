@@ -16,13 +16,18 @@ if __name__  == '__main__':
     parser.add_argument('--posfix', type=str, default='layers_5_capa_ntrials_10_capacity')
     parser.add_argument('--ymin', type=float, default='0.0')
     parser.add_argument('--ymax', type=float, default='60.0')
-    parser.add_argument('--tau', type=float, default='8.0')
-
+    parser.add_argument('--taus', type=str, default='-4,-3,-2,-1,0,1,2,3,4,5,6,7')
+    
     args = parser.parse_args()
     print(args)
 
     folder, prefix, posfix = args.folder, args.prefix, args.posfix
-    ymin, ymax, tau = args.ymin, args.ymax, args.tau
+    ymin, ymax = args.ymin, args.ymax
+    
+    tstr = args.taus.replace('\'','')
+    taus_log = [float(x) for x in tstr.split(',')]
+    taus = [2**x for x in taus_log]
+
     Vs = [1, 5, 15, 25]
     cmap = plt.get_cmap("viridis")
     fig, axs = plt.subplots(1, 1, figsize=(12, 6), squeeze=False)
@@ -40,47 +45,51 @@ if __name__  == '__main__':
 
     ax = axs[0]
     dcl = 0
-    for V in reversed(Vs):
-        rsarr = []
-        for rfile in glob.glob('{}/{}*_tau_{}*V_*{}*_{}.txt'.format(folder, prefix, tau, V, posfix)):
-            print(rfile)
-            ntitle = os.path.basename(rfile)
-            nidx = ntitle.find('layers_')
-            ntitle = ntitle[nidx:]
-            ntitle = ntitle.replace('.txt', '')
-            rsarr.append(np.loadtxt(rfile))
-        if len(rsarr) > 0:
-            rsarr = np.concatenate(rsarr, axis=0)
-        print(V, dcl, rsarr.shape)
-        ids = (rsarr[:, 2] == V)
-        xs, avg_tests, std_tests = rsarr[ids, 1], rsarr[ids, -2], rsarr[ids, -1]
-        sids = np.argsort(xs)
-        xs, avg_tests, std_tests = xs[sids], avg_tests[sids], std_tests[sids]
+    for tau in taus:
+        for V in reversed(Vs):
+            rsarr = []
+            for rfile in glob.glob('{}/{}*_tau_{}*V_*{}*_{}.txt'.format(folder, prefix, tau, V, posfix)):
+                print(rfile)
+                ntitle = os.path.basename(rfile)
+                nidx = ntitle.find('layers_')
+                ntitle = ntitle[nidx:]
+                ntitle = ntitle.replace('.txt', '')
+                rsarr.append(np.loadtxt(rfile))
+            if len(rsarr) > 0:
+                rsarr = np.concatenate(rsarr, axis=0)
+            else:
+                continue
+            print(V, tau, dcl, rsarr.shape)
+            ids = (rsarr[:, 2] == V)
+            xs, avg_tests, std_tests = rsarr[ids, 1], rsarr[ids, -2], rsarr[ids, -1]
+            sids = np.argsort(xs)
+            xs, avg_tests, std_tests = xs[sids], avg_tests[sids], std_tests[sids]
 
-        #if dcl == 0:
-        #    color = 'gray'
-        #else:
-        color=putils.cycle[dcl]
-        #ax.errorbar(xs, avg_tests, yerr=std_tests, alpha = 0.8, elinewidth=2, linewidth=2, markersize=12, \
-        #    label='$V=${}'.format(V))
-        ax.plot(xs, avg_tests, 's-', alpha = 0.8, linewidth=3, markersize=8, mec='k', mew=0.5, \
-                    color=color, label='$V=${}'.format(V))
-        ax.fill_between(xs, avg_tests - std_tests, avg_tests + std_tests, \
-            facecolor=color, alpha=0.2)
-        dcl += 1
+            #if dcl == 0:
+            #    color = 'gray'
+            #else:
+            color=putils.cycle[dcl]
+            #ax.errorbar(xs, avg_tests, yerr=std_tests, alpha = 0.8, elinewidth=2, linewidth=2, markersize=12, \
+            #    label='$V=${}'.format(V))
+            ax.plot(xs, avg_tests, 's-', alpha = 0.8, linewidth=3, markersize=8, mec='k', mew=0.5, \
+                        color=color, label='$V=${}, $\\tau=${:.3f}'.format(V, tau))
+            ax.fill_between(xs, avg_tests - std_tests, avg_tests + std_tests, \
+                facecolor=color, alpha=0.2)
+            dcl += 1
 
-        ax.set_xlabel('$\\alpha$', fontsize=24)
-        #ax.set_xscale('log',base=10)
-        ax.set_ylabel('MC', fontsize=24)
-        #ax.set_ylim([np.min(avg_tests)/2, 2*np.max(avg_tests)])
-        ax.set_ylim([ymin, ymax])
-        ax.set_xticks(np.linspace(0.0, 1.0, 11))
-        ax.set_xlim([0.0, 1.01])
-        #ax.set_xticklabels(labels='')
-        #ax.set_yticklabels(labels='')
-        ax.grid(True, which="both", ls="-", color='0.65')
-        ax.legend()
-        #ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=14)
+            ax.set_xlabel('$\\alpha$', fontsize=24)
+            #ax.set_xscale('log',base=10)
+            ax.set_ylabel('MC', fontsize=24)
+            #ax.set_ylim([np.min(avg_tests)/2, 2*np.max(avg_tests)])
+            ax.set_ylim([ymin, ymax])
+            ax.set_xticks(np.linspace(0.0, 1.0, 11))
+            ax.set_xlim([0.0, 1.01])
+            #ax.set_xticklabels(labels='')
+            #ax.set_yticklabels(labels='')
+            ax.grid(True, which="both", ls="-", color='0.65')
+            ax.legend()
+            #ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=14)
+
     for ax in axs:
         #ax.minorticks_on()
         ax.tick_params('both', length=8, width=1, which='major', labelsize=20)

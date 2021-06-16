@@ -10,23 +10,23 @@ SAVE=../../../data/hqrc/mnist
 DS='0.0'
 FULL=0
 LB1=3
-LB2=5
+LB2=6
 CORR=0
 LN=0
 TRANS=100
 N=10
 DYNAMIC='phase_trans'
 #'full_random,half_random,full_const_trans,full_const_coeff,ion_trap,phase_trans'
-STRENGTHS='0.5'
+STRENGTHS='0.6'
 TAUS=\'-5,-4,-3,-2,-1,0,1,2,3,4,5,6\'
 WIDTH=10
-NONLINEAR=1
+NONLINEAR=0
 
-for RATE in 0.1
+for RATE in 0.1 0.5 1.0
 do
 for NQR in 10
 do
-for V in 10
+for V in 10 20
 do
 python $BIN --nonlinear $NONLINEAR --taudeltas $TAUS --width $WIDTH --dynamic $DYNAMIC --non_diags $DS --ntrials $N --transient $TRANS --rate $RATE --linear_reg $LN --mnist_size $MNIST_SIZE --savedir $SAVE --nqrs $NQR --virtuals $V --full $FULL --label1 $LB1 --label2 $LB2 --strengths $STRENGTHS --use_corr $CORR
 done

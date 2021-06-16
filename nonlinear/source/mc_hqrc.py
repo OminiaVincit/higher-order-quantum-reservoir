@@ -20,11 +20,12 @@ from loginit import get_module_logger
 import utils
 from utils import *
 
-def memory_compute(taskname, qparams, nqrc, alpha, mask_input, \
+def memory_compute(taskname, qparams, nqrc, alpha, mask_input, combine_input, non_linear, sigma_input,\
         train_len, val_len, buffer, dlist, ranseed, pid, send_end):
     btime = int(time.time() * 1000.0)
     rsarr = hqrc.memory_function(taskname, qparams, train_len=train_len, val_len=val_len, buffer=buffer, \
-        dlist=dlist, nqrc=nqrc, gamma=alpha, ranseed=ranseed, sparsity=1.0, sigma_input=1.0, mask_input=mask_input)
+        dlist=dlist, nqrc=nqrc, gamma=alpha, ranseed=ranseed, sparsity=1.0, \
+            sigma_input=sigma_input, mask_input=mask_input, combine_input=combine_input, nonlinear=non_linear)
     C = np.sum(rsarr[:, 1])
     etime = int(time.time() * 1000.0)
     now = datetime.datetime.now()
@@ -55,7 +56,10 @@ if __name__  == '__main__':
 
     parser.add_argument('--nproc', type=int, default=50)
     parser.add_argument('--ntrials', type=int, default=1)
+    parser.add_argument('--non_linear', type=int, default=0)
+    parser.add_argument('--sigma_input', type=float, default=1.0)
     parser.add_argument('--mask_input', type=int, default=0)
+    parser.add_argument('--combine_input', type=int, default=1)
 
     parser.add_argument('--couplings', type=str, default='1.0', help='Maximum coupling energy')
     parser.add_argument('--taudeltas', type=str, default='-4,-3,-2,-1,0,1,2,3,4,5,6,7')
@@ -70,7 +74,8 @@ if __name__  == '__main__':
 
     n_units, beta = args.units, args.beta
     train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
-    nproc, init_rho, solver, mask_input = args.nproc, args.rho, args.solver, args.mask_input
+    nproc, init_rho, solver, mask_input, combine_input = args.nproc, args.rho, args.solver, args.mask_input, args.combine_input
+    non_linear, sigma_input = args.non_linear, args.sigma_input
 
     minD, maxD, interval, Ntrials = args.mind, args.maxd, args.interval, args.ntrials
     dlist = list(range(minD, maxD + 1, interval))
@@ -94,12 +99,13 @@ if __name__  == '__main__':
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
-    outbase = os.path.join(savedir, '{}_{}_{}_{}_tau_{}_strength_{}_V_{}_layers_{}_mask_{}_ntrials_{}'.format(\
+    outbase = os.path.join(savedir, '{}_{}_{}_{}_tau_{}_strength_{}_V_{}_layers_{}_mask_{}_cb_{}_sm_{}_sg_{}_ntrials_{}'.format(\
         dynamic, taskname, solver, datestr, \
         '_'.join([str(o) for o in taudeltas]), \
         '_'.join([str(o) for o in strengths]), \
         '_'.join([str(o) for o in virtuals]), \
-        '_'.join([str(o) for o in layers]), mask_input, Ntrials))
+        '_'.join([str(o) for o in layers]), \
+        mask_input, combine_input, non_linear, sigma_input, Ntrials))
     
     log_filename = '{}.log'.format(outbase)
     logger = get_module_logger(__name__, log_filename)
@@ -125,7 +131,8 @@ if __name__  == '__main__':
                                 print('dlist: ', dsmall)
                                 recv_end, send_end = multiprocessing.Pipe(False)
                                 p = multiprocessing.Process(target=memory_compute, \
-                                    args=(taskname, qparams, nqrc, alpha, mask_input, train_len, val_len, buffer, dsmall, n, proc_id, send_end))
+                                    args=(taskname, qparams, nqrc, alpha, mask_input, combine_input, \
+                                        non_linear, sigma_input, train_len, val_len, buffer, dsmall, n, proc_id, send_end))
                                 jobs.append(p)
                                 pipels.append(recv_end)
                     
@@ -155,7 +162,7 @@ if __name__  == '__main__':
         sfile.write('solver={}, train_len={}, val_len={}, buffer={}\n'.format(\
             solver, train_len, val_len, buffer))
         sfile.write('beta={}, Ntrials={}\n'.format(beta, Ntrials))
-        sfile.write('n_units={}, mask_input={}\n'.format(n_units, mask_input))
+        sfile.write('n_units={}, non_linear={}, sigma_input={}, mask_input={}, combine_input={}\n'.format(n_units, non_linear, sigma_input, mask_input, combine_input))
         sfile.write('max_energy={}\n'.format(' '.join([str(v) for v in couplings])))
         sfile.write('taudeltas={}\n'.format(' '.join([str(v) for v in taudeltas])))
         sfile.write('layers={}\n'.format(' '.join([str(l) for l in layers])))
