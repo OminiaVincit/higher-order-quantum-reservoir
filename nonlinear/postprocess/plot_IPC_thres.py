@@ -31,21 +31,19 @@ if __name__  == '__main__':
     parser.add_argument('--T', type=int, default=200000, help='Number of time steps')
     parser.add_argument('--keystr', type=str, default='mdeg_4_mvar_4')
     parser.add_argument('--exp', type=int, default=0, help='Use exponent for alpha')
-    parser.add_argument('--ridge', type=int, default=0, help='Use ridge pinv')
+    parser.add_argument('--solver', type=str, default='', help='linear_pinv_,ridge_pinv_')
  
     args = parser.parse_args()
     print(args)
     parent, folders, dynamic, prefix, keystr, thres, width = args.parent, args.folders, args.dynamic, args.prefix, args.keystr, args.thres, args.width
     V, tau, nspins, max_energy, amin, amax, nas = args.virtuals, args.taus, args.nspins, args.max_energy, args.amin, args.amax, args.nas
-    T, nqrc, explb = args.T, args.nqrc, args.exp
-    posfix  = 'tau_{}_V_{}_hqrc_IPC_{}_nqrc_{}_nspins_{}_amax_{}_amin_{}_nas_{}'.format(\
-        tau, V, dynamic, nqrc, nspins, amax, amin, nas)
+    T, nqrc, explb, solver = args.T, args.nqrc, args.exp, args.solver
+
+    posfix  = 'tau_{}_V_{}_hqrc_IPC_{}_{}nqrc_{}_nspins_{}_amax_{}_amin_{}_nas_{}'.format(\
+        tau, V, dynamic, solver, nqrc, nspins, amax, amin, nas)
     if explb > 0:
-        posfix  = 'tau_{}_V_{}_hqrc_IPC_exp_{}_{}_nqrc_{}_nspins_{}_amax_{}_amin_{}_nas_{}'.format(\
-        tau, V, explb, dynamic, nqrc, nspins, amax, amin, nas)
-    if args.ridge > 0:
-        posfix  = 'tau_{}_V_{}_hqrc_IPC_{}_ridge_pinv_nqrc_{}_nspins_{}_amax_{}_amin_{}_nas_{}'.format(\
-        tau, V, dynamic, nqrc, nspins, amax, amin, nas)
+        posfix  = 'tau_{}_V_{}_hqrc_IPC_exp_{}_{}_{}nqrc_{}_nspins_{}_amax_{}_amin_{}_nas_{}'.format(\
+        tau, V, explb, dynamic, solver, nqrc, nspins, amax, amin, nas)
     print(posfix)
     txBs = list(np.linspace(amin, amax, nas + 1))
 
@@ -60,12 +58,12 @@ if __name__  == '__main__':
         degcapa, xs = [], []
         for tB in txBs:
             tarr = []
-            pattern1 = '{}/{}_alpha_{:.3f}_{}*{}*T_{}.pickle'.format(dfolder, prefix, tB, posfix, keystr, T)
+            pattern1 = '{}/{}_alpha_{:.3f}_{}*{}*T_{}*.pickle'.format(dfolder, prefix, tB, posfix, keystr, T)
             #if explb > 0:
-            pattern2 = '{}/{}_alpha_{}_{}*{}*T_{}.pickle'.format(dfolder, prefix, tB, posfix, keystr, T)
+            pattern2 = '{}/{}_alpha_{}_{}*{}*T_{}*.pickle'.format(dfolder, prefix, tB, posfix, keystr, T)
             filenames = glob.glob(pattern1)
             filenames.extend(glob.glob(pattern2))
-            #print(pattern)
+            #print(pattern1)
             for filename in filenames:
                 #print(filename)
                 with open(filename, "rb") as rfile:
@@ -136,12 +134,13 @@ if __name__  == '__main__':
     ax2.set_ylabel('$C(d)$', size=32)
     ax2.set_xlim([amin, amax])
     #ax2.set_xscale('log',basex=10)
-    ax2.set_ylim([0.0, np.max(m_avg[0]+m_std[0])])
+    #ax2.set_ylim([0.0, np.max(m_avg[0]+m_std[0])])
+    ax2.set_ylim([0.0, args.max_capa])
     ax2.set_xticks(np.linspace(amin, amax, 6))
     
     #ax1.set_ylim([0, 4.0])
     #ax1.set_xscale('log', basex=2)
-    #ax1.axhline(y=args.max_capa, color='k', linestyle='-')
+    ax1.axhline(y=args.max_capa, color='k', linestyle='-')
 
     ax1.legend()
     ax2.legend()

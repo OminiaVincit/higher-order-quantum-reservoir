@@ -25,25 +25,28 @@ THRES=0.0
 DYNAMIC='full_random'
 CAPA=25
 WIDTH=0.01
-AMIN=-10.0
-AMAX=0.0
+
+AMIN=0.0
+AMAX=1.0
 NAS=100
-EXP=1
+EXP=0
 
-FRS='XXX'
-for SEED in 0 1 2 3 4
-do
-SAVE=$PARENT\/IPC_exp_$EXP\_seed_$SEED
-FRS=$FRS,IPC_exp_$EXP\_seed_$SEED
+for MASK in 1 0
+    do
+    FRS='XXX'
+    for SEED in 0
+    do
+    SAVE=$PARENT\/IPC_mask_$MASK\_seed_$SEED
+    FRS=$FRS,IPC_mask_$MASK\_seed_$SEED
 
-#python $EXE --exp $EXP --amin $AMIN --amax $AMAX --nas $NAS --nqrc $QR --nproc $NPROC --spins $NSPINS --seed $SEED --dynamic $DYNAMIC --deg_delays $DELAYS --thres $THRES --virtuals $V --length $T --max_deg $DEG --max_window $WD --max_num_var $VAR --savedir $SAVE
+    #python $EXE --mask_input $MASK --exp $EXP --amin $AMIN --amax $AMAX --nas $NAS --nqrc $QR --nproc $NPROC --spins $NSPINS --seed $SEED --dynamic $DYNAMIC --deg_delays $DELAYS --thres $THRES --virtuals $V --length $T --max_deg $DEG --max_window $WD --max_num_var $VAR --savedir $SAVE
+    done
+
+    P=mdeg_4_mvar_4
+
+    for THRES in 0.0 1e-4
+    do
+    python $BINPLOT --solver 'linear_pinv_' --exp $EXP --parent $PARENT --folders $FRS --T $T --thres $THRES --amin $AMIN --amax $AMAX --nas $NAS --nqrc $QR --dynamic $DYNAMIC --virtuals $V --taus $TAUS --nspins $NSPINS --keystr $P  --max_capa $CAPA --width $WIDTH
+    done
 done
-
-P=mdeg_4_mvar_4
-
-for THRES in 0.0 1e-4
-do
-python $BINPLOT --exp $EXP --parent $PARENT --folders $FRS --T $T --thres $THRES --amin $AMIN --amax $AMAX --nas $NAS --nqrc $QR --dynamic $DYNAMIC --virtuals $V --taus $TAUS --nspins $NSPINS --keystr $P  --max_capa $CAPA --width $WIDTH
-done
-
 
