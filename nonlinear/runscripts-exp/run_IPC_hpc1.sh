@@ -30,16 +30,17 @@ AMIN=0.0
 AMAX=1.0
 NAS=100
 EXP=0
+CB=0
 
-for MASK in 1 0
+for MASK in 1
     do
     FRS='XXX'
     for SEED in 0
     do
-    SAVE=$PARENT\/IPC_mask_$MASK\_seed_$SEED
-    FRS=$FRS,IPC_mask_$MASK\_seed_$SEED
+    SAVE=$PARENT\/IPC_cb_$CB\_mask_$MASK\_seed_$SEED
+    FRS=$FRS,IPC_cb_$CB\_mask_$MASK\_seed_$SEED
 
-    #python $EXE --mask_input $MASK --exp $EXP --amin $AMIN --amax $AMAX --nas $NAS --nqrc $QR --nproc $NPROC --spins $NSPINS --seed $SEED --dynamic $DYNAMIC --deg_delays $DELAYS --thres $THRES --virtuals $V --length $T --max_deg $DEG --max_window $WD --max_num_var $VAR --savedir $SAVE
+    python $EXE --combine_input $CB --mask_input $MASK --exp $EXP --amin $AMIN --amax $AMAX --nas $NAS --nqrc $QR --nproc $NPROC --spins $NSPINS --seed $SEED --dynamic $DYNAMIC --deg_delays $DELAYS --thres $THRES --virtuals $V --length $T --max_deg $DEG --max_window $WD --max_num_var $VAR --savedir $SAVE
     done
 
     P=mdeg_4_mvar_4

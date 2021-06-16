@@ -22,7 +22,7 @@ import utils
 from utils import *
 from IPC import IPCParams
 
-def IPC_compute(qparams, ipcparams, length, ntrials, ranseed, log_filename, savedir, posfix, nqrc, alphas, explb, mask_input):
+def IPC_compute(qparams, ipcparams, length, ntrials, ranseed, log_filename, savedir, posfix, nqrc, alphas, explb, mask_input, combine_input):
     logger = get_module_logger(__name__, log_filename)
     logger.info(log_filename)
     
@@ -33,7 +33,7 @@ def IPC_compute(qparams, ipcparams, length, ntrials, ranseed, log_filename, save
             gamma = alpha
         hqrc.get_IPC(qparams, ipcparams, length, nqrc=nqrc, gamma=gamma, logger=logger, ranseed=ranseed, Ntrials=ntrials, \
             savedir=savedir, posfix='capa_alpha_{:.3f}_{}'.format(alpha, posfix), \
-            type_input=1, mask_input=mask_input, label='alpha_{:.3f}'.format(alpha))
+            type_input=1, mask_input=mask_input, combine_input=combine_input, label='alpha_{:.3f}'.format(alpha))
     
 if __name__  == '__main__':
     # Check for command line arguments
@@ -56,6 +56,7 @@ if __name__  == '__main__':
     parser.add_argument('--ntrials', type=int, default=1)
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--mask_input', type=int, default=0)
+    parser.add_argument('--combine_input', type=int, default=1)
     
     parser.add_argument('--deg_delays', type=str, default='0,100,0,10,0,5', help='delays by degree')
     parser.add_argument('--writedelay', type=bool, default=False)
@@ -79,7 +80,7 @@ if __name__  == '__main__':
 
     nqrc, n_spins, max_energy, beta, init_rho = args.nqrc, args.spins, args.max_energy, args.beta, args.rho
     amin, amax, nas = args.amin, args.amax, args.nas
-    mask_input = args.mask_input
+    mask_input, combine_input = args.mask_input, args.combine_input
 
     max_delay, max_deg, max_num_var, thres, chunk = args.max_delay, args.max_deg, args.max_num_var, args.thres, args.chunk
     max_window, writedelay = args.max_window, args.writedelay
@@ -103,8 +104,8 @@ if __name__  == '__main__':
     if explb > 0:
         basename = '{}_exp_{}'.format(basename, explb)
     
-    basename = '{}_{}_{}_nqrc_{}_nspins_{}_amax_{}_amin_{}_nas_{}_seed_{}_mdeg_{}_mvar_{}_thres_{}_delays_{}_T_{}_mask_{}'.format(\
-        basename, dynamic, solver, nqrc, n_spins, amax, amin, nas, ranseed, max_deg, max_num_var, thres, args.deg_delays, length, mask_input)
+    basename = '{}_{}_{}_nqrc_{}_nspins_{}_amax_{}_amin_{}_nas_{}_seed_{}_mdeg_{}_mvar_{}_thres_{}_delays_{}_T_{}_mask_{}_cb_{}'.format(\
+        basename, dynamic, solver, nqrc, n_spins, amax, amin, nas, ranseed, max_deg, max_num_var, thres, args.deg_delays, length, mask_input, combine_input)
     log_filename = os.path.join(logdir, '{}.log'.format(basename))
     logger = get_module_logger(__name__, log_filename)
     logger.info(log_filename)
@@ -137,7 +138,7 @@ if __name__  == '__main__':
                     qparams = QRCParams(n_units=n_spins-1, n_envs=1, max_energy=max_energy, \
                                 beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
                     p = multiprocessing.Process(target=IPC_compute, \
-                        args=(qparams, ipcparams, length, ntrials, ranseed, log_filename, savedir, posfix, nqrc, tBs, explb, mask_input))
+                        args=(qparams, ipcparams, length, ntrials, ranseed, log_filename, savedir, posfix, nqrc, tBs, explb, mask_input, combine_input))
                     jobs.append(p)
                     #pipels.append(recv_end)
 
