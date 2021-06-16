@@ -18,7 +18,7 @@ from scipy.special import expit
 
 class HQRC(object):
     def __init__(self, nqrc, gamma, sparsity, sigma_input, \
-        type_input=0, use_corr=0, deep=0, nonlinear=0, mask_input=0):
+        type_input=0, use_corr=0, deep=0, nonlinear=0, mask_input=0, combine_input=1):
         self.nqrc = nqrc
         self.gamma = gamma
         self.sparsity = sparsity
@@ -28,6 +28,7 @@ class HQRC(object):
         self.deep = deep
         self.nonlinear = nonlinear
         self.mask_input = mask_input # feedback between inputs
+        self.combine_input = combine_input # combine input and feedback
 
     def __init_reservoir(self, qparams, ranseed):
         if ranseed >= 0:
@@ -233,14 +234,15 @@ class HQRC(object):
             tmp_rhos.append(rho)
         self.init_rhos = tmp_rhos.copy()
 
-    def step_forward(self, local_rhos, input_val):
+    def step_forward(self, local_rhos, input_val, feedback_flag=1):
         nqrc = self.nqrc
         update_input = input_val.copy().ravel()
+        #update_input = (1.0 - self.gamma) * update_input
 
         q0 = np.array([1, 0]).reshape((2, 1))
         q1 = np.array([0, 1]).reshape((2, 1))
 
-        if self.gamma > 0 and self.cur_states[0] is not None:
+        if feedback_flag > 0 and self.gamma > 0 and self.cur_states[0] is not None:
             tmp_states = np.array(self.cur_states, dtype=np.float64).reshape(1, -1)
             tmp_states = tmp_states @ self.W_feed
             tmp_states = tmp_states.ravel()
@@ -253,7 +255,7 @@ class HQRC(object):
             else:
                 # combine input
                 update_input = self.gamma * tmp_states + (1.0 - self.gamma) * update_input
-        
+                
         if update_input[0] >= -1.0 and update_input[0] <= 1.0:
             for i in range(nqrc):
                 Uop = self.Uops[i]
@@ -288,7 +290,7 @@ class HQRC(object):
                     rho = Uop @ rho @ Uop.T.conj()
                     for qindex in range(0, self.n_qubits):
                         expectation_value = np.real(np.trace(self.Zop[qindex] @ rho))
-                        if self.type_input == 0:
+                        if self.type_input != 1:
                             rvstate = (1.0 + expectation_value) / 2.0
                         else:
                             rvstate = expectation_value
@@ -299,7 +301,7 @@ class HQRC(object):
                             for q2 in range(q1+1, self.n_qubits):
                                 cindex = (q1, q2)
                                 expectation_value = np.real(np.trace(self.Zop_corr[cindex] @ rho))
-                                if self.type_input == 0:
+                                if self.type_input != 1:
                                     rvstate = (1.0 + expectation_value) / 2.0
                                 else:
                                     rvstate = expectation_value
@@ -327,11 +329,11 @@ class HQRC(object):
         state_list = []
         for time_step in range(0, input_length):
             input_val = input_seq[:, time_step].ravel()
-            if self.mask_input > 0:
+            if self.mask_input > 0 and self.gamma > 0:
                 # put the feedback between the inputs
                 dummy_input = np.zeros(input_val.shape) - 100.0
-                local_rhos = self.step_forward(local_rhos, dummy_input)
-            local_rhos = self.step_forward(local_rhos, input_val)
+                local_rhos = self.step_forward(local_rhos, dummy_input, feedback_flag=1)
+            local_rhos = self.step_forward(local_rhos, input_val, feedback_flag=self.combine_input)
             state = np.array(self.cur_states.copy(), dtype=np.float64)
             state_list.append(state.flatten())
 
@@ -401,11 +403,12 @@ class HQRC(object):
         return state_list
 
 def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, val_output_seq, \
-        ranseed, nqrc, gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, mask_input=0, \
+        ranseed, nqrc, gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, mask_input=0, combine_input=1,\
         deep=0, use_corr=0, nonlinear=0):
 
     model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, \
-        sigma_input=sigma_input, type_input=type_input, mask_input=mask_input, deep=deep, use_corr=use_corr, nonlinear=nonlinear)
+        sigma_input=sigma_input, type_input=type_input, mask_input=mask_input, combine_input=combine_input,\
+        deep=deep, use_corr=use_corr, nonlinear=nonlinear)
 
     train_input_seq = np.array(train_input_seq)
     train_output_seq = np.array(train_output_seq)
@@ -424,7 +427,7 @@ def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, 
     return train_pred_seq, train_loss, val_pred_seq, val_loss
 
 def get_IPC(qparams, ipcparams, length, logger, nqrc=1, gamma=0.0, ranseed=-1, Ntrials=1, savedir=None, \
-    posfix='capa', type_input=0, mask_input=0, label=''):
+    posfix='capa', type_input=0, mask_input=0, combine_input=1, label=''):
     start_time = time.monotonic()
     fname = '{}_{}'.format(label, sys._getframe().f_code.co_name)
     transient = length // 2
@@ -432,7 +435,7 @@ def get_IPC(qparams, ipcparams, length, logger, nqrc=1, gamma=0.0, ranseed=-1, N
     if ranseed >= 0:
         np.random.seed(seed=ranseed)
     for n in range(Ntrials):
-        if type_input == 0:
+        if type_input != 1:
             input_signals = np.random.uniform(0, 1, length) 
         else:
             input_signals = np.random.uniform(-1, 1, length)
@@ -440,7 +443,7 @@ def get_IPC(qparams, ipcparams, length, logger, nqrc=1, gamma=0.0, ranseed=-1, N
         input_signals = np.tile(input_signals, (nqrc, 1))
 
         ipc = IPC(ipcparams, log=logger, savedir=savedir, label=label)
-        model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=1.0, sigma_input=1.0, type_input=type_input, mask_input=mask_input)
+        model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=1.0, sigma_input=1.0, type_input=type_input, mask_input=mask_input, combine_input=combine_input)
         output_signals = model.init_forward(qparams, input_signals, init_rs=True, ranseed = n + ranseed)
         logger.debug('{}: n={} per {} trials, input shape = {}, output shape={}'.format(fname, n+1, Ntrials, input_signals.shape, output_signals.shape))
         
@@ -450,7 +453,8 @@ def get_IPC(qparams, ipcparams, length, logger, nqrc=1, gamma=0.0, ranseed=-1, N
     logger.info('{}: Executed time {}'.format(fname, timedelta(seconds=end_time - start_time)))
 
 def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
-        nqrc, gamma, sparsity, sigma_input, mask_input=0, ranseed=-1, Ntrials=1, type_input=0):    
+        nqrc, gamma, sparsity, sigma_input, mask_input=0, combine_input=1, \
+        ranseed=-1, Ntrials=1, type_input=0, nonlinear=0):    
     MFlist = []
     MFstds = []
     train_list, val_list = [], []
@@ -467,7 +471,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
         data = np.random.randint(0, 2, length)
     else:
         print('Generate STM task data')
-        if type_input == 0:
+        if type_input != 1:
             data = np.random.rand(length)
         else:
             data = 2.0*np.random.rand(length) - 1.0
@@ -511,7 +515,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
             train_pred_seq, train_loss, val_pred_seq, val_loss = \
             get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, val_output_seq, \
                 nqrc=nqrc, gamma=gamma, sparsity=sparsity, sigma_input=sigma_input, ranseed=ranseed_net, \
-                type_input=type_input, mask_input=mask_input)
+                type_input=type_input, mask_input=mask_input, combine_input=combine_input, nonlinear=nonlinear)
 
             # Compute memory function
             val_out_seq, val_pred_seq = val_output_seq.flatten(), val_pred_seq.flatten()
@@ -532,7 +536,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
     
     return np.array(list(zip(dlist, MFlist, MFstds, train_list, val_list)))
 
-def effective_dim(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, mask_input, nonlinear, ranseed, Ntrials):
+def effective_dim(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, mask_input, nonlinear, ranseed, Ntrials, combine_input=1):
     # Calculate effective dimension for reservoir
     from numpy import linalg as LA
     
@@ -544,7 +548,7 @@ def effective_dim(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, m
     input_seq = np.array(data)
     input_seq = np.tile(input_seq, (nqrc, 1))
 
-    model = HQRC(nqrc, gamma, sparsity, sigma_input, nonlinear=nonlinear, mask_input=mask_input)
+    model = HQRC(nqrc, gamma, sparsity, sigma_input, nonlinear=nonlinear, mask_input=mask_input, combine_input=combine_input)
 
     effdims = []
     for n in range(Ntrials):
