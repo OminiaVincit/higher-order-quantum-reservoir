@@ -45,6 +45,7 @@ if __name__  == '__main__':
 
     ax = axs[0]
     dcl = 0
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     for tau in taus:
         for V in reversed(Vs):
             rsarr = []
@@ -69,6 +70,7 @@ if __name__  == '__main__':
             #    color = 'gray'
             #else:
             color=putils.cycle[dcl]
+            #color = colors[dcl]
             #ax.errorbar(xs, avg_tests, yerr=std_tests, alpha = 0.8, elinewidth=2, linewidth=2, markersize=12, \
             #    label='$V=${}'.format(V))
             ax.plot(xs, avg_tests, 's-', alpha = 0.8, linewidth=3, markersize=8, mec='k', mew=0.5, \
@@ -87,7 +89,8 @@ if __name__  == '__main__':
             #ax.set_xticklabels(labels='')
             #ax.set_yticklabels(labels='')
             ax.grid(True, which="both", ls="-", color='0.65')
-            ax.legend()
+            ax.legend(fontsize=12)
+            ax.set_title(ntitle, fontsize=12)
             #ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=14)
 
     for ax in axs:
@@ -100,7 +103,6 @@ if __name__  == '__main__':
         os.mkdir(figsave)
 
     outbase = os.path.join(figsave, '{}_{}'.format(prefix, ntitle))
-    #plt.suptitle(outbase, fontsize=12)
     plt.tight_layout()
     if ntitle != '':
         for ftype in ['pdf', 'svg', 'png']:
