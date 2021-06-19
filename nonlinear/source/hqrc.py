@@ -77,7 +77,7 @@ class HQRC(object):
             for i in range(0, nqrc):
                 if self.deep == 0:
                     #smat = scipy.sparse.random(n_nodes, 1, density = self.sparsity).todense()
-                    if self.nonlinear <= 0:
+                    if self.nonlinear == 0 or self.nonlinear == 3:
                         smat = np.random.rand(n_nodes)
                     else:
                         #smat = np.random.randn(n_nodes) * self.sigma_input
@@ -86,7 +86,7 @@ class HQRC(object):
                     bg = i * n_local_nodes
                     ed = bg + n_local_nodes 
                     smat[bg:ed] = 0
-                    if self.nonlinear <= 0:
+                    if self.nonlinear == 0 or self.nonlinear == 3:
                         smat *= (self.sigma_input / (n_nodes - n_local_nodes))
                     # else:
                     #     #print(np.std(smat), self.sigma_input)
@@ -99,14 +99,14 @@ class HQRC(object):
                 else:
                     if i > 1:
                         #smat = scipy.sparse.random(n_local_nodes, 1, density = self.sparsity).todense()
-                        if self.nonlinear <= 0:
+                        if self.nonlinear == 0 or self.nonlinear == 3:
                             smat = np.random.rand(n_nodes)
                         else:
                             #smat = np.random.randn(n_nodes) * self.sigma_input
                             smat = np.random.normal(loc=0, scale=self.sigma_input, size=(n_nodes, 1))
                     
                         smat = smat.ravel()
-                        if self.nonlinear <= 0:
+                        if self.nonlinear == 0 or self.nonlinear == 3:
                             smat *= (self.sigma_input / n_local_nodes)
                         # else:
                         #     smat /= np.std(smat)
@@ -255,6 +255,14 @@ class HQRC(object):
                 tmp_states = (tmp_states - np.min(tmp_states)) / (np.max(tmp_states) - np.min(tmp_states))
             elif self.nonlinear == 3:
                 tmp_states = shuffle(tmp_states)
+            elif self.nonlinear == 4:
+                tmp_states = expit(tmp_states)
+                tmp_states = shuffle(tmp_states)
+            elif self.nonlinear == 5:
+                # Min-max norm
+                tmp_states = (tmp_states - np.min(tmp_states)) / (np.max(tmp_states) - np.min(tmp_states))
+                tmp_states = shuffle(tmp_states)
+            
             if update_input[0] < -1.0:
                 # insert feedback between input
                 update_input = self.gamma * tmp_states

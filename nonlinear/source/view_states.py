@@ -97,6 +97,7 @@ if __name__  == '__main__':
     parser.add_argument('--type_input', type=int, default=0)
     parser.add_argument('--nonlinear', type=int, default=0, help='The nonlinear of feedback matrix')
     parser.add_argument('--scale_input', type=float, default=1.0)
+    parser.add_argument('--trans_input', type=float, default=0.0)
     
     parser.add_argument('--nproc', type=int, default=50)
     parser.add_argument('--dynamic', type=str, default=DYNAMIC_FULL_RANDOM,\
@@ -113,7 +114,7 @@ if __name__  == '__main__':
     bg, ed, lyap = args.bg, args.ed, args.lyap
     layer_strength, nonlinear, sparsity, sigma_input = args.strength, args.nonlinear, args.sparsity, args.sigma_input
     const_input, mask_input, combine_input, type_input = args.const, args.mask_input, args.combine_input, args.type_input
-    scale_input = args.scale_input
+    scale_input, trans_input = args.scale_input, args.trans_input
     basename = '{}_nqr_{}_V_{}_sm_{}_a_{}_sg_{}_sparse_{}_ms_{}_cb_{}_tp_{}'.format(dynamic, \
         nqrc, V, nonlinear, layer_strength, sigma_input, sparsity, mask_input, combine_input, type_input)
 
@@ -166,7 +167,7 @@ if __name__  == '__main__':
             os.remove(filename)
             print('zlen={}, Deleted {}'.format(len(z), filename))
 
-        filename = filename.replace('.binaryfile', 'const_{}_scale_{}_len_{}.binaryfile'.format(const_input, scale_input, length))
+        filename = filename.replace('.binaryfile', 'const_{}_scale_{}_trans_{}_len_{}.binaryfile'.format(const_input, scale_input, trans_input, length))
         with open(filename, 'wb') as wrs:
             pickle.dump(z, wrs)
     else:
