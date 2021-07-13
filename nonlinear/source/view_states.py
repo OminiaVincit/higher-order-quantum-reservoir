@@ -57,8 +57,8 @@ def reduce_states_dimension(arr, n_neighbors=15, min_dist=0.1, n_components=2, n
     return mapper
 
 
-def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, nonlinear, sigma_input, sparsity, mask,\
-    xs, idx, send_end):
+def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, mask_input, combine_input, \
+    nonlinear, sigma_input, type_input, sparsity, xs, idx, send_end):
     """
     Dump raw data of states
     """
@@ -68,12 +68,13 @@ def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, nonlinear,
         tau = 2**x
         qparams = QRCParams(n_units=UNITS-1, n_envs=1, max_energy=1.0,\
             beta=BETA, virtual_nodes=V, tau=tau, init_rho=INIT_RHO, solver=LINEAR_PINV, dynamic=dynamic)
-        model = hqrc.HQRC(nqrc=nqrc, gamma=layer_strength, sparsity=sparsity, sigma_input=sigma_input, nonlinear=nonlinear)
+        model = hqrc.HQRC(nqrc=nqrc, gamma=layer_strength, sparsity=sparsity, sigma_input=sigma_input, \
+            mask_input=mask_input, combine_input=combine_input, nonlinear=nonlinear, type_input=type_input)
         state_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = 0)
         results[x] = state_list*2.0-1.0
     
-    outbase = os.path.join(savedir, '{}_layers_{}_V_{}_nonlinear_{}_strength_{}_sigma_{}_sparse_{}_mask_{}'.format(dynamic, \
-        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity, mask))
+    outbase = os.path.join(savedir, '{}_nqr_{}_V_{}_sm_{}_alpha_{}_sg_{}_sparse_{}_ms_{}_cb_{}_tp_{}'.format(dynamic, \
+        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity, mask_input, combine_input, type_input))
     filename = '{}_states_id_{}.binaryfile'.format(outbase, idx)
     with open(filename, 'wb') as wrs:
         pickle.dump(results, wrs)
@@ -91,8 +92,12 @@ if __name__  == '__main__':
     parser.add_argument('--strength', type=float, default=0.5, help='The connection strength')
     parser.add_argument('--sparsity', type=float, default=1.0, help='The sparsity of the connection strength')
     parser.add_argument('--sigma_input', type=float, default=1.0, help='The sigma input for the feedback')
+    parser.add_argument('--mask_input', type=int, default=0, help='Mask input')
+    parser.add_argument('--combine_input', type=int, default=0, help='Combine input')
+    parser.add_argument('--type_input', type=int, default=0)
     parser.add_argument('--nonlinear', type=int, default=0, help='The nonlinear of feedback matrix')
-    parser.add_argument('--mask', type=int, default=0, help='Mask input')
+    parser.add_argument('--scale_input', type=float, default=1.0)
+    parser.add_argument('--trans_input', type=float, default=0.0)
     
     parser.add_argument('--nproc', type=int, default=50)
     parser.add_argument('--dynamic', type=str, default=DYNAMIC_FULL_RANDOM,\
@@ -108,9 +113,10 @@ if __name__  == '__main__':
     length, nqrc, nproc, dynamic = args.length, args.nqrc, args.nproc, args.dynamic
     bg, ed, lyap = args.bg, args.ed, args.lyap
     layer_strength, nonlinear, sparsity, sigma_input = args.strength, args.nonlinear, args.sparsity, args.sigma_input
-    const_input, mask = args.const, args.mask
-    basename = '{}_nqrc_{}_V_{}_sm_{}_a_{}_sigma_{}_sparse_{}_mask_{}'.format(dynamic, \
-        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity, mask)
+    const_input, mask_input, combine_input, type_input = args.const, args.mask_input, args.combine_input, args.type_input
+    scale_input, trans_input = args.scale_input, args.trans_input
+    basename = '{}_nqr_{}_V_{}_sm_{}_a_{}_sg_{}_sparse_{}_ms_{}_cb_{}_tp_{}'.format(dynamic, \
+        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity, mask_input, combine_input, type_input)
 
     savedir = args.savedir
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
@@ -129,8 +135,7 @@ if __name__  == '__main__':
             data = np.random.rand(length)
         else:
             data = np.zeros(length)
-        if mask > 0:
-            data[1::2] = -100
+        data = data * scale_input
         input_seq = np.array(data)
         input_seq = np.tile(input_seq, (nqrc, 1))
         
@@ -139,7 +144,8 @@ if __name__  == '__main__':
             xs = lst[pid]
             recv_end, send_end = multiprocessing.Pipe(False)
             p = multiprocessing.Process(target=dumpstates_job, args=(savedir, dynamic, input_seq, \
-                nqrc, layer_strength, nonlinear, sigma_input, sparsity, mask, xs, pid, send_end))
+                nqrc, layer_strength, mask_input, combine_input, nonlinear, sigma_input, type_input,\
+                sparsity, xs, pid, send_end))
             jobs.append(p)
             pipels.append(recv_end)
         # Start the process
@@ -161,7 +167,7 @@ if __name__  == '__main__':
             os.remove(filename)
             print('zlen={}, Deleted {}'.format(len(z), filename))
 
-        filename = filename.replace('.binaryfile', 'const_{}_len_{}.binaryfile'.format(const_input, length))
+        filename = filename.replace('.binaryfile', 'const_{}_scale_{}_trans_{}_len_{}.binaryfile'.format(const_input, scale_input, trans_input, length))
         with open(filename, 'wb') as wrs:
             pickle.dump(z, wrs)
     else:
@@ -244,8 +250,8 @@ if __name__  == '__main__':
             ys = state_list[bg:ed, j].ravel()
             ax2.plot(ys)
         ax2.set_title('2^{:.1f}'.format(x))
-        ax2.set_yticklabels([])
-        ax2.set_xticklabels([])
+        #ax2.set_yticklabels([])
+        #ax2.set_xticklabels([])
 
         ax3 = plt.subplot2grid((nqrc,4), (i,3))
         states = state_list[bg:ed, :UNITS]
@@ -255,6 +261,6 @@ if __name__  == '__main__':
         
 
     outbase = filename.replace('.binaryfile', '_bg_{}_ed_{}_lyap_{}'.format(bg, ed, lyap))
-    for ftype in ['png', 'svg']:
+    for ftype in ['png']:
         plt.savefig('{}_v4.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
     plt.show()

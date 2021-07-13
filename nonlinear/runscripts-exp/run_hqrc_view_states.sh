@@ -3,24 +3,30 @@
 export OMP_NUM_THREADS=1
 
 BIN=../source/view_states.py
-LENGTH=5000
-BG=4000
-ED=5000
-SAVE=../../../data/hqrc/dynamics_mask
+LENGTH=500
+BG=400
+ED=500
+SAVE=../../../data/hqrc/dynamics_trans_input
 QR=5
 PROC=100
 CONST=0
 INT=0.05
-SM=1
+SM=3
+CB=1
 SP=1.0
+TP=0
+TS=0.0
 
-for MS in 1
+for SC in 1.0
 do
-for SG in 10.0
+for MS in 0
+do
+for SG in 1.0
 do
 for ALPHA in 0.0
 do
-python $BIN --mask $MS --sigma_input $SG --sparsity $SP --nonlinear $SM --interval $INT --const $CONST --savedir $SAVE --length $LENGTH --bg $BG --ed $ED --nqrc $QR --strength $ALPHA --nproc $PROC
+python $BIN --trans_input $TS --scale_input $SC --type_input $TP --mask_input $MS --combine_input $CB --sigma_input $SG --sparsity $SP --nonlinear $SM --interval $INT --const $CONST --savedir $SAVE --length $LENGTH --bg $BG --ed $ED --nqrc $QR --strength $ALPHA --nproc $PROC
+done
 done
 done
 done

@@ -15,6 +15,7 @@ from utils import *
 import time
 from datetime import timedelta
 from scipy.special import expit
+from sklearn.utils import shuffle
 
 class HQRC(object):
     def __init__(self, nqrc, gamma, sparsity, sigma_input, \
@@ -76,7 +77,7 @@ class HQRC(object):
             for i in range(0, nqrc):
                 if self.deep == 0:
                     #smat = scipy.sparse.random(n_nodes, 1, density = self.sparsity).todense()
-                    if self.nonlinear <= 0:
+                    if self.nonlinear == 0 or self.nonlinear == 3:
                         smat = np.random.rand(n_nodes)
                     else:
                         #smat = np.random.randn(n_nodes) * self.sigma_input
@@ -85,7 +86,7 @@ class HQRC(object):
                     bg = i * n_local_nodes
                     ed = bg + n_local_nodes 
                     smat[bg:ed] = 0
-                    if self.nonlinear <= 0:
+                    if self.nonlinear == 0 or self.nonlinear == 3:
                         smat *= (self.sigma_input / (n_nodes - n_local_nodes))
                     # else:
                     #     #print(np.std(smat), self.sigma_input)
@@ -98,14 +99,14 @@ class HQRC(object):
                 else:
                     if i > 1:
                         #smat = scipy.sparse.random(n_local_nodes, 1, density = self.sparsity).todense()
-                        if self.nonlinear <= 0:
+                        if self.nonlinear == 0 or self.nonlinear == 3:
                             smat = np.random.rand(n_nodes)
                         else:
                             #smat = np.random.randn(n_nodes) * self.sigma_input
                             smat = np.random.normal(loc=0, scale=self.sigma_input, size=(n_nodes, 1))
                     
                         smat = smat.ravel()
-                        if self.nonlinear <= 0:
+                        if self.nonlinear == 0 or self.nonlinear == 3:
                             smat *= (self.sigma_input / n_local_nodes)
                         # else:
                         #     smat /= np.std(smat)
@@ -252,6 +253,16 @@ class HQRC(object):
             elif self.nonlinear == 2:
                 # Min-max norm
                 tmp_states = (tmp_states - np.min(tmp_states)) / (np.max(tmp_states) - np.min(tmp_states))
+            elif self.nonlinear == 3:
+                tmp_states = shuffle(tmp_states)
+            elif self.nonlinear == 4:
+                tmp_states = expit(tmp_states)
+                tmp_states = shuffle(tmp_states)
+            elif self.nonlinear == 5:
+                # Min-max norm
+                tmp_states = (tmp_states - np.min(tmp_states)) / (np.max(tmp_states) - np.min(tmp_states))
+                tmp_states = shuffle(tmp_states)
+            
             if update_input[0] < -1.0:
                 # insert feedback between input
                 update_input = self.gamma * tmp_states
@@ -336,7 +347,8 @@ class HQRC(object):
             if self.mask_input > 0 and self.gamma > 0:
                 # put the feedback between the inputs
                 dummy_input = np.zeros(input_val.shape) - 100.0
-                local_rhos = self.step_forward(local_rhos, dummy_input, feedback_flag=1)
+                for i in range(self.mask_input):
+                    local_rhos = self.step_forward(local_rhos, dummy_input, feedback_flag=1)
             local_rhos = self.step_forward(local_rhos, input_val, feedback_flag=self.combine_input)
             state = np.array(self.cur_states.copy(), dtype=np.float64)
             state_list.append(state.flatten())

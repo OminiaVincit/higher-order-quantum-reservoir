@@ -17,6 +17,7 @@ if __name__  == '__main__':
     parser.add_argument('--ymin', type=float, default='0.0')
     parser.add_argument('--ymax', type=float, default='60.0')
     parser.add_argument('--taus', type=str, default='-4,-3,-2,-1,0,1,2,3,4,5,6,7')
+    parser.add_argument('--virtuals', type=str, default='1,5,15,25')
     
     args = parser.parse_args()
     print(args)
@@ -28,7 +29,7 @@ if __name__  == '__main__':
     taus_log = [float(x) for x in tstr.split(',')]
     taus = [2**x for x in taus_log]
 
-    Vs = [1, 5, 15, 25]
+    Vs = [int(x) for x in args.virtuals.split(',')]
     cmap = plt.get_cmap("viridis")
     fig, axs = plt.subplots(1, 1, figsize=(12, 6), squeeze=False)
     axs = axs.ravel()
@@ -49,7 +50,7 @@ if __name__  == '__main__':
     for tau in taus:
         for V in reversed(Vs):
             rsarr = []
-            for rfile in glob.glob('{}/{}*_tau_{}*V_*{}*_{}.txt'.format(folder, prefix, tau, V, posfix)):
+            for rfile in glob.glob('{}/{}*_tau_{}_*_V_{}_*{}.txt'.format(folder, prefix, tau, V, posfix)):
                 print(rfile)
                 ntitle = os.path.basename(rfile)
                 nidx = ntitle.find('layers_')
@@ -79,19 +80,19 @@ if __name__  == '__main__':
                 facecolor=color, alpha=0.2)
             dcl += 1
 
-            ax.set_xlabel('$\\alpha$', fontsize=24)
-            #ax.set_xscale('log',base=10)
-            ax.set_ylabel('MC', fontsize=24)
-            #ax.set_ylim([np.min(avg_tests)/2, 2*np.max(avg_tests)])
-            ax.set_ylim([ymin, ymax])
-            ax.set_xticks(np.linspace(0.0, 1.0, 11))
-            ax.set_xlim([0.0, 1.01])
-            #ax.set_xticklabels(labels='')
-            #ax.set_yticklabels(labels='')
-            ax.grid(True, which="both", ls="-", color='0.65')
-            ax.legend(fontsize=12)
-            ax.set_title(ntitle, fontsize=12)
-            #ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=14)
+    ax.set_xlabel('$\\alpha$', fontsize=24)
+    #ax.set_xscale('log',base=10)
+    ax.set_ylabel('MC', fontsize=24)
+    #ax.set_ylim([np.min(avg_tests)/2, 2*np.max(avg_tests)])
+    ax.set_ylim([ymin, ymax])
+    ax.set_xticks(np.linspace(0.0, 1.0, 11))
+    ax.set_xlim([0.0, 1.01])
+    #ax.set_xticklabels(labels='')
+    #ax.set_yticklabels(labels='')
+    ax.grid(True, which="both", ls="-", color='0.65')
+    ax.legend(fontsize=12)
+    ax.set_title(ntitle, fontsize=12)
+    #ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=14)
 
     for ax in axs:
         #ax.minorticks_on()
