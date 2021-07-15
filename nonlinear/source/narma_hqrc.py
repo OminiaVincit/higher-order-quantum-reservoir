@@ -20,13 +20,28 @@ import utils
 from utils import *
 
 def compute_job(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_output_seq, \
-        val_input_seq, val_output_seq, Ntrials, send_end, order):
+        val_input_seq, val_output_seq, Ntrials, send_end, save_order, save_path, load_order, load_path, combine_input):
     train_loss_ls, val_loss_ls = [], []
     print('Start process alpha={}, taudelta={}, virtual={}, Jdelta={}'.format(\
         alpha, qparams.tau, qparams.virtual_nodes, qparams.max_energy))
+    
+    basename = 'train_{}_nqr_{}_deep_{}_tau_{:.3f}_V_{}'.format(\
+        train_input_seq.shape[1], nqrc, deep, qparams.tau, qparams.virtual_nodes)
+
+    if load_path != None:
+        load_path = os.path.join(load_path, 'order_{}_{}'.format(load_order, basename))
+    if save_path != None:
+        save_path = os.path.join(save_path, 'order_{}_{}'.format(save_order, basename))
+
     for n in range(Ntrials):
+        local_save_path, local_load_path = None, None
+        if save_path != None:
+            local_save_path = os.path.join(save_path, 'trial_{}'.format(n))
+        if load_path != None:
+            local_load_path = os.path.join(load_path, 'trial_{}'.format(n))
+            
         _, train_loss, _, val_loss = hqrc.get_loss(qparams, buffer, train_input_seq, train_output_seq, \
-            val_input_seq, val_output_seq, nqrc=nqrc, gamma=alpha, ranseed=n, deep=deep)
+            val_input_seq, val_output_seq, nqrc=nqrc, gamma=alpha, ranseed=n, deep=deep, saving_path=local_save_path, loading_path=local_load_path, combine_input=combine_input)
         train_loss_ls.append(train_loss)
         val_loss_ls.append(val_loss)
         print('trials={}, tau={},V={},alpha={}, train_loss={}, val_loss={}'.format(\
@@ -37,7 +52,7 @@ def compute_job(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_outpu
     #mean_train, mean_val = np.random.rand(), np.random.rand()
 
     rstr = '{} {} {} {} {} {} {} {}'.format(\
-        order, nqrc, qparams.tau, alpha, \
+        save_order, nqrc, qparams.tau, alpha, \
             mean_train, mean_val, std_train, std_val)
     print('Finish process {}'.format(rstr))
     send_end.send(rstr)
@@ -66,8 +81,13 @@ if __name__  == '__main__':
 
     parser.add_argument('--deep', type=int, default=0, help='0: mutual connection, 1: forward connection')
     parser.add_argument('--orders', type=str, default='5,10,15,20')
+    parser.add_argument('--load_order', type=str, default='2')
     parser.add_argument('--savedir', type=str, default='resnarma_hqrc')
     parser.add_argument('--rseed', type=int, default=0)
+    parser.add_argument('--save_model', type=int, default=0)
+    parser.add_argument('--load_model', type=int, default=0)
+    parser.add_argument('--combine_input', type=int, default=1)
+    
     args = parser.parse_args()
     print(args)
 
@@ -83,10 +103,20 @@ if __name__  == '__main__':
     if os.path.isdir(savedir) == False:
         os.mkdir(savedir)
 
+    save_model, load_model, load_order = args.save_model, args.load_model, args.load_order
+    save_path, load_path = None, None
+    combine_input = args.combine_input
+
+    if save_model > 0:
+        save_path = os.path.join(savedir, 'saved_model')
+    if load_model > 0:
+        load_path = os.path.join(savedir, 'saved_model')
+
     if args.taudelta == 'default':
         taudeltas = list(np.arange(-5, 7.1, 0.1))
     else:
-        taudeltas = [float(x) for x in args.taudelta.split(',')]
+        tstr = args.taudelta.replace('\'','')
+        taudeltas = [float(x) for x in tstr.split(',')]
     taudeltas = [2**x for x in taudeltas]
     
     layers = [int(x) for x in args.nqrc.split(',')]
@@ -99,11 +129,11 @@ if __name__  == '__main__':
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
 
     for order in orders:
-        outbase = os.path.join(savedir, '{}_{}_{}_units_{}_V_{}_QRs_{}_narma_{}_deep_{}_ntrials_{}'.format(\
+        outbase = os.path.join(savedir, '{}_{}_{}_units_{}_V_{}_QRs_{}_narma_{}_deep_{}_ntrials_{}_load_{}_od_{}_cb_{}'.format(\
             dynamic, solver, datestr, n_units, V,\
             #'_'.join([str(o) for o in strengths]), \
             '_'.join([str(o) for o in layers]), \
-            order, deep, Ntrials))
+            order, deep, Ntrials, load_model, load_order, combine_input))
         #np.random.seed(seed=rseed + order*100)
 
         jobs, pipels = [], []
@@ -128,7 +158,7 @@ if __name__  == '__main__':
                     qparams = QRCParams(n_units=n_units-1, n_envs=1, max_energy=max_energy,\
                         beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
                     p = multiprocessing.Process(target=compute_job, args=(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_output_seq, \
-                        val_input_seq, val_output_seq, Ntrials, send_end, order))
+                        val_input_seq, val_output_seq, Ntrials, send_end, order, save_path, load_order, load_path, combine_input))
                     jobs.append(p)
                     pipels.append(recv_end)
 
