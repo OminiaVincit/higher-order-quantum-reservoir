@@ -23,7 +23,7 @@ import psutil
 
 class HQRC(object):
     def __init__(self, nqrc, gamma, sparsity, sigma_input, \
-        type_input=0, use_corr=0, deep=0, nonlinear=0, mask_input=0, combine_input=1):
+        type_input=0, use_corr=0, deep=0, nonlinear=0, mask_input=0, combine_input=1, feed_trials=100):
         self.nqrc = nqrc
         self.gamma = gamma
         self.sparsity = sparsity
@@ -34,6 +34,13 @@ class HQRC(object):
         self.nonlinear = nonlinear
         self.mask_input = mask_input # feedback between inputs
         self.combine_input = combine_input # combine input and feedback
+        self.feed_trials = 200
+        self.feed_mean = None
+        self.feed_std  = None
+        self.feed_max = None
+        self.feed_min = None
+        self.feed_scale = 2.0
+        self.feed_trans = 0.5
 
     def __init_reservoir(self, qparams, ranseed, loading_path):
         I = [[1,0],[0,1]]
@@ -87,59 +94,65 @@ class HQRC(object):
         Nspins = self.n_qubits
         
         # generate feedback matrix
-        n_nodes = self.__get_comput_nodes() + 1
+        n_nodes = self.__get_comput_nodes()
         # skip self loop
         n_local_nodes = self.__get_qr_nodes()
         
         # Create W_feed or load from saved Wout
         if self.W_feed.shape == ():
             W_feed = np.zeros((n_nodes, nqrc))
-            if nqrc > 1:
-                for i in range(0, nqrc):
-                    if self.deep == 0:
-                        #smat = scipy.sparse.random(n_nodes, 1, density = self.sparsity).todense()
-                        if self.nonlinear == 0 or self.nonlinear == 3:
-                            smat = np.random.rand(n_nodes)
-                        else:
-                            #smat = np.random.randn(n_nodes) * self.sigma_input
-                            smat = np.random.normal(loc=0, scale=self.sigma_input, size=(n_nodes, 1))
-                        smat = smat.ravel()
-                        bg = i * n_local_nodes
-                        ed = bg + n_local_nodes 
-                        smat[bg:ed] = 0
-                        if self.nonlinear == 0 or self.nonlinear == 3:
-                            smat *= (self.sigma_input / (n_nodes - n_local_nodes))
-                        # else:
-                        #     #print(np.std(smat), self.sigma_input)
-                        #     valstd = np.std(smat)
-                        #     if valstd > 0:
-                        #         smat /= valstd
-                        #     smat *= (self.sigma_input)
-                        
-                        W_feed[:, i] = smat.copy()
-                    else:
-                        if i > 1:
-                            #smat = scipy.sparse.random(n_local_nodes, 1, density = self.sparsity).todense()
+            if self.nonlinear == 6:
+                for k in range(0, n_nodes, n_local_nodes):
+                    #qridx = int(k/n_local_nodes)
+                    W_feed[k, :] = 1.0 / nqrc
+            else:
+                if nqrc > 1:
+                    for i in range(0, nqrc):
+                        if self.deep == 0:
+                            #smat = scipy.sparse.random(n_nodes, 1, density = self.sparsity).todense()
                             if self.nonlinear == 0 or self.nonlinear == 3:
                                 smat = np.random.rand(n_nodes)
+                                #smat = scipy.sparse.random(n_nodes, 1, density = 0.3).todense()
                             else:
                                 #smat = np.random.randn(n_nodes) * self.sigma_input
                                 smat = np.random.normal(loc=0, scale=self.sigma_input, size=(n_nodes, 1))
-                        
-                            smat = smat.ravel()
+                            smat = np.ravel(smat)
+                            bg = i * n_local_nodes
+                            ed = bg + n_local_nodes 
+                            smat[bg:ed] = 0
                             if self.nonlinear == 0 or self.nonlinear == 3:
-                                smat *= (self.sigma_input / n_local_nodes)
+                                smat *= (self.sigma_input / (n_nodes - n_local_nodes))
                             # else:
-                            #     smat /= np.std(smat)
+                            #     #print(np.std(smat), self.sigma_input)
+                            #     valstd = np.std(smat)
+                            #     if valstd > 0:
+                            #         smat /= valstd
                             #     smat *= (self.sigma_input)
-                            bg = (i-1) * n_local_nodes
-                            ed = bg + n_local_nodes
-                            W_feed[bg:ed, i] = smat.copy()
-            # if self.radius > 0:
-            #     eigenvalues, eigvectors = splinalg.eigs(W_feed)
-            #     eigenvalues = np.abs(eigenvalues)
-            #     W_feed = (W_feed/np.max(eigenvalues))*self.radius
-
+                            
+                            W_feed[:len(smat), i] = smat.copy()
+                        else:
+                            if i > 1:
+                                #smat = scipy.sparse.random(n_local_nodes, 1, density = self.sparsity).todense()
+                                if self.nonlinear == 0 or self.nonlinear == 3:
+                                    smat = np.random.rand(n_nodes)
+                                else:
+                                    #smat = np.random.randn(n_nodes) * self.sigma_input
+                                    smat = np.random.normal(loc=0, scale=self.sigma_input, size=(n_nodes, 1))
+                            
+                                smat = smat.ravel()
+                                if self.nonlinear == 0 or self.nonlinear == 3:
+                                    smat *= (self.sigma_input / n_local_nodes)
+                                # else:
+                                #     smat /= np.std(smat)
+                                #     smat *= (self.sigma_input)
+                                bg = (i-1) * n_local_nodes
+                                ed = bg + n_local_nodes
+                                W_feed[bg:ed, i] = smat.copy()
+                # if self.radius > 0:
+                #     eigenvalues, eigvectors = splinalg.eigs(W_feed)
+                #     eigenvalues = np.abs(eigenvalues)
+                #     W_feed = (W_feed/np.max(eigenvalues))*self.radius
+                #W_feed[self.__get_comput_nodes():, :] = 0
             self.W_feed = W_feed
 
         
@@ -183,6 +196,8 @@ class HQRC(object):
         
         # initialize current states
         self.cur_states = [None] * nqrc
+        # initialize feedback input
+        self.feed_inputs = []
 
         if len(self.Uops) == 0:
             # create coupling strength for ion trap
@@ -276,12 +291,32 @@ class HQRC(object):
         q0 = np.array([1, 0]).reshape((2, 1))
         q1 = np.array([0, 1]).reshape((2, 1))
 
-        if feedback_flag > 0 and self.gamma > 0 and self.cur_states[0] is not None:
-            tmp_states = np.array(self.cur_states, dtype=np.float64).reshape(1, -1)
-            tmp_states = np.hstack( [tmp_states, np.ones([1, 1])])
+        if feedback_flag > 0 and self.cur_states[0] is not None:
+            tmp_states = np.array(self.cur_states.copy(), dtype=np.float64).reshape(1, -1)
+            #tmp_states = np.hstack( [tmp_states, np.ones([1, 1])])
             #print(tmp_states.shape, self.W_feed.shape)
+            #tmp_states = expit(tmp_states)
             tmp_states = tmp_states @ self.W_feed
-            tmp_states = tmp_states.ravel()
+            tmp_states = np.ravel(tmp_states)
+            if self.feed_std is not None and self.feed_std.all() > 0:
+                #tmp_states = tmp_states - self.feed_mean
+                #tmp_states = np.divide(tmp_states, self.feed_std)
+                #tmp_states = np.multiply(tmp_states, self.feed_scale) + self.feed_trans
+                
+                #tmp_states = np.divide(tmp_states, np.divide(self.feed_max - self.feed_min, self.feed_std))
+                
+                #tmp_states = np.multiply(tmp_states, self.feed_scale) + self.feed_trans 
+                tmp_states = tmp_states - self.feed_min
+                tmp_states = np.divide(tmp_states, self.feed_max - self.feed_min)
+                #print(tmp_states, self.feed_max, self.feed_min)
+                
+                tmp_states[tmp_states < 0.0] = 0.0
+                tmp_states[tmp_states > 1.0] = 1.0
+                #print(self.feed_mean, self.feed_std, tmp_states)
+                #tmp_states = np.abs(tmp_states)
+                
+            #print('W_feed', np.min(self.W_feed), np.max(self.W_feed))
+            #print('tmpstates', tmp_states, np.min(self.cur_states), np.max(self.cur_states))
             #tmp_states = np.exp(-1.0*tmp_states)
             if self.nonlinear == 1:
                 tmp_states = expit(tmp_states)
@@ -304,12 +339,19 @@ class HQRC(object):
                 #print(self.gamma, update_input)
             else:
                 # combine input
-                update_input = self.gamma * tmp_states + update_input
-                
-        if update_input[0] < -1.0 or update_input[0] > 1.0:
-            # If the update_input goes out of range, just use the normal input
-            update_input = original_input
-        
+                if tmp_states.all() >= 0.0 and tmp_states.all() <= 1.0:
+                    update_input = self.gamma * tmp_states + update_input
+                #update_input = np.multiply(update_input, tmp_states)
+                        
+            # if update_input[0] < -1.0 or update_input[0] > 1.0:
+            #     # If the update_input goes out of range, just use the normal input
+            #     update_input = original_input
+            
+        self.feed_inputs = update_input - (1.0 - self.gamma) * original_input
+        if self.gamma > 0:
+            self.feed_inputs /= self.gamma
+        #print('Original input',  original_input) 
+                   
         if True:
             for i in range(nqrc):
                 Uop = self.Uops[i]
@@ -346,6 +388,7 @@ class HQRC(object):
                         expectation_value = np.real(np.trace(self.Zop[qindex] @ rho))
                         if self.type_input != 1:
                             rvstate = (1.0 + expectation_value) / 2.0
+                            #rvstate = expectation_value
                         else:
                             rvstate = expectation_value
                         current_state.append(rvstate)
@@ -380,9 +423,9 @@ class HQRC(object):
         if use_lastrho == True :
             local_rhos = self.last_rhos.copy()
         
-        state_list = []
+        state_list, feed_list = [], []
         for time_step in range(0, input_length):
-            input_val = input_seq[:, time_step].ravel()
+            input_val = np.ravel(input_seq[:, time_step])
             if self.mask_input > 0 and self.gamma > 0:
                 # put the feedback between the inputs
                 dummy_input = np.zeros(input_val.shape) - 100.0
@@ -391,15 +434,26 @@ class HQRC(object):
             local_rhos = self.step_forward(local_rhos, input_val, feedback_flag=self.combine_input)
             state = np.array(self.cur_states.copy(), dtype=np.float64)
             state_list.append(state.flatten())
+            feed_list.append(np.array(self.feed_inputs.copy()))
+            if time_step == self.feed_trials:
+                tmp_list = feed_list[(time_step//2):time_step]
+                self.feed_mean = np.mean(tmp_list, axis=0)
+                self.feed_std = np.sqrt(np.var(tmp_list, axis=0) + 1e-8)
+                self.feed_max = np.max(tmp_list, axis=0) 
+                self.feed_min = np.min(tmp_list, axis=0) 
+                self.feed_scale = self.feed_max * 0.8
+                self.feed_trans = self.feed_min * 0.8
+                #print(self.feed_max, self.feed_min)
 
         state_list = np.array(state_list)
+        feed_list  = np.array(feed_list)
         self.last_rhos = local_rhos.copy()
 
         if predict:
             stacked_state = np.hstack( [state_list, np.ones([input_length, 1])])
             predict_seq = stacked_state @ self.W_out
         
-        return predict_seq, state_list
+        return predict_seq, state_list, feed_list
 
 
     def __train(self, input_seq, output_seq, buffer, beta):
@@ -408,7 +462,7 @@ class HQRC(object):
         Nout = output_seq.shape[1]
         self.W_out = np.random.rand(self.__get_comput_nodes() + 1, Nout)
 
-        _, state_list = self.feed_forward(input_seq, predict=False, use_lastrho=False)
+        _, state_list, _ = self.feed_forward(input_seq, predict=False, use_lastrho=False)
 
         state_list = np.array(state_list)
         state_list = state_list[buffer:, :]
@@ -488,7 +542,7 @@ class HQRC(object):
         return 0
 
     def predict(self, input_seq, output_seq, buffer, use_lastrho):
-        prediction_seq, _ = self.feed_forward(input_seq, predict=True, use_lastrho=use_lastrho)
+        prediction_seq, _, _ = self.feed_forward(input_seq, predict=True, use_lastrho=use_lastrho)
         pred = prediction_seq[buffer:, :]
         out  = output_seq[buffer:, :]
         
@@ -497,12 +551,12 @@ class HQRC(object):
         
         return prediction_seq, nrmse_loss
     
-    def init_forward(self, qparams, input_seq, init_rs, ranseed):
+    def init_forward(self, qparams, input_seq, init_rs, ranseed, loading_path=None):
         self.__reset_states()
         if init_rs == True:
-            self.__init_reservoir(qparams, ranseed)
-        _, state_list =  self.feed_forward(input_seq, predict=False, use_lastrho=False)
-        return state_list
+            self.__init_reservoir(qparams, ranseed, loading_path)
+        _, state_list, feed_list =  self.feed_forward(input_seq, predict=False, use_lastrho=False)
+        return state_list, feed_list
 
 def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, val_output_seq, \
         ranseed, nqrc, gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, mask_input=0, combine_input=1,\
@@ -528,6 +582,19 @@ def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, 
 
     return train_pred_seq, train_loss, val_pred_seq, val_loss
 
+def view_dynamic(qparams, input_seq, ranseed, nqrc, \
+    gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, mask_input=0, combine_input=1,\
+    deep=0, use_corr=0, nonlinear=0, loading_path=None):
+
+    model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, \
+        sigma_input=sigma_input, type_input=type_input, mask_input=mask_input, combine_input=combine_input,\
+        deep=deep, use_corr=use_corr, nonlinear=nonlinear)
+
+    input_seq = np.array(input_seq)
+    state_list, feed_list = model.init_forward(qparams, input_seq, init_rs=True, \
+        ranseed=ranseed, loading_path=loading_path)
+    return state_list, feed_list
+
 def get_IPC(qparams, ipcparams, length, logger, nqrc=1, gamma=0.0, ranseed=-1, Ntrials=1, savedir=None, \
     posfix='capa', type_input=0, mask_input=0, combine_input=1, label=''):
     start_time = time.monotonic()
@@ -546,7 +613,7 @@ def get_IPC(qparams, ipcparams, length, logger, nqrc=1, gamma=0.0, ranseed=-1, N
 
         ipc = IPC(ipcparams, log=logger, savedir=savedir, label=label)
         model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=1.0, sigma_input=1.0, type_input=type_input, mask_input=mask_input, combine_input=combine_input)
-        output_signals = model.init_forward(qparams, input_signals, init_rs=True, ranseed = n + ranseed)
+        output_signals, _ = model.init_forward(qparams, input_signals, init_rs=True, ranseed = n + ranseed)
         logger.debug('{}: n={} per {} trials, input shape = {}, output shape={}'.format(fname, n+1, Ntrials, input_signals.shape, output_signals.shape))
         
         ipc.run(input_signals[0, transient:], output_signals[transient:])
@@ -658,7 +725,7 @@ def effective_dim(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, m
         if ranseed >= 0:
             ranseed_net = (ranseed + 11000) * (n + 1)
         
-        state_list = model.init_forward(qparams, input_seq, init_rs=True, ranseed=ranseed_net)
+        state_list, _ = model.init_forward(qparams, input_seq, init_rs=True, ranseed=ranseed_net)
         L, D = state_list.shape
         # L = Length of time series
         # D = Number of virtual nodes x Number of qubits
@@ -687,14 +754,14 @@ def esp_index(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, ranse
 
     # Initialize the reservoir to zero state - density matrix
     model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, sigma_input=sigma_input)
-    x0_state_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = ranseed)
+    x0_state_list, _ = model.init_forward(qparams, input_seq, init_rs = True, ranseed = ranseed)
     # Compute esp index and esp_lambda
     dP = []
     for i in range(state_trials):
         # Initialzie the reservoir to a random initial state
         # Keep same coupling configuration
         model.gen_rand_rhos(ranseed = i + 300000)
-        z0_state_list = model.init_forward(qparams, input_seq, init_rs = False, ranseed = i + 200000)
+        z0_state_list, _ = model.init_forward(qparams, input_seq, init_rs = False, ranseed = i + 200000)
         L, D = z0_state_list.shape
         # L = Length of time series
         # D = Number of layers x Number of virtual nodes x Number of qubits
@@ -719,7 +786,7 @@ def lyapunov_exp(qparams, buffer, length, nqrc, gamma, sparsity, sigma_input, no
 
     # Initialize the reservoir to zero state - density matrix
     model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, sigma_input=sigma_input, nonlinear=nonlinear)
-    states1 = model.init_forward(qparams, input_seq, init_rs = True, ranseed = -1)
+    states1, _ = model.init_forward(qparams, input_seq, init_rs = True, ranseed = -1)
     L, D = states1.shape
     # L = Length of time series
     # D = Number of layers x Number of virtual nodes x Number of qubits

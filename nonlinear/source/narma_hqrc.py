@@ -57,6 +57,71 @@ def compute_job(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_outpu
     print('Finish process {}'.format(rstr))
     send_end.send(rstr)
 
+def view_dynamic_job(qparams, nqrc, deep, alpha, train_input_seq, Ntrials, \
+    save_order, save_fig, load_order, load_path, combine_input, nonlinear):
+    print('Start view dynamics process alpha={}, taudelta={}, virtual={}, Jdelta={}'.format(\
+        alpha, qparams.tau, qparams.virtual_nodes, qparams.max_energy))
+    
+    basename = 'train_{}_nqr_{}_deep_{}_tau_{:.3f}_V_{}'.format(\
+        train_input_seq.shape[1], nqrc, deep, qparams.tau, qparams.virtual_nodes)
+    posfix = 'narma_{}_a_{}_nlin_{}_cb_{}'.format(save_order, alpha, nonlinear, combine_input)
+    if load_path != None:
+        load_path = os.path.join(load_path, 'order_{}_{}'.format(load_order, basename))
+    for n in range(Ntrials):
+        local_load_path = None
+        if load_path != None:
+            local_load_path = os.path.join(load_path, 'trial_{}'.format(n))
+    
+        state_list, feed_list = hqrc.view_dynamic(qparams, train_input_seq, \
+            nqrc=nqrc, gamma=alpha, ranseed=n, deep=deep, loading_path=local_load_path, combine_input=combine_input, nonlinear=nonlinear)
+        print('trials={}, tau={},V={},alpha={}, state_list={}'.format(\
+            n, qparams.tau, qparams.virtual_nodes, alpha, state_list.shape))
+
+        # plot state_list
+        cmap = plt.get_cmap("viridis")
+        plt.style.use('seaborn-colorblind')
+        plt.rc('font', family='serif')
+        plt.rc('mathtext', fontset='cm')
+        plt.rcParams['font.size'] = 12
+        colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    
+        fig, axs = plt.subplots(nqrc, 2, figsize=(18, 3*nqrc), squeeze=False)
+        #axs = axs.ravel()
+
+        n_local_nodes = int(state_list.shape[1] / nqrc)
+        bg, ed=1000, 1200
+        xs = list(range(bg, ed))
+        vmin1, vmax1 = np.min(train_input_seq[:,bg:ed]), np.max(train_input_seq[:, bg:ed])
+        vmin2, vmax2 = np.min(state_list[bg:ed, :]), np.max(state_list[bg:ed, :])
+        if len(feed_list) > 0:
+            vmin1 = min(vmin1, np.min(feed_list[bg:ed, :]))
+            vmax1 = max(vmax1, np.max(feed_list[bg:ed, :]))
+
+        for i in range(nqrc):
+            ax1, ax2 = axs[i, 0], axs[i, 1]
+            ax1.plot(xs, train_input_seq[i, bg:ed], c='gray', label='Input')
+            print('Feedback list', feed_list[1000])
+            if len(feed_list) > 0:
+                ax1.plot(xs, feed_list[bg:ed, i], c='k', label='Feedback', linestyle='dashed')
+            for j in range(n_local_nodes):
+                ax2.plot(xs, state_list[bg:ed, i*n_local_nodes + j], c=colors[j], label='QR{}-{}'.format(i+1,j+1))
+            ax1.legend()
+            ax2.legend()
+            if i == 0:
+                ax2.set_title('{}_{}'.format(basename, posfix))
+
+            ax1.set_ylim([vmin1, vmax1])
+            ax2.set_ylim([vmin2, vmax2])
+            
+        os.makedirs(save_fig, exist_ok=True)
+        save_fig_path = os.path.join(save_fig, 'order_{}_trial_{}'.format(save_order, n))
+        if local_load_path != None:
+            save_fig_path = '{}_loaded_{}'.format(save_fig_path, load_order)
+        for ftype in ['png']:
+            outfile = '{}_{}_{}.{}'.format(save_fig_path, basename, posfix, ftype)
+            plt.savefig(outfile, bbox_inches='tight')
+            
+
 if __name__  == '__main__':
     # Check for command line arguments
     parser = argparse.ArgumentParser()
@@ -87,6 +152,9 @@ if __name__  == '__main__':
     parser.add_argument('--save_model', type=int, default=0)
     parser.add_argument('--load_model', type=int, default=0)
     parser.add_argument('--combine_input', type=int, default=1)
+    parser.add_argument('--sigma_feed', type=float, default=1.0)
+    parser.add_argument('--view_dynamic', type=int, default=0)
+    parser.add_argument('--nonlinear', type=int, default=0)
     
     args = parser.parse_args()
     print(args)
@@ -100,12 +168,13 @@ if __name__  == '__main__':
     deep = args.deep
 
     dynamic, savedir = args.dynamic, args.savedir
-    if os.path.isdir(savedir) == False:
-        os.mkdir(savedir)
+    os.makedirs(savedir, exist_ok=True)
+    save_fig = os.path.join(savedir, 'figs')
+    os.makedirs(save_fig, exist_ok=True)
 
     save_model, load_model, load_order = args.save_model, args.load_model, args.load_order
     save_path, load_path = None, None
-    combine_input = args.combine_input
+    combine_input, view_dynamic, nonlinear = args.combine_input, args.view_dynamic, args.nonlinear
 
     if save_model > 0:
         save_path = os.path.join(savedir, 'saved_model')
@@ -157,11 +226,14 @@ if __name__  == '__main__':
                     recv_end, send_end = multiprocessing.Pipe(False)
                     qparams = QRCParams(n_units=n_units-1, n_envs=1, max_energy=max_energy,\
                         beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
-                    p = multiprocessing.Process(target=compute_job, args=(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_output_seq, \
+                    if view_dynamic == 0:
+                        p = multiprocessing.Process(target=compute_job, args=(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_output_seq, \
                         val_input_seq, val_output_seq, Ntrials, send_end, order, save_path, load_order, load_path, combine_input))
+                    else:
+                        p = multiprocessing.Process(target=view_dynamic_job, args=(qparams, nqrc, deep, alpha, train_input_seq, \
+                            Ntrials, order, save_fig, load_order, load_path, combine_input, nonlinear))    
                     jobs.append(p)
                     pipels.append(recv_end)
-
         # Start the process
         for p in jobs:
             p.start()
@@ -173,22 +245,23 @@ if __name__  == '__main__':
         # Sleep 5s
         time.sleep(5)
 
-        result_list = [np.array( [float(y) for y in x.recv().split(' ')]  ) for x in pipels]
-        rsarr = np.array(result_list)
-        # save the result
-        np.savetxt('{}_NRMSE.txt'.format(outbase), rsarr, delimiter=' ')
+        if view_dynamic == 0:
+            result_list = [np.array( [float(y) for y in x.recv().split(' ')]  ) for x in pipels]
+            rsarr = np.array(result_list)
+            # save the result
+            np.savetxt('{}_NRMSE.txt'.format(outbase), rsarr, delimiter=' ')
 
-        # save experiments setting
-        with open('{}_setting.txt'.format(outbase), 'w') as sfile:
-            sfile.write('train_len={}, val_len={}, buffer={}\n'.format(train_len, val_len, buffer))
-            sfile.write('n_units={}\n'.format(n_units))
-            sfile.write('max_energy={}\n'.format(max_energy))
-            sfile.write('beta={}\n'.format(beta))
-            sfile.write('taudeltas={}\n'.format(' '.join([str(v) for v in taudeltas])))
-            sfile.write('layers={}\n'.format(' '.join([str(l) for l in layers])))
-            sfile.write('V={}\n'.format(V))
-            sfile.write('deep={}\n'.format(deep))
-            sfile.write('ranseed={}\n'.format(rseed))
-            sfile.write('alpha={}, Ntrials={}\n'.format(alpha, Ntrials))
+            # save experiments setting
+            with open('{}_setting.txt'.format(outbase), 'w') as sfile:
+                sfile.write('train_len={}, val_len={}, buffer={}\n'.format(train_len, val_len, buffer))
+                sfile.write('n_units={}\n'.format(n_units))
+                sfile.write('max_energy={}\n'.format(max_energy))
+                sfile.write('beta={}\n'.format(beta))
+                sfile.write('taudeltas={}\n'.format(' '.join([str(v) for v in taudeltas])))
+                sfile.write('layers={}\n'.format(' '.join([str(l) for l in layers])))
+                sfile.write('V={}\n'.format(V))
+                sfile.write('deep={}\n'.format(deep))
+                sfile.write('ranseed={}\n'.format(rseed))
+                sfile.write('alpha={}, Ntrials={}\n'.format(alpha, Ntrials))
 
 

@@ -314,7 +314,8 @@ class HQRC(object):
                     innate_train = True
                 else:
                     innate_train = False
-                dW_recurr_mag = self.__step_forward(input_seq[:, i], innate_train=innate_train, innate_target=innate_seq[i-1],\
+                dW_recurr_mag = self.__step_forward(input_seq[:, i], \
+                    innate_train=innate_train, innate_target=innate_seq[i-1],\
                     learning_rate=learning_rate, noise_amp=noise_amp, scale_input=scale_input, sel=sel)
                 dW_recurr_ls.append(dW_recurr_mag)
                 state = np.array(self.cur_states.copy(), dtype=np.float64)

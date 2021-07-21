@@ -111,7 +111,7 @@ if __name__  == '__main__':
             pre_input_seq = np.tile(pre_input_seq_org, (nqrc, 1))
             
             # Create innate target activity
-            state_list = model.init_forward(qparams, pre_input_seq, ranseed=new_ranseed, noise_amp=0.0, scale_input=scale_input)
+            state_list, _ = model.init_forward(qparams, pre_input_seq, ranseed=new_ranseed, noise_amp=0.0, scale_input=scale_input)
             N_local = model.get_local_nodes()
             n_qubits = model.n_qubits
             innate_seq = state_list[:, sel::N_local]
