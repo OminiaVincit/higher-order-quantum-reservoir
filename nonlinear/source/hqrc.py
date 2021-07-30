@@ -34,7 +34,7 @@ class HQRC(object):
         self.nonlinear = nonlinear
         self.mask_input = mask_input # feedback between inputs
         self.combine_input = combine_input # combine input and feedback
-        self.feed_trials = 200
+        self.feed_trials = 1000
         self.feed_mean = None
         self.feed_std  = None
         self.feed_max = None
@@ -297,7 +297,7 @@ class HQRC(object):
             #print(tmp_states.shape, self.W_feed.shape)
             #tmp_states = expit(tmp_states)
             tmp_states = tmp_states @ self.W_feed
-            tmp_states = np.ravel(tmp_states)
+            tmp_states = np.ravel(tmp_states) 
             if self.feed_std is not None and self.feed_std.all() > 0:
                 #tmp_states = tmp_states - self.feed_mean
                 #tmp_states = np.divide(tmp_states, self.feed_std)
@@ -307,8 +307,9 @@ class HQRC(object):
                 
                 #tmp_states = np.multiply(tmp_states, self.feed_scale) + self.feed_trans 
                 tmp_states = tmp_states - self.feed_min
-                tmp_states = np.divide(tmp_states, self.feed_max - self.feed_min)
-                #print(tmp_states, self.feed_max, self.feed_min)
+                tmp_states = np.divide(tmp_states, self.feed_max - self.feed_min) 
+                
+                print(tmp_states, self.feed_max, self.feed_min)
                 
                 tmp_states[tmp_states < 0.0] = 0.0
                 tmp_states[tmp_states > 1.0] = 1.0
@@ -439,8 +440,8 @@ class HQRC(object):
                 tmp_list = feed_list[(time_step//2):time_step]
                 self.feed_mean = np.mean(tmp_list, axis=0)
                 self.feed_std = np.sqrt(np.var(tmp_list, axis=0) + 1e-8)
-                self.feed_max = np.max(tmp_list, axis=0) 
-                self.feed_min = np.min(tmp_list, axis=0) 
+                self.feed_max = np.max(tmp_list, axis=0)
+                self.feed_min = np.min(tmp_list, axis=0)
                 self.feed_scale = self.feed_max * 0.8
                 self.feed_trans = self.feed_min * 0.8
                 #print(self.feed_max, self.feed_min)
