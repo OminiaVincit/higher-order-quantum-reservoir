@@ -58,23 +58,68 @@ def reduce_states_dimension(arr, n_neighbors=15, min_dist=0.1, n_components=2, n
 
 
 def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, mask_input, combine_input, \
-    nonlinear, sigma_input, type_input, sparsity, xs, idx, send_end):
+    nonlinear, sigma_input, type_input, sparsity, xs, idx, bg, ed, send_end):
     """
     Dump raw data of states
     """
     print('Start pid={} with size {} (from {} to {})'.format(idx, len(xs), xs[0], xs[-1]))
     results = dict()
+    basename = '{}_nqr_{}_V_{}_sm_{}_alpha_{}_sg_{}_sparse_{}_ms_{}_cb_{}_tp_{}'.format(dynamic, \
+        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity, mask_input, combine_input, type_input)
+    save_figdir = os.path.join(savedir, 'figs')
+    os.makedirs(savedir, exist_ok=True)
+    os.makedirs(save_figdir, exist_ok=True)
+
     for x in xs:
         tau = 2**x
         qparams = QRCParams(n_units=UNITS-1, n_envs=1, max_energy=1.0,\
             beta=BETA, virtual_nodes=V, tau=tau, init_rho=INIT_RHO, solver=LINEAR_PINV, dynamic=dynamic)
         model = hqrc.HQRC(nqrc=nqrc, gamma=layer_strength, sparsity=sparsity, sigma_input=sigma_input, \
             mask_input=mask_input, combine_input=combine_input, nonlinear=nonlinear, type_input=type_input)
-        state_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = 0)
-        results[x] = state_list*2.0-1.0
+        state_list, feed_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = 0)
+        state_list = state_list*2.0-1.0 
+        results[x] = state_list
+
+        # Draw state and feedback
+        cmap = plt.get_cmap("viridis")
+        plt.style.use('seaborn-colorblind')
+        plt.rc('font', family='serif')
+        plt.rc('mathtext', fontset='cm')
+        plt.rcParams['font.size'] = 12
+        colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     
-    outbase = os.path.join(savedir, '{}_nqr_{}_V_{}_sm_{}_alpha_{}_sg_{}_sparse_{}_ms_{}_cb_{}_tp_{}'.format(dynamic, \
-        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity, mask_input, combine_input, type_input))
+        fig, axs = plt.subplots(nqrc, 2, figsize=(18, 3*nqrc), squeeze=False)
+
+        n_local_nodes = int(state_list.shape[1] / nqrc)
+        xs = list(range(bg, ed))
+        vmin1, vmax1 = np.min(input_seq[:,bg:ed]), np.max(input_seq[:, bg:ed])
+        vmin2, vmax2 = np.min(state_list[bg:ed, :]), np.max(state_list[bg:ed, :])
+        if len(feed_list) > 0:
+            vmin1 = min(vmin1, np.min(feed_list[bg:ed, :]))
+            vmax1 = max(vmax1, np.max(feed_list[bg:ed, :]))
+
+        outfile = 'tau_{:.3f}_{}'.format(tau, basename)
+        for i in range(nqrc):
+            ax1, ax2 = axs[i, 0], axs[i, 1]
+            ax1.plot(xs, input_seq[i, bg:ed], c='gray', label='Input')
+            print('Feedback list', feed_list[-1])
+            if len(feed_list) > 0:
+                ax1.plot(xs, feed_list[bg:ed, i], c='k', label='Feedback', linestyle='dashed')
+            for j in range(n_local_nodes):
+                ax2.plot(xs, state_list[bg:ed, i*n_local_nodes + j], c=colors[j], label='QR{}-{}'.format(i+1,j+1))
+            ax1.legend()
+            ax2.legend()
+            if i == 0:
+                ax2.set_title('{}'.format(outfile))
+            ax1.set_title('Min={:.3f}, Max={:.3f}, Steps trials={}'.format(model.feed_min[i], model.feed_max[i], model.feed_trials))
+                
+            ax1.set_ylim([vmin1, vmax1])
+            ax2.set_ylim([vmin2, vmax2])
+        for ftype in ['png']:
+            figfile = os.path.join(save_figdir, '{}.{}'.format(outfile, ftype))
+            plt.savefig(figfile, bbox_inches='tight')
+
+    outbase = os.path.join(savedir, basename)
     filename = '{}_states_id_{}.binaryfile'.format(outbase, idx)
     with open(filename, 'wb') as wrs:
         pickle.dump(results, wrs)
@@ -145,7 +190,7 @@ if __name__  == '__main__':
             recv_end, send_end = multiprocessing.Pipe(False)
             p = multiprocessing.Process(target=dumpstates_job, args=(savedir, dynamic, input_seq, \
                 nqrc, layer_strength, mask_input, combine_input, nonlinear, sigma_input, type_input,\
-                sparsity, xs, pid, send_end))
+                sparsity, xs, pid, bg, ed, send_end))
             jobs.append(p)
             pipels.append(recv_end)
         # Start the process
