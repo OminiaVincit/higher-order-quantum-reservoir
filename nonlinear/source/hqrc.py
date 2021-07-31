@@ -120,8 +120,9 @@ class HQRC(object):
                             bg = i * n_local_nodes
                             ed = bg + n_local_nodes 
                             smat[bg:ed] = 0
-                            if self.nonlinear == 0 or self.nonlinear == 3:
-                                smat *= (self.sigma_input / (n_nodes - n_local_nodes))
+                            #if self.nonlinear == 0 or self.nonlinear == 3:
+                            #    smat *= (self.sigma_input / (n_nodes - n_local_nodes))
+                            
                             # else:
                             #     #print(np.std(smat), self.sigma_input)
                             #     valstd = np.std(smat)
@@ -140,8 +141,9 @@ class HQRC(object):
                                     smat = np.random.normal(loc=0, scale=self.sigma_input, size=(n_nodes, 1))
                             
                                 smat = smat.ravel()
-                                if self.nonlinear == 0 or self.nonlinear == 3:
-                                    smat *= (self.sigma_input / n_local_nodes)
+                                #if self.nonlinear == 0 or self.nonlinear == 3:
+                                #    smat *= (self.sigma_input / n_local_nodes)
+                                
                                 # else:
                                 #     smat /= np.std(smat)
                                 #     smat *= (self.sigma_input)
@@ -197,7 +199,7 @@ class HQRC(object):
         # initialize current states
         self.cur_states = [None] * nqrc
         # initialize feedback input
-        self.feed_inputs = []
+        self.feed_inputs = [0]  * nqrc
 
         if len(self.Uops) == 0:
             # create coupling strength for ion trap
@@ -286,19 +288,18 @@ class HQRC(object):
     def step_forward(self, local_rhos, input_val, feedback_flag=1):
         nqrc = self.nqrc
         original_input = input_val.copy().ravel()
-        update_input = (1.0 - self.gamma) * original_input
 
         q0 = np.array([1, 0]).reshape((2, 1))
         q1 = np.array([0, 1]).reshape((2, 1))
 
-        if feedback_flag > 0 and self.cur_states[0] is not None:
+        if self.cur_states[0] is not None:
             tmp_states = np.array(self.cur_states.copy(), dtype=np.float64).reshape(1, -1)
             #tmp_states = np.hstack( [tmp_states, np.ones([1, 1])])
             #print(tmp_states.shape, self.W_feed.shape)
             #tmp_states = expit(tmp_states)
             tmp_states = tmp_states @ self.W_feed
             tmp_states = np.ravel(tmp_states) 
-            if self.feed_std is not None and self.feed_std.all() > 0:
+            if self.feed_min is not None and self.feed_min.all() > 0:
                 #tmp_states = tmp_states - self.feed_mean
                 #tmp_states = np.divide(tmp_states, self.feed_std)
                 #tmp_states = np.multiply(tmp_states, self.feed_scale) + self.feed_trans
@@ -306,13 +307,13 @@ class HQRC(object):
                 #tmp_states = np.divide(tmp_states, np.divide(self.feed_max - self.feed_min, self.feed_std))
                 
                 #tmp_states = np.multiply(tmp_states, self.feed_scale) + self.feed_trans 
+                
                 tmp_states = tmp_states - self.feed_min
                 tmp_states = np.divide(tmp_states, self.feed_max - self.feed_min) 
                 
-                print(tmp_states, self.feed_max, self.feed_min)
-                
-                tmp_states[tmp_states < 0.0] = 0.0
-                tmp_states[tmp_states > 1.0] = 1.0
+                #print(tmp_states, self.feed_max, self.feed_min)
+                #tmp_states[tmp_states < 0.0] = 0.0
+                #tmp_states[tmp_states > 1.0] = 1.0
                 #print(self.feed_mean, self.feed_std, tmp_states)
                 #tmp_states = np.abs(tmp_states)
                 
@@ -333,25 +334,29 @@ class HQRC(object):
                 # Min-max norm
                 tmp_states = (tmp_states - np.min(tmp_states)) / (np.max(tmp_states) - np.min(tmp_states))
                 tmp_states = shuffle(tmp_states)
+            #print(tmp_states, self.feed_min, self.feed_max)
+            self.feed_inputs = tmp_states.copy().ravel()
+        #print('Original input',  original_input) 
             
-            if update_input[0] < -1.0:
-                # insert feedback between input
-                update_input = self.gamma * tmp_states
-                #print(self.gamma, update_input)
-            else:
-                # combine input
-                if tmp_states.all() >= 0.0 and tmp_states.all() <= 1.0:
-                    update_input = self.gamma * tmp_states + update_input
-                #update_input = np.multiply(update_input, tmp_states)
+        if original_input[0] < -1.0:
+            # insert feedback between input
+            update_input = self.gamma * tmp_states
+            #print(self.gamma, update_input)
+        elif feedback_flag > 0 and self.feed_trials < 0:
+            tmp_states[tmp_states < 0.0] = 0.0
+            tmp_states[tmp_states > 1.0] = 1.0
+            # combine input
+            update_input = self.gamma * tmp_states + (1.0 - self.gamma) * original_input
+            #update_input = np.multiply(update_input, tmp_states)
                         
             # if update_input[0] < -1.0 or update_input[0] > 1.0:
             #     # If the update_input goes out of range, just use the normal input
             #     update_input = original_input
-            
-        self.feed_inputs = update_input - (1.0 - self.gamma) * original_input
-        if self.gamma > 0:
-            self.feed_inputs /= self.gamma
-        #print('Original input',  original_input) 
+        elif self.feed_trials > 0:
+            update_input = original_input
+        else:
+            update_input = (1.0-self.gamma) * original_input
+
                    
         if True:
             for i in range(nqrc):
@@ -435,7 +440,7 @@ class HQRC(object):
             local_rhos = self.step_forward(local_rhos, input_val, feedback_flag=self.combine_input)
             state = np.array(self.cur_states.copy(), dtype=np.float64)
             state_list.append(state.flatten())
-            feed_list.append(np.array(self.feed_inputs.copy()))
+            feed_list.append(self.feed_inputs)
             if time_step == self.feed_trials:
                 tmp_list = feed_list[(time_step//2):time_step]
                 self.feed_mean = np.mean(tmp_list, axis=0)
@@ -445,6 +450,7 @@ class HQRC(object):
                 self.feed_scale = self.feed_max * 0.8
                 self.feed_trans = self.feed_min * 0.8
                 #print(self.feed_max, self.feed_min)
+                self.feed_trials = -100
 
         state_list = np.array(state_list)
         feed_list  = np.array(feed_list)

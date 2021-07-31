@@ -75,7 +75,7 @@ def view_dynamic_job(qparams, nqrc, deep, alpha, train_input_seq, Ntrials, \
         state_list, feed_list = hqrc.view_dynamic(qparams, train_input_seq, \
             nqrc=nqrc, gamma=alpha, ranseed=n, deep=deep, loading_path=local_load_path, combine_input=combine_input, nonlinear=nonlinear)
         print('trials={}, tau={},V={},alpha={}, state_list={}'.format(\
-            n, qparams.tau, qparams.virtual_nodes, alpha, state_list.shape))
+            n, qparams.tau, qparams.virtual_nodes, alpha, state_list.shape, len(feed_list)))
 
         # plot state_list
         cmap = plt.get_cmap("viridis")
@@ -89,20 +89,27 @@ def view_dynamic_job(qparams, nqrc, deep, alpha, train_input_seq, Ntrials, \
         #axs = axs.ravel()
 
         n_local_nodes = int(state_list.shape[1] / nqrc)
-        bg, ed=1000, 1200
+        bg, ed=980, 1100
         xs = list(range(bg, ed))
-        vmin1, vmax1 = np.min(train_input_seq[:,bg:ed]), np.max(train_input_seq[:, bg:ed])
-        vmin2, vmax2 = np.min(state_list[bg:ed, :]), np.max(state_list[bg:ed, :])
+        vmin1, vmax1 = np.amin(train_input_seq[:,bg:ed]), np.amax(train_input_seq[:, bg:ed])
+        vmin2, vmax2 = np.amin(state_list[bg:ed, :]), np.amax(state_list[bg:ed, :])
+        
         if len(feed_list) > 0:
-            vmin1 = min(vmin1, np.min(feed_list[bg:ed, :]))
-            vmax1 = max(vmax1, np.max(feed_list[bg:ed, :]))
+            vmin1 = min(vmin1, np.amin(feed_list[bg:ed]))
+            vmax1 = max(vmax1, np.amax(feed_list[bg:ed]))
+        vmin1, vmax1 = 0.0, 1.0
 
         for i in range(nqrc):
             ax1, ax2 = axs[i, 0], axs[i, 1]
             ax1.plot(xs, train_input_seq[i, bg:ed], c='gray', label='Input')
+            ax1.plot(xs, (1.0-alpha)*train_input_seq[i, bg:ed], c='b', label='Scale-in', alpha=0.5)
+            
             print('Feedback list', feed_list[1000])
             if len(feed_list) > 0:
                 ax1.plot(xs, feed_list[bg:ed, i], c='k', label='Feedback', linestyle='dashed')
+                combine_input =  train_input_seq[i, bg:ed] * (1.0-alpha) + feed_list[bg:ed, i] * alpha
+                ax1.plot(xs, combine_input, c='r', label='Combine', linestyle='dashed', alpha=0.8)
+                
             for j in range(n_local_nodes):
                 ax2.plot(xs, state_list[bg:ed, i*n_local_nodes + j], c=colors[j], label='QR{}-{}'.format(i+1,j+1))
             ax1.legend()
