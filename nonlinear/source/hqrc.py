@@ -35,12 +35,13 @@ class HQRC(object):
         self.mask_input = mask_input # feedback between inputs
         self.combine_input = combine_input # combine input and feedback
         self.feed_trials = feed_trials
+        self.feed_nothing = True
         self.feed_mean = None
         self.feed_std  = None
         self.feed_max = None
         self.feed_min = None
-        self.feed_scale = 2.0
-        self.feed_trans = 0.5
+        self.feed_max2 = None
+        self.feed_min2 = None
 
     def __init_reservoir(self, qparams, ranseed, loading_path):
         I = [[1,0],[0,1]]
@@ -299,7 +300,12 @@ class HQRC(object):
             #tmp_states = expit(tmp_states)
             tmp_states = tmp_states @ self.W_feed
             tmp_states = np.ravel(tmp_states) 
-            if self.feed_min is not None and self.feed_min.all() > 0:
+            tmp_states = min_max_norm(tmp_states, self.feed_min, self.feed_max)
+            # if self.feed_min2 is not None:
+            #     tmp_states = tmp_states - self.feed_min2
+            #tmp_states = min_max_norm(tmp_states, self.feed_min2, self.feed_max2)
+                
+            #if self.feed_min is not None:
                 #tmp_states = tmp_states - self.feed_mean
                 #tmp_states = np.divide(tmp_states, self.feed_std)
                 #tmp_states = np.multiply(tmp_states, self.feed_scale) + self.feed_trans
@@ -308,8 +314,9 @@ class HQRC(object):
                 
                 #tmp_states = np.multiply(tmp_states, self.feed_scale) + self.feed_trans 
                 
-                tmp_states = tmp_states - self.feed_min
-                tmp_states = np.divide(tmp_states, self.feed_max - self.feed_min) 
+                #if self.feed_min2 is not None:
+                #    tmp_states = tmp_states - self.feed_min2
+                #    tmp_states = np.divide(tmp_states, self.feed_max2 - self.feed_min) 
                 
                 # if self.feed_trials < 0:
                 #     tmp_states = (tmp_states - 0.2)*2.0
@@ -345,7 +352,7 @@ class HQRC(object):
             # insert feedback between input
             update_input = self.gamma * tmp_states
             #print(self.gamma, update_input)
-        elif feedback_flag > 0 and self.feed_trials < 0:
+        elif feedback_flag > 0 and self.feed_nothing == False:
             tmp_states[tmp_states < 0.0] = 0.0
             tmp_states[tmp_states > 1.0] = 1.0
             # combine input
@@ -355,7 +362,7 @@ class HQRC(object):
             # if update_input[0] < -1.0 or update_input[0] > 1.0:
             #     # If the update_input goes out of range, just use the normal input
             #     update_input = original_input
-        elif self.feed_trials > 0:
+        elif self.feed_nothing == True:
             update_input = original_input
         else:
             update_input = (1.0-self.gamma) * original_input
@@ -451,9 +458,11 @@ class HQRC(object):
                 self.feed_max = np.max(tmp_list, axis=0)
                 self.feed_min = np.min(tmp_list, axis=0)
                 #print(self.feed_max, self.feed_min)
-                self.feed_trials = -100
-                self.feed_scale = self.feed_max * 0.8
-                self.feed_trans = self.feed_min * 0.8
+                self.feed_nothing = False
+            # elif time_step == self.feed_trials + 101:
+            #     tmp_list = feed_list[(time_step-100):time_step]
+            #     self.feed_max2 = np.max(tmp_list, axis=0) * 1.1
+            #     self.feed_min2 = np.min(tmp_list, axis=0) * 0.9
 
         state_list = np.array(state_list)
         feed_list  = np.array(feed_list)

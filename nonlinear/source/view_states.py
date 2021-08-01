@@ -92,6 +92,7 @@ def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, mask_input
         fig, axs = plt.subplots(nqrc, 2, figsize=(18, 3*nqrc), squeeze=False)
 
         n_local_nodes = int(state_list.shape[1] / nqrc)
+        nobs = int(n_local_nodes / V)
         xs = list(range(bg1, ed1))
         vmin1, vmax1 = np.amin(input_seq[:,bg1:ed1]), np.amax(input_seq[:, bg1:ed1])
         vmin2, vmax2 = np.amin(state_list[bg1:ed1, :]), np.amax(state_list[bg1:ed1, :])
@@ -112,7 +113,8 @@ def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, mask_input
                 combine_input_seq =  input_seq[i, bg1:ed1] * (1.0-layer_strength) + feed_list[bg1:ed1, i] * layer_strength
                 ax1.plot(xs, combine_input_seq, c='r', label='Combine', linestyle='dashed', alpha=0.8)
                 
-            for j in range(n_local_nodes):
+            for j in range(nobs):
+                #print(nobs, n_local_nodes, state_list.shape, len(colors))
                 ax2.plot(xs, state_list[bg1:ed1, i*n_local_nodes + j], c=colors[j], label='QR{}-{}'.format(i+1,j+1))
             ax1.legend()
             ax2.legend()

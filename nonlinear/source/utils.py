@@ -44,6 +44,14 @@ class QRCParams():
             self.n_units, self.n_envs, self.max_energy, self.non_diag, self.alpha,
             self.virtual_nodes, self.tau, self.init_rho))
 
+
+def min_max_norm(tmp_arr, min_arr, max_arr):
+    if min_arr is None or max_arr is None:
+        return tmp_arr
+    tmp_arr = tmp_arr - min_arr
+    tmp_arr = np.divide(tmp_arr, max_arr - min_arr)
+    return tmp_arr
+
 def solfmax_layer(states):
     states = np.array(states)
     return softmax(states)

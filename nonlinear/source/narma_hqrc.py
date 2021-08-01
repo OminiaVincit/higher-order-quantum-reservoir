@@ -89,7 +89,8 @@ def view_dynamic_job(qparams, nqrc, deep, alpha, train_input_seq, Ntrials, \
         #axs = axs.ravel()
 
         n_local_nodes = int(state_list.shape[1] / nqrc)
-        bg, ed=980, 1100
+        nobs= int(n_local_nodes / qparams.virtual_nodes)
+        bg, ed=980, 1200
         xs = list(range(bg, ed))
         vmin1, vmax1 = np.amin(train_input_seq[:,bg:ed]), np.amax(train_input_seq[:, bg:ed])
         vmin2, vmax2 = np.amin(state_list[bg:ed, :]), np.amax(state_list[bg:ed, :])
@@ -110,7 +111,7 @@ def view_dynamic_job(qparams, nqrc, deep, alpha, train_input_seq, Ntrials, \
                 combine_input =  train_input_seq[i, bg:ed] * (1.0-alpha) + feed_list[bg:ed, i] * alpha
                 ax1.plot(xs, combine_input, c='r', label='Combine', linestyle='dashed', alpha=0.8)
                 
-            for j in range(n_local_nodes):
+            for j in range(nobs):
                 ax2.plot(xs, state_list[bg:ed, i*n_local_nodes + j], c=colors[j], label='QR{}-{}'.format(i+1,j+1))
             ax1.legend()
             ax2.legend()
