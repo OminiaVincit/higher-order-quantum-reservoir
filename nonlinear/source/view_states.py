@@ -69,13 +69,14 @@ def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, mask_input
     save_figdir = os.path.join(savedir, 'figs')
     os.makedirs(savedir, exist_ok=True)
     os.makedirs(save_figdir, exist_ok=True)
-
+    bg1 = int(max(bg/2 - 100, bg/4))
+    ed1 = int(min(bg/2 + 100, ed))
     for x in xs:
         tau = 2**x
         qparams = QRCParams(n_units=UNITS-1, n_envs=1, max_energy=1.0,\
             beta=BETA, virtual_nodes=V, tau=tau, init_rho=INIT_RHO, solver=LINEAR_PINV, dynamic=dynamic)
         model = hqrc.HQRC(nqrc=nqrc, gamma=layer_strength, sparsity=sparsity, sigma_input=sigma_input, \
-            mask_input=mask_input, combine_input=combine_input, nonlinear=nonlinear, type_input=type_input)
+            mask_input=mask_input, combine_input=combine_input, nonlinear=nonlinear, type_input=type_input, feed_trials = int(bg/2))
         state_list, feed_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = 0)
         state_list = state_list*2.0-1.0 
         results[x] = state_list
@@ -91,22 +92,28 @@ def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, mask_input
         fig, axs = plt.subplots(nqrc, 2, figsize=(18, 3*nqrc), squeeze=False)
 
         n_local_nodes = int(state_list.shape[1] / nqrc)
-        xs = list(range(bg, ed))
-        vmin1, vmax1 = np.min(input_seq[:,bg:ed]), np.max(input_seq[:, bg:ed])
-        vmin2, vmax2 = np.min(state_list[bg:ed, :]), np.max(state_list[bg:ed, :])
+        xs = list(range(bg1, ed1))
+        vmin1, vmax1 = np.amin(input_seq[:,bg1:ed1]), np.amax(input_seq[:, bg1:ed1])
+        vmin2, vmax2 = np.amin(state_list[bg1:ed1, :]), np.amax(state_list[bg1:ed1, :])
         if len(feed_list) > 0:
-            vmin1 = min(vmin1, np.min(feed_list[bg:ed, :]))
-            vmax1 = max(vmax1, np.max(feed_list[bg:ed, :]))
+            vmin1 = min(vmin1, np.amin(feed_list[bg1:ed1, :]))
+            vmax1 = max(vmax1, np.amax(feed_list[bg1:ed1, :]))
+        vmin1, vmax1 = 0.0, 1.0
 
         outfile = 'tau_{:.3f}_{}'.format(tau, basename)
         for i in range(nqrc):
             ax1, ax2 = axs[i, 0], axs[i, 1]
-            ax1.plot(xs, input_seq[i, bg:ed], c='gray', label='Input')
-            print('Feedback list', feed_list[-1])
+            ax1.plot(xs, input_seq[i, bg1:ed1], c='gray', label='Input')
+            ax1.plot(xs, (1.0-layer_strength)*input_seq[i, bg1:ed1], c='b', label='Scale-in', alpha=0.5)
+            
+            #print('Feedback list', feed_list[-1])
             if len(feed_list) > 0:
-                ax1.plot(xs, feed_list[bg:ed, i], c='k', label='Feedback', linestyle='dashed')
+                ax1.plot(xs, feed_list[bg1:ed1, i], c='k', label='Feedback', linestyle='dashed')
+                combine_input_seq =  input_seq[i, bg1:ed1] * (1.0-layer_strength) + feed_list[bg1:ed1, i] * layer_strength
+                ax1.plot(xs, combine_input_seq, c='r', label='Combine', linestyle='dashed', alpha=0.8)
+                
             for j in range(n_local_nodes):
-                ax2.plot(xs, state_list[bg:ed, i*n_local_nodes + j], c=colors[j], label='QR{}-{}'.format(i+1,j+1))
+                ax2.plot(xs, state_list[bg1:ed1, i*n_local_nodes + j], c=colors[j], label='QR{}-{}'.format(i+1,j+1))
             ax1.legend()
             ax2.legend()
             if i == 0:
@@ -191,6 +198,7 @@ if __name__  == '__main__':
             p = multiprocessing.Process(target=dumpstates_job, args=(savedir, dynamic, input_seq, \
                 nqrc, layer_strength, mask_input, combine_input, nonlinear, sigma_input, type_input,\
                 sparsity, xs, pid, bg, ed, send_end))
+
             jobs.append(p)
             pipels.append(recv_end)
         # Start the process
@@ -252,7 +260,7 @@ if __name__  == '__main__':
                     rs_units[k].append(lypval)
             
             for k in range(1, 2):
-                print(rs_units[k], len(rs_units[k]), np.min(rs_units[k]), np.max(rs_units[k]))
+                #print(rs_units[k], len(rs_units[k]), np.min(rs_units[k]), np.max(rs_units[k]))
                 ax1.plot(stx, rs_units[k], linewidth=2)
         else:
             rs, ts = [], []

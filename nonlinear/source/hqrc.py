@@ -23,7 +23,7 @@ import psutil
 
 class HQRC(object):
     def __init__(self, nqrc, gamma, sparsity, sigma_input, \
-        type_input=0, use_corr=0, deep=0, nonlinear=0, mask_input=0, combine_input=1, feed_trials=100):
+        type_input=0, use_corr=0, deep=0, nonlinear=0, mask_input=0, combine_input=1, feed_trials=1000):
         self.nqrc = nqrc
         self.gamma = gamma
         self.sparsity = sparsity
@@ -34,7 +34,7 @@ class HQRC(object):
         self.nonlinear = nonlinear
         self.mask_input = mask_input # feedback between inputs
         self.combine_input = combine_input # combine input and feedback
-        self.feed_trials = 1000
+        self.feed_trials = feed_trials
         self.feed_mean = None
         self.feed_std  = None
         self.feed_max = None
@@ -288,7 +288,7 @@ class HQRC(object):
     def step_forward(self, local_rhos, input_val, feedback_flag=1):
         nqrc = self.nqrc
         original_input = input_val.copy().ravel()
-
+        
         q0 = np.array([1, 0]).reshape((2, 1))
         q1 = np.array([0, 1]).reshape((2, 1))
 
@@ -337,7 +337,7 @@ class HQRC(object):
             #print(tmp_states, self.feed_min, self.feed_max)
             self.feed_inputs = tmp_states.copy().ravel()
         #print('Original input',  original_input) 
-            
+        
         if original_input[0] < -1.0:
             # insert feedback between input
             update_input = self.gamma * tmp_states

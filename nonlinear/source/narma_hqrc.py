@@ -104,7 +104,7 @@ def view_dynamic_job(qparams, nqrc, deep, alpha, train_input_seq, Ntrials, \
             ax1.plot(xs, train_input_seq[i, bg:ed], c='gray', label='Input')
             ax1.plot(xs, (1.0-alpha)*train_input_seq[i, bg:ed], c='b', label='Scale-in', alpha=0.5)
             
-            print('Feedback list', feed_list[1000])
+            print('Feedback list', feed_list[-1])
             if len(feed_list) > 0:
                 ax1.plot(xs, feed_list[bg:ed, i], c='k', label='Feedback', linestyle='dashed')
                 combine_input =  train_input_seq[i, bg:ed] * (1.0-alpha) + feed_list[bg:ed, i] * alpha
