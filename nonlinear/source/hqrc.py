@@ -23,7 +23,7 @@ import psutil
 
 class HQRC(object):
     def __init__(self, nqrc, gamma, sparsity, sigma_input, \
-        type_input=0, use_corr=0, deep=0, nonlinear=0, mask_input=0, combine_input=1, feed_trials=1000):
+        type_input=0, use_corr=0, deep=0, nonlinear=0, mask_input=0, combine_input=1, feed_trials=400):
         self.nqrc = nqrc
         self.gamma = gamma
         self.sparsity = sparsity
@@ -346,26 +346,29 @@ class HQRC(object):
                 tmp_states = shuffle(tmp_states)
             #print(tmp_states, self.feed_min, self.feed_max)
             self.feed_inputs = tmp_states.copy().ravel()
-        #print('Original input',  original_input) 
-        
-        if original_input[0] < -1.0:
-            # insert feedback between input
-            update_input = self.gamma * tmp_states
-            #print(self.gamma, update_input)
-        elif feedback_flag > 0 and self.feed_nothing == False:
+            
             tmp_states[tmp_states < 0.0] = 0.0
             tmp_states[tmp_states > 1.0] = 1.0
-            # combine input
-            update_input = self.gamma * tmp_states + (1.0 - self.gamma) * original_input
-            #update_input = np.multiply(update_input, tmp_states)
+        #print('Original input',  original_input) 
+        
+        if self.feed_nothing == True:
+            update_input = original_input
+        elif feedback_flag > 0:
+            if original_input[0] < -1.0:
+                # feedback between inputs
+                update_input = self.gamma * tmp_states
+                #print('Update input', update_input)
+            else:
+                # combine input
+                update_input = self.gamma * tmp_states + (1.0 - self.gamma) * original_input
+                #update_input = np.multiply(update_input, tmp_states)
                         
             # if update_input[0] < -1.0 or update_input[0] > 1.0:
             #     # If the update_input goes out of range, just use the normal input
             #     update_input = original_input
-        elif self.feed_nothing == True:
-            update_input = original_input
         else:
-            update_input = (1.0-self.gamma) * original_input
+            update_input = original_input
+            #print('Update input', update_input)
 
                    
         if True:
@@ -442,7 +445,7 @@ class HQRC(object):
         state_list, feed_list = [], []
         for time_step in range(0, input_length):
             input_val = np.ravel(input_seq[:, time_step])
-            if self.mask_input > 0 and self.gamma > 0:
+            if self.mask_input > 0 and self.gamma > 0 and self.feed_nothing == False:
                 # put the feedback between the inputs
                 dummy_input = np.zeros(input_val.shape) - 100.0
                 for i in range(self.mask_input):
@@ -451,7 +454,7 @@ class HQRC(object):
             state = np.array(self.cur_states.copy(), dtype=np.float64)
             state_list.append(state.flatten())
             feed_list.append(self.feed_inputs)
-            if time_step == self.feed_trials:
+            if self.feed_nothing == True and time_step == self.feed_trials:
                 tmp_list = feed_list[(time_step//2):time_step]
                 self.feed_mean = np.mean(tmp_list, axis=0)
                 self.feed_std = np.sqrt(np.var(tmp_list, axis=0) + 1e-8)
@@ -459,6 +462,7 @@ class HQRC(object):
                 self.feed_min = np.min(tmp_list, axis=0)
                 #print(self.feed_max, self.feed_min)
                 self.feed_nothing = False
+                
             # elif time_step == self.feed_trials + 101:
             #     tmp_list = feed_list[(time_step-100):time_step]
             #     self.feed_max2 = np.max(tmp_list, axis=0) * 1.1
