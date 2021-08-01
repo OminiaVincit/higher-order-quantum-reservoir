@@ -311,7 +311,10 @@ class HQRC(object):
                 tmp_states = tmp_states - self.feed_min
                 tmp_states = np.divide(tmp_states, self.feed_max - self.feed_min) 
                 
-                #print(tmp_states, self.feed_max, self.feed_min)
+                # if self.feed_trials < 0:
+                #     tmp_states = (tmp_states - 0.2)*2.0
+
+                #print(tmp_states, self.feed_max, self.feed_min, self.feed_mean, self.feed_std)
                 #tmp_states[tmp_states < 0.0] = 0.0
                 #tmp_states[tmp_states > 1.0] = 1.0
                 #print(self.feed_mean, self.feed_std, tmp_states)
@@ -447,10 +450,10 @@ class HQRC(object):
                 self.feed_std = np.sqrt(np.var(tmp_list, axis=0) + 1e-8)
                 self.feed_max = np.max(tmp_list, axis=0)
                 self.feed_min = np.min(tmp_list, axis=0)
-                self.feed_scale = self.feed_max * 0.8
-                self.feed_trans = self.feed_min * 0.8
                 #print(self.feed_max, self.feed_min)
                 self.feed_trials = -100
+                self.feed_scale = self.feed_max * 0.8
+                self.feed_trans = self.feed_min * 0.8
 
         state_list = np.array(state_list)
         feed_list  = np.array(feed_list)
