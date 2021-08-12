@@ -349,6 +349,8 @@ class HQRC(object):
             
             tmp_states[tmp_states < 0.0] = 0.0
             tmp_states[tmp_states > 1.0] = 1.0
+            if self.type_input == 1:
+                tmp_states = tmp_states * 2.0 - 1.0
         #print('Original input',  original_input) 
         
         if self.feed_nothing == True:
@@ -587,7 +589,7 @@ def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, 
 
     model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, \
         sigma_input=sigma_input, type_input=type_input, mask_input=mask_input, combine_input=combine_input,\
-        deep=deep, use_corr=use_corr, nonlinear=nonlinear)
+        deep=deep, use_corr=use_corr, nonlinear=nonlinear, feed_trials=buffer//2)
 
     train_input_seq = np.array(train_input_seq)
     train_output_seq = np.array(train_output_seq)
@@ -619,7 +621,7 @@ def view_dynamic(qparams, input_seq, ranseed, nqrc, \
     return state_list, feed_list
 
 def get_IPC(qparams, ipcparams, length, logger, nqrc=1, gamma=0.0, ranseed=-1, Ntrials=1, savedir=None, \
-    posfix='capa', type_input=0, mask_input=0, combine_input=1, label=''):
+    posfix='capa', type_input=1, mask_input=0, combine_input=1, label=''):
     start_time = time.monotonic()
     fname = '{}_{}'.format(label, sys._getframe().f_code.co_name)
     transient = length // 2
@@ -635,7 +637,8 @@ def get_IPC(qparams, ipcparams, length, logger, nqrc=1, gamma=0.0, ranseed=-1, N
         input_signals = np.tile(input_signals, (nqrc, 1))
 
         ipc = IPC(ipcparams, log=logger, savedir=savedir, label=label)
-        model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=1.0, sigma_input=1.0, type_input=type_input, mask_input=mask_input, combine_input=combine_input)
+        model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=1.0, sigma_input=1.0, \
+            type_input=type_input, mask_input=mask_input, combine_input=combine_input, feed_trials=transient//2)
         output_signals, _ = model.init_forward(qparams, input_signals, init_rs=True, ranseed = n + ranseed)
         logger.debug('{}: n={} per {} trials, input shape = {}, output shape={}'.format(fname, n+1, Ntrials, input_signals.shape, output_signals.shape))
         
