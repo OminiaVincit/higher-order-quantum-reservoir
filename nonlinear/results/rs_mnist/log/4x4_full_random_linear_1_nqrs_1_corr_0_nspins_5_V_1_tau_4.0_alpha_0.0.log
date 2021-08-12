@@ -1,0 +1,7 @@
+2021-06-01 13:25:03,623 - __main__ - INFO - ../results/rs_mnist/log/4x4_full_random_linear_1_nqrs_1_corr_0_nspins_5_V_1_tau_4.0_alpha_0.0.log
+2021-06-01 13:25:03,639 - __main__ - INFO - shape x_train=(50000, 16), y_train=(9900, 2),  x_test=(10000, 16), y_test=(2012, 2), x_val=(10000, 16), y_val=(1981, 2)
+2021-06-01 13:25:03,646 - __main__ - INFO - V=1, tauB=4.0, X_train shape=(9900, 17)
+2021-06-01 13:25:03,655 - __main__ - INFO - Wout shape=(17, 2)
+2021-06-01 13:25:03,664 - __main__ - INFO - Train acc=0.9028282828282829
+2021-06-01 13:25:03,665 - __main__ - INFO - V=1, tau=4.0, alpha=0.0, X_test shape = (2012, 17)
+2021-06-01 13:25:03,665 - __main__ - INFO - Test acc=0.9135188866799204

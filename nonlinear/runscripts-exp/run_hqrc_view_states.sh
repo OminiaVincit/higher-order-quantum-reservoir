@@ -23,7 +23,7 @@ for MS in 0
 do
 for SG in 1.0
 do
-for ALPHA in 0.9
+for ALPHA in 0.99
 do
 python $BIN --trans_input $TS --scale_input $SC --type_input $TP --mask_input $MS --combine_input $CB --sigma_input $SG --sparsity $SP --nonlinear $SM --interval $INT --const $CONST --savedir $SAVE --length $LENGTH --bg $BG --ed $ED --nqrc $QR --strength $ALPHA --nproc $PROC
 done

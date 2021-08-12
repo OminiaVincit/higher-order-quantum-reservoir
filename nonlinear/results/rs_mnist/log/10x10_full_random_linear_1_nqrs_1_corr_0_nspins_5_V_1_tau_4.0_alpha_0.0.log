@@ -1,0 +1,28 @@
+2021-06-01 13:18:03,667 - __main__ - INFO - ../results/rs_mnist/log/10x10_full_random_linear_1_nqrs_1_corr_0_nspins_5_V_1_tau_4.0_alpha_0.0.log
+2021-06-01 13:18:03,772 - __main__ - INFO - shape x_train=(50000, 100), y_train=(10052, 2),  x_test=(10000, 100), y_test=(1968, 2), x_val=(10000, 100), y_val=(1997, 2)
+2021-06-01 13:18:03,784 - __main__ - INFO - V=1, tauB=4.0, X_train shape=(10052, 101)
+2021-06-01 13:18:03,814 - __main__ - INFO - Wout shape=(101, 2)
+2021-06-01 13:18:03,815 - __main__ - INFO - Train acc=0.9914444886589734
+2021-06-01 13:18:03,819 - __main__ - INFO - V=1, tau=4.0, alpha=0.0, X_test shape = (1968, 101)
+2021-06-01 13:18:03,820 - __main__ - INFO - Test acc=0.9928861788617886
+2021-06-01 13:18:15,551 - __main__ - INFO - ../results/rs_mnist/log/10x10_full_random_linear_1_nqrs_1_corr_0_nspins_5_V_1_tau_4.0_alpha_0.0.log
+2021-06-01 13:18:15,655 - __main__ - INFO - shape x_train=(50000, 100), y_train=(9900, 2),  x_test=(10000, 100), y_test=(2012, 2), x_val=(10000, 100), y_val=(1981, 2)
+2021-06-01 13:18:15,666 - __main__ - INFO - V=1, tauB=4.0, X_train shape=(9900, 101)
+2021-06-01 13:18:15,710 - __main__ - INFO - Wout shape=(101, 2)
+2021-06-01 13:18:15,712 - __main__ - INFO - Train acc=0.9832323232323232
+2021-06-01 13:18:15,714 - __main__ - INFO - V=1, tau=4.0, alpha=0.0, X_test shape = (2012, 101)
+2021-06-01 13:18:15,725 - __main__ - INFO - Test acc=0.9850894632206759
+2021-06-01 13:18:28,448 - __main__ - INFO - ../results/rs_mnist/log/10x10_full_random_linear_1_nqrs_1_corr_0_nspins_5_V_1_tau_4.0_alpha_0.0.log
+2021-06-01 13:18:28,550 - __main__ - INFO - shape x_train=(50000, 100), y_train=(9900, 2),  x_test=(10000, 100), y_test=(2012, 2), x_val=(10000, 100), y_val=(1981, 2)
+2021-06-01 13:18:28,560 - __main__ - INFO - V=1, tauB=4.0, X_train shape=(9900, 101)
+2021-06-01 13:18:28,594 - __main__ - INFO - Wout shape=(101, 2)
+2021-06-01 13:18:28,596 - __main__ - INFO - Train acc=0.9832323232323232
+2021-06-01 13:18:28,598 - __main__ - INFO - V=1, tau=4.0, alpha=0.0, X_test shape = (2012, 101)
+2021-06-01 13:18:28,603 - __main__ - INFO - Test acc=0.9850894632206759
+2021-06-01 13:42:33,244 - __main__ - INFO - ../results/rs_mnist/log/10x10_full_random_linear_1_nqrs_1_corr_0_nspins_5_V_1_tau_4.0_alpha_0.0.log
+2021-06-01 13:42:33,345 - __main__ - INFO - shape x_train=(50000, 100), y_train=(9900, 2),  x_test=(10000, 100), y_test=(2012, 2), x_val=(10000, 100), y_val=(1981, 2)
+2021-06-01 13:42:33,356 - __main__ - INFO - V=1, tauB=4.0, X_train shape=(9900, 101)
+2021-06-01 13:42:33,381 - __main__ - INFO - Wout shape=(101, 2)
+2021-06-01 13:42:33,382 - __main__ - INFO - Train acc=0.9832323232323232
+2021-06-01 13:42:33,384 - __main__ - INFO - V=1, tau=4.0, alpha=0.0, X_test shape = (2012, 101)
+2021-06-01 13:42:33,384 - __main__ - INFO - Test acc=0.9850894632206759

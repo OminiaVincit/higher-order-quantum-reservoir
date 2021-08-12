@@ -1,0 +1,2 @@
+2021-06-01 13:17:52,821 - __main__ - INFO - ../results/rs_mnist/log/10x10_full_random_linear_0_nqrs_1_corr_0_nspins_5_V_1_tau_4.0_alpha_0.0.log
+2021-06-01 13:17:52,920 - __main__ - INFO - shape x_train=(50000, 100), y_train=(10052, 2),  x_test=(10000, 100), y_test=(1968, 2), x_val=(10000, 100), y_val=(1997, 2)
