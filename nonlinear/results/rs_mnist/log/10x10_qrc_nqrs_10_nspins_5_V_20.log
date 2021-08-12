@@ -1,0 +1,7 @@
+2021-04-23 01:22:01,568 - __main__ - INFO - ../results/rs_mnist/log/10x10_qrc_nqrs_10_nspins_5_V_20.log
+2021-04-23 01:22:52,868 - __main__ - INFO - ../results/rs_mnist/log/10x10_qrc_nqrs_10_nspins_5_V_20.log
+2021-04-23 01:22:52,947 - __main__ - INFO - shape y_train=(50000, 10),  y_test=(10000, 10)
+2021-04-23 01:23:08,122 - __main__ - INFO - ../results/rs_mnist/log/10x10_qrc_nqrs_10_nspins_5_V_20.log
+2021-04-23 01:23:08,202 - __main__ - INFO - shape y_train=(50000, 10),  y_test=(10000, 10)
+2021-04-23 01:23:35,518 - __main__ - INFO - ../results/rs_mnist/log/10x10_qrc_nqrs_10_nspins_5_V_20.log
+2021-04-23 01:23:35,598 - __main__ - INFO - shape y_train=(50000, 10),  y_test=(10000, 10)
