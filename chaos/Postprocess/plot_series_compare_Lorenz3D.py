@@ -9,11 +9,15 @@ import time
 import seaborn as sns
 import matplotlib
 #matplotlib.use('Agg')
+from mpl_toolkits.mplot3d import axes3d
 import matplotlib.pyplot as plt
 import pandas as pd
 import sys,inspect
 import utils
 from utils import *
+import sys
+sys.path.append('../Methods/Models/Utils')
+import global_utils
 
 if __name__  == '__main__':
     # Check for command line arguments
@@ -29,8 +33,13 @@ if __name__  == '__main__':
     current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     results_dir = os.path.dirname(current_dir) + "/Results"
     print(results_dir)
+    
     eval_path = os.path.join(results_dir, '{}/Evaluation_Data'.format(sysname))
     print(eval_path)
+    
+    model_path = os.path.join(results_dir, '{}/Trained_Models'.format(sysname))
+    print(model_path)
+    
     fig_path = os.path.join(results_dir, '{}/Eval_Figures'.format(sysname))
     if os.path.isdir(fig_path) == False:
         os.mkdir(fig_path)
@@ -120,7 +129,20 @@ if __name__  == '__main__':
         ['hqrc_pinv-RDIM_1-N_used_10000-DL_2000-Nqr_5-A_0.9-J_2.0-fJ_1-V_15-TAU_4.0-NL_1-IPL_1000-IUL_0-REG_1e-11-AU_0-NICS_100', 'alpha=0.9'],
     ]
 
-    if args.used == 4:
+    models_demo = [\
+        ['hqrc_pinv-RDIM_1-N_used_10000-DL_2000-Nqr_5-A_0.0-J_2.0-fJ_0-V_10-NL_1-IPL_1000-IUL_0-REG_1e-07-AU_0-NICS_2', 'V=10,alpha=0.0'],
+        ['hqrc_pinv-RDIM_1-N_used_10000-DL_2000-Nqr_5-A_0.1-J_2.0-fJ_0-V_10-NL_1-IPL_1000-IUL_0-REG_1e-07-AU_0-NICS_2', 'V=10,alpha=0.1'],
+        ['hqrc_pinv-RDIM_1-N_used_10000-DL_2000-Nqr_5-A_0.0-J_2.0-fJ_0-V_15-NL_1-IPL_1000-IUL_0-REG_1e-07-AU_0-NICS_2', 'V=15,alpha=0.0'],
+        #['hqrc_pinv-RDIM_1-N_used_10000-DL_2000-Nqr_5-A_0.1-J_2.0-fJ_0-V_15-NL_1-IPL_1000-IUL_0-REG_1e-07-AU_0-NICS_2', 'V=15,alpha=0.1']
+        ['hqrc_pinv-RDIM_1-N_used_10000-DL_2000-Nqr_5-A_0.0-J_2.0-fJ_0-V_5-NL_1-IPL_1000-IUL_0-REG_1e-07-AU_0-NICS_2', 'V=5,alpha=0.0']
+    ]
+    trained_models = None
+    if args.used == 5:
+        models = [[os.path.join(eval_path, m[0]), m[1]] for m in models_demo]
+        trained_models  = [[os.path.join(model_path, m[0]), m[1]] for m in models_demo]
+        samples = ['V=10,alpha=0.0', 'V=10,alpha=0.1', 'V=15,alpha=0.0', 'V=5,alpha=0.0']
+        title = 'demo'
+    elif args.used == 4:
         models = [[os.path.join(eval_path, m[0]), m[1]] for m in models_alpha]
         samples = ['alpha=0.0', 'alpha=0.1', 'alpha=0.5', 'alpha=0.9']
         title = 'compare connection strength'
@@ -147,6 +169,8 @@ if __name__  == '__main__':
     outputs = dict()
     sp_outputs = dict()
     sp_targets = dict()
+    Wouts = dict()
+    coeffs = dict()
 
     for i in range(len(models)):
         rfolder, label = models[i][0], models[i][1]
@@ -195,7 +219,23 @@ if __name__  == '__main__':
                 sp_targets[label] = rs['sp_true_TEST']
         else:
             print('Not found {}'.format(fname))
-    
+
+        if trained_models is not None:
+            rfolder, label = trained_models[i][0], trained_models[i][1]
+            fname = os.path.join(rfolder, 'data.pickle')
+            if os.path.isfile(fname):
+                print('File existed: ', fname)
+                with open(fname, 'rb') as rfile:
+                    #try:
+                    rs = pickle.load(rfile)
+                    #except:
+                    #    continue
+                    print(rs.keys())
+                    coeffs[label] = np.array(rs['coeffs'])
+                    Wouts[label]  = rs['W_out'][:-1].reshape((coeffs[label].shape[0], -1))
+                    print(Wouts[label].shape, coeffs[label].shape)
+            else:
+                print('Not found saved model {}'.format(fname))
     # PLOTTING
     cmap = plt.get_cmap("RdBu")
     ecmap = plt.get_cmap("summer_r")
@@ -209,11 +249,11 @@ if __name__  == '__main__':
     #fig.subplots_adjust(hspace=0.4, wspace = 0.4)
     #axs = axs.ravel()
 
-    fig = plt.figure(figsize=(16, 6))
+    fig = plt.figure(figsize=(18, 16))
     fig.subplots_adjust(hspace=0.6, wspace = 0.2)
 
     # Plot box plot
-    ax1 = plt.subplot2grid((3,4), (0,0), colspan=4, rowspan=2)
+    ax1 = plt.subplot2grid((7,4), (0,0), colspan=4, rowspan=2)
     df = pd.DataFrame(vpt_dict)
     #sns.stripplot(ax=ax, data=df, jitter=True, linewidth=1, alpha=0.9, marker='o', size=6)
     sns.boxplot(data=df, ax = ax1)
@@ -226,13 +266,54 @@ if __name__  == '__main__':
         label = samples[i]
         if label not in targets.keys():
             continue
-        ax = plt.subplot2grid((3, 4), (2,i), colspan=1, rowspan=1)
+        ax = plt.subplot2grid((7, 4), (2,i), colspan=1, rowspan=1)
         ts = np.array(range(len(targets[label]))) * dt / maxLyp
         ax.plot(ts, targets[label], label='Target')
         ax.plot(ts, outputs[label], label='Prediction')
         ax.set_title(label)
-        ax.set_xlim([0, 5])
-    
+        ax.set_xlabel('$t\Lambda_1$', fontsize=16)
+        #ax.set_xlim([0, 5])
+        bx = plt.subplot2grid((7, 4), (3,i), projection='3d', colspan=1, rowspan=2)
+        tau = 10
+
+        data = targets[label]
+        data_lag0 = data[:-2].flatten()
+        data_lag1 = np.roll(data, -tau)[:-2].flatten()
+        data_lag2 = np.roll(data, -2 * tau)[:-2].flatten()
+        bx.plot3D(data_lag0, data_lag1, data_lag2, label='Target')
+
+        data = outputs[label]
+        data_lag0 = data[:-2].flatten()
+        data_lag1 = np.roll(data, -tau)[:-2].flatten()
+        data_lag2 = np.roll(data, -2 * tau)[:-2].flatten()
+        bx.plot3D(data_lag0, data_lag1, data_lag2, label='Predict')
+        bx.set_xticks([])
+        bx.set_yticks([])
+        bx.set_zticks([])
+        bx.w_xaxis.set_pane_color((0.0, 0.0, 0.0, 0.9))
+        bx.w_yaxis.set_pane_color((0.0, 0.0, 0.0, 0.9))
+        bx.w_zaxis.set_pane_color((0.0, 0.0, 0.0, 0.9))
+        bx.grid(False)
+
+        if i == 0:
+            bx.legend()
+        
+        if len(Wouts.keys()) > 0:
+            cx = plt.subplot2grid((7, 4), (5,i), colspan=1, rowspan=1)
+            for j in range(Wouts[label].shape[0]):
+                Wout = Wouts[label][j].ravel()
+                sns.kdeplot(Wout, legend=False, shade=True, ax=cx, label='Wo={}'.format(j+1))
+
+            dx = plt.subplot2grid((7, 4), (6,i), colspan=1, rowspan=1)
+            for j in range(coeffs[label].shape[0]):
+                coef = coeffs[label][j].ravel()
+                sns.kdeplot(coef, legend=False, shade=True, ax=dx, label='Wf={}'.format(j+1))
+
+            if i == 0:
+                cx.legend()
+                dx.legend()
+
+        #bx.set_facecolor('k')
     # ax2 = plt.subplot2grid((3,6), (0,4), colspan=2, rowspan=3)
     # if args.plot == 0:
     #     # Plot NRMSE curves
@@ -268,7 +349,8 @@ if __name__  == '__main__':
     outbase = 'tidx_{}_{}_v2'.format(tidx, title)
     outbase = os.path.join(fig_path, outbase)
     for ftype in ['pdf', 'svg', 'png']:
-        plt.savefig('{}_{}_rs3.{}'.format(outbase, sysname, ftype), bbox_inches='tight', transparent=True, dpi=600)
+        transparent = (ftype != 'png')
+        plt.savefig('{}_{}_rs4.{}'.format(outbase, sysname, ftype), bbox_inches='tight', transparent=transparent, dpi=600)
     
     plt.show()
 

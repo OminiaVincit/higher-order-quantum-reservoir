@@ -1,0 +1,1 @@
+model_name:hqrc_pinv-RDIM_1-N_used_10000-DL_2000-Nqr_5-A_0.0-J_2.0-fJ_0-V_5-NL_1-IPL_1000-IUL_0-REG_1e-07-AU_0-NICS_2:n_tests:2.00:num_accurate_pred_005_avg_TEST:26.50:num_accurate_pred_050_avg_TEST:227.50:num_accurate_pred_005_avg_TRAIN:73.50:num_accurate_pred_050_avg_TRAIN:113.00:error_freq_TRAIN:2.04:error_freq_TEST:4.25
