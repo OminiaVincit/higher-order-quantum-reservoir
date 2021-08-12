@@ -20,11 +20,12 @@ from loginit import get_module_logger
 import utils
 from utils import *
 
-def memory_func(taskname, qparams, nqrc, deep, alpha,\
+def memory_func(taskname, qparams, nqrc, alpha, mask_input, combine_input, non_linear, sigma_input, type_input,\
         train_len, val_len, buffer, dlist, ranseed, pid, send_end):
     btime = int(time.time() * 1000.0)
     rsarr = hqrc.memory_function(taskname, qparams, train_len=train_len, val_len=val_len, buffer=buffer, \
-        dlist=dlist, nqrc=nqrc, alpha=alpha, ranseed=ranseed, deep=deep)
+        dlist=dlist, nqrc=nqrc, gamma=alpha, ranseed=ranseed, sparsity=1.0, type_input=type_input,\
+        sigma_input=sigma_input, mask_input=mask_input, combine_input=combine_input, nonlinear=non_linear)
     
     # obtain the memory
     rslist = []
@@ -47,6 +48,8 @@ if __name__  == '__main__':
     parser.add_argument('--beta', type=float, default=1e-14, help='reg term')
     parser.add_argument('--solver', type=str, default=LINEAR_PINV, \
         help='regression solver by linear_pinv,ridge_pinv,auto,svd,cholesky,lsqr,sparse_cg,sag')
+    parser.add_argument('--dynamic', type=str, default=DYNAMIC_FULL_RANDOM,\
+        help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
 
     parser.add_argument('--trainlen', type=int, default=3000)
     parser.add_argument('--vallen', type=int, default=1000)
@@ -58,14 +61,18 @@ if __name__  == '__main__':
 
     parser.add_argument('--nproc', type=int, default=50)
     parser.add_argument('--ntrials', type=int, default=1)
-    
+    parser.add_argument('--non_linear', type=int, default=0)
+    parser.add_argument('--sigma_input', type=float, default=1.0)
+    parser.add_argument('--mask_input', type=int, default=0)
+    parser.add_argument('--combine_input', type=int, default=1)
+    parser.add_argument('--type_input', type=int, default=0)
+
     parser.add_argument('--taudeltas', type=str, default='-4,-3,-2,-1,0,1,2,3,4,5,6,7', \
         help='Interval between the inputs')
     parser.add_argument('--nqrc', type=int, default=1, help='Number of reservoirs')
     parser.add_argument('--strength', type=float, default=0.0, help='The connection strength')
     parser.add_argument('--virtuals', type=int, default=1, help='Number of virtual nodes')
 
-    parser.add_argument('--deep', type=int, default=0)
     parser.add_argument('--taskname', type=str, default='qrc_stm') # Use _stm or _pc
     parser.add_argument('--savedir', type=str, default='rescapa_highfunc_stm')
     args = parser.parse_args()
@@ -74,15 +81,16 @@ if __name__  == '__main__':
     n_units, max_energy, beta = args.units, args.coupling, args.beta
     train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
     nproc, alpha, V = args.nproc, args.strength, args.virtuals
-    init_rho = args.rho
+    init_rho, dynamic = args.rho, args.dynamic
     minD, maxD, interval, Ntrials = args.mind, args.maxd, args.interval, args.ntrials
+    non_linear, sigma_input, type_input = args.non_linear, args.sigma_input, args.type_input
+    mask_input, combine_input = args.mask_input, args.combine_input
+    
+
     dlist = list(range(minD, maxD + 1, interval))
     nproc = min(nproc, len(dlist))
     nqrc  = args.nqrc
     print('Divided into {} processes'.format(nproc))
-    deep = False
-    if args.deep > 0:
-        deep =True
 
     taskname, savedir, solver = args.taskname, args.savedir, args.solver
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
@@ -97,8 +105,9 @@ if __name__  == '__main__':
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
     
-    stmp = '{}_{}_deep_{}_strength_{}_V_{}_layers_{}_mem_ntrials_{}'.format(\
-        taskname, datestr, deep, alpha, V, nqrc, Ntrials)
+    stmp = '{}_{}_strength_{}_V_{}_layers_{}_mask_{}_cb_{}_sm_{}_sg_{}_tp_{}_mem_ntrials_{}'.format(\
+        taskname, datestr, alpha, V, nqrc, mask_input, \
+        combine_input, non_linear, sigma_input, type_input, Ntrials)
     outbase = os.path.join(savedir, stmp)
     
     rsarr = dict()
@@ -112,8 +121,8 @@ if __name__  == '__main__':
         logger.info(log_filename)
 
         for tau in taudeltas:
-            qparams = QRCParams(n_units=n_units, max_energy=max_energy, \
-                beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver)
+            qparams = QRCParams(n_units=n_units-1, n_envs=1, max_energy=max_energy, \
+                beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver,dynamic=dynamic)
             local_sum = []
             for n in range(Ntrials):
                 # Multi process
@@ -126,7 +135,8 @@ if __name__  == '__main__':
                     print('dlist: ', dsmall)
                     recv_end, send_end = multiprocessing.Pipe(False)
                     p = multiprocessing.Process(target=memory_func, \
-                        args=(taskname, qparams, nqrc, deep, alpha, train_len, val_len, buffer, dsmall, n, proc_id, send_end))
+                        args=(taskname, qparams, nqrc, alpha, mask_input, combine_input, non_linear, sigma_input, type_input,\
+                            train_len, val_len, buffer, dsmall, n, proc_id, send_end))
                     jobs.append(p)
                     pipels.append(recv_end)
         
@@ -164,7 +174,6 @@ if __name__  == '__main__':
             sfile.write('taudeltas={}\n'.format(' '.join([str(v) for v in taudeltas])))
             sfile.write('layers={}\n'.format(nqrc))
             sfile.write('V={}\n'.format(V))
-            sfile.write('deep={}\n'.format(deep))
             sfile.write('minD={}, maxD={}, interval={}\n'.format(minD, maxD, interval))
             sfile.write('alpha={}, Ntrials={}\n'.format(alpha, Ntrials))
 

@@ -367,7 +367,7 @@ class HQRC(object):
             #     # If the update_input goes out of range, just use the normal input
             #     update_input = original_input
         else:
-            update_input = original_input
+            update_input = (1.0-self.gamma) * original_input
             #print('Update input', update_input)
 
                    
