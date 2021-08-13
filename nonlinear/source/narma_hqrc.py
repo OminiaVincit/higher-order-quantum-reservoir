@@ -20,7 +20,7 @@ import utils
 from utils import *
 
 def compute_job(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_output_seq, \
-        val_input_seq, val_output_seq, Ntrials, send_end, save_order, save_path, load_order, load_path, combine_input):
+        val_input_seq, val_output_seq, Ntrials, send_end, save_order, save_path, load_order, load_path, combine_input, mask_input):
     train_loss_ls, val_loss_ls = [], []
     print('Start process alpha={}, taudelta={}, virtual={}, Jdelta={}'.format(\
         alpha, qparams.tau, qparams.virtual_nodes, qparams.max_energy))
@@ -41,7 +41,7 @@ def compute_job(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_outpu
             local_load_path = os.path.join(load_path, 'trial_{}'.format(n))
             
         _, train_loss, _, val_loss = hqrc.get_loss(qparams, buffer, train_input_seq, train_output_seq, \
-            val_input_seq, val_output_seq, nqrc=nqrc, gamma=alpha, ranseed=n, deep=deep, saving_path=local_save_path, loading_path=local_load_path, combine_input=combine_input)
+            val_input_seq, val_output_seq, nqrc=nqrc, gamma=alpha, ranseed=n, deep=deep, saving_path=local_save_path, loading_path=local_load_path, combine_input=combine_input, mask_input=mask_input)
         train_loss_ls.append(train_loss)
         val_loss_ls.append(val_loss)
         print('trials={}, tau={},V={},alpha={}, train_loss={}, val_loss={}'.format(\
@@ -58,13 +58,13 @@ def compute_job(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_outpu
     send_end.send(rstr)
 
 def view_dynamic_job(qparams, nqrc, deep, alpha, train_input_seq, Ntrials, \
-    save_order, save_fig, load_order, load_path, combine_input, nonlinear):
+    save_order, save_fig, load_order, load_path, combine_input, nonlinear, mask_input):
     print('Start view dynamics process alpha={}, taudelta={}, virtual={}, Jdelta={}'.format(\
         alpha, qparams.tau, qparams.virtual_nodes, qparams.max_energy))
     
     basename = 'train_{}_nqr_{}_deep_{}_tau_{:.3f}_V_{}'.format(\
         train_input_seq.shape[1], nqrc, deep, qparams.tau, qparams.virtual_nodes)
-    posfix = 'narma_{}_a_{}_nlin_{}_cb_{}'.format(save_order, alpha, nonlinear, combine_input)
+    posfix = 'narma_{}_a_{}_nlin_{}_cb_{}_ms_{}'.format(save_order, alpha, nonlinear, combine_input, mask_input)
     if load_path != None:
         load_path = os.path.join(load_path, 'order_{}_{}'.format(load_order, basename))
     for n in range(Ntrials):
@@ -73,7 +73,7 @@ def view_dynamic_job(qparams, nqrc, deep, alpha, train_input_seq, Ntrials, \
             local_load_path = os.path.join(load_path, 'trial_{}'.format(n))
     
         state_list, feed_list = hqrc.view_dynamic(qparams, train_input_seq, \
-            nqrc=nqrc, gamma=alpha, ranseed=n, deep=deep, loading_path=local_load_path, combine_input=combine_input, nonlinear=nonlinear)
+            nqrc=nqrc, gamma=alpha, ranseed=n, deep=deep, loading_path=local_load_path, combine_input=combine_input, nonlinear=nonlinear, mask_input=mask_input)
         print('trials={}, tau={},V={},alpha={}, state_list={}'.format(\
             n, qparams.tau, qparams.virtual_nodes, alpha, state_list.shape, len(feed_list)))
 
@@ -90,22 +90,25 @@ def view_dynamic_job(qparams, nqrc, deep, alpha, train_input_seq, Ntrials, \
 
         n_local_nodes = int(state_list.shape[1] / nqrc)
         nobs= int(n_local_nodes / qparams.virtual_nodes)
-        bg, ed=980, 1200
+        bg = train_input_seq.shape[1]//2 - 50
+        ed = bg + 200
         xs = list(range(bg, ed))
         vmin1, vmax1 = np.amin(train_input_seq[:,bg:ed]), np.amax(train_input_seq[:, bg:ed])
         vmin2, vmax2 = np.amin(state_list[bg:ed, :]), np.amax(state_list[bg:ed, :])
         
         if len(feed_list) > 0:
+            print('Feedback list', feed_list[-10:-1])
             vmin1 = min(vmin1, np.amin(feed_list[bg:ed]))
             vmax1 = max(vmax1, np.amax(feed_list[bg:ed]))
         vmin1, vmax1 = 0.0, 1.0
+
+        
 
         for i in range(nqrc):
             ax1, ax2 = axs[i, 0], axs[i, 1]
             ax1.plot(xs, train_input_seq[i, bg:ed], c='gray', label='Input')
             ax1.plot(xs, (1.0-alpha)*train_input_seq[i, bg:ed], c='b', label='Scale-in', alpha=0.5)
             
-            print('Feedback list', feed_list[-1])
             if len(feed_list) > 0:
                 ax1.plot(xs, feed_list[bg:ed, i], c='k', label='Feedback', linestyle='dashed')
                 combine_input =  train_input_seq[i, bg:ed] * (1.0-alpha) + feed_list[bg:ed, i] * alpha
@@ -160,6 +163,7 @@ if __name__  == '__main__':
     parser.add_argument('--save_model', type=int, default=0)
     parser.add_argument('--load_model', type=int, default=0)
     parser.add_argument('--combine_input', type=int, default=1)
+    parser.add_argument('--mask_input', type=int, default=0)
     parser.add_argument('--sigma_feed', type=float, default=1.0)
     parser.add_argument('--view_dynamic', type=int, default=0)
     parser.add_argument('--nonlinear', type=int, default=0)
@@ -182,7 +186,7 @@ if __name__  == '__main__':
 
     save_model, load_model, load_order = args.save_model, args.load_model, args.load_order
     save_path, load_path = None, None
-    combine_input, view_dynamic, nonlinear = args.combine_input, args.view_dynamic, args.nonlinear
+    mask_input, combine_input, view_dynamic, nonlinear = args.mask_input, args.combine_input, args.view_dynamic, args.nonlinear
 
     if save_model > 0:
         save_path = os.path.join(savedir, 'saved_model')
@@ -206,11 +210,11 @@ if __name__  == '__main__':
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
 
     for order in orders:
-        outbase = os.path.join(savedir, '{}_{}_{}_units_{}_V_{}_QRs_{}_narma_{}_deep_{}_ntrials_{}_load_{}_od_{}_cb_{}'.format(\
+        outbase = os.path.join(savedir, '{}_{}_{}_units_{}_V_{}_QRs_{}_narma_{}_deep_{}_ntrials_{}_load_{}_od_{}_cb_{}_ms_{}'.format(\
             dynamic, solver, datestr, n_units, V,\
             #'_'.join([str(o) for o in strengths]), \
             '_'.join([str(o) for o in layers]), \
-            order, deep, Ntrials, load_model, load_order, combine_input))
+            order, deep, Ntrials, load_model, load_order, combine_input, mask_input))
         #np.random.seed(seed=rseed + order*100)
 
         jobs, pipels = [], []
@@ -236,10 +240,10 @@ if __name__  == '__main__':
                         beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
                     if view_dynamic == 0:
                         p = multiprocessing.Process(target=compute_job, args=(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_output_seq, \
-                        val_input_seq, val_output_seq, Ntrials, send_end, order, save_path, load_order, load_path, combine_input))
+                        val_input_seq, val_output_seq, Ntrials, send_end, order, save_path, load_order, load_path, combine_input, mask_input))
                     else:
                         p = multiprocessing.Process(target=view_dynamic_job, args=(qparams, nqrc, deep, alpha, train_input_seq, \
-                            Ntrials, order, save_fig, load_order, load_path, combine_input, nonlinear))    
+                            Ntrials, order, save_fig, load_order, load_path, combine_input, nonlinear, mask_input))    
                     jobs.append(p)
                     pipels.append(recv_end)
         # Start the process

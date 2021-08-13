@@ -286,7 +286,7 @@ class HQRC(object):
             tmp_rhos.append(rho)
         self.init_rhos = tmp_rhos.copy()
 
-    def step_forward(self, local_rhos, input_val, feedback_flag=1):
+    def step_forward(self, local_rhos, input_val, feedback_flag=1, scale_input=True):
         nqrc = self.nqrc
         original_input = input_val.copy().ravel()
         
@@ -369,7 +369,12 @@ class HQRC(object):
             #     # If the update_input goes out of range, just use the normal input
             #     update_input = original_input
         else:
-            update_input = (1.0-self.gamma) * original_input
+            if scale_input == True:
+                update_input = (1.0-self.gamma) * original_input
+            else:
+                # Use in masking input (keep the original input)
+                update_input = original_input
+            
             #print('Update input', update_input)
 
                    
@@ -447,12 +452,15 @@ class HQRC(object):
         state_list, feed_list = [], []
         for time_step in range(0, input_length):
             input_val = np.ravel(input_seq[:, time_step])
+            scale_input = True
             if self.mask_input > 0 and self.gamma > 0 and self.feed_nothing == False:
+                scale_input = False
                 # put the feedback between the inputs
                 dummy_input = np.zeros(input_val.shape) - 100.0
                 for i in range(self.mask_input):
                     local_rhos = self.step_forward(local_rhos, dummy_input, feedback_flag=1)
-            local_rhos = self.step_forward(local_rhos, input_val, feedback_flag=self.combine_input)
+            
+            local_rhos = self.step_forward(local_rhos, input_val, feedback_flag=self.combine_input, scale_input=scale_input)
             state = np.array(self.cur_states.copy(), dtype=np.float64)
             state_list.append(state.flatten())
             feed_list.append(self.feed_inputs)
@@ -611,11 +619,12 @@ def view_dynamic(qparams, input_seq, ranseed, nqrc, \
     gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, mask_input=0, combine_input=1,\
     deep=0, use_corr=0, nonlinear=0, loading_path=None):
 
+    input_seq = np.array(input_seq)
+    
     model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, \
         sigma_input=sigma_input, type_input=type_input, mask_input=mask_input, combine_input=combine_input,\
-        deep=deep, use_corr=use_corr, nonlinear=nonlinear)
+        deep=deep, use_corr=use_corr, nonlinear=nonlinear, feed_trials=input_seq.shape[1]//2)
 
-    input_seq = np.array(input_seq)
     state_list, feed_list = model.init_forward(qparams, input_seq, init_rs=True, \
         ranseed=ranseed, loading_path=loading_path)
     return state_list, feed_list
