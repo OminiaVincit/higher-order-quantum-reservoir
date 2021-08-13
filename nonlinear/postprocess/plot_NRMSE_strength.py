@@ -14,10 +14,11 @@ if __name__  == '__main__':
     parser.add_argument('--posfix', type=str, default='NRMSE')
     parser.add_argument('--tau', type=float, default=8.0)
     parser.add_argument('--virtuals', type=int, default=5)
+    parser.add_argument('--ntrials', type=int, default=10)
     
     args = parser.parse_args()
     print(args)
-    folder, prefix, posfix, tau, V = args.folder, args.prefix, args.posfix, args.tau, args.virtuals
+    folder, prefix, posfix, tau, V, Ntrials = args.folder, args.prefix, args.posfix, args.tau, args.virtuals, args.ntrials
     orders = [5,10,15,20]
     N = len(orders)
     cmap = plt.get_cmap("viridis")
@@ -39,8 +40,8 @@ if __name__  == '__main__':
     for i in range(N):
         order = orders[i]
         ax = axs[i]
-        for deep in [0, 1]:
-            for rfile in glob.glob('{}/{}*_V_{}*narma_{}_deep_{}*_{}.txt'.format(folder, prefix, V, order, deep, posfix)):
+        for deep in [0]:
+            for rfile in glob.glob('{}/{}*_V_{}_*narma_{}_deep_{}_ntrials_{}_*_{}.txt'.format(folder, prefix, V, order, deep, Ntrials, posfix)):
                 print(rfile)
                 ntitle = os.path.basename(rfile)
                 nidx = ntitle.find('units_')
@@ -52,15 +53,15 @@ if __name__  == '__main__':
                 if (np.sum(id1) == 0):
                     continue
                 xs, avg_tests, std_tests = rsarr[:, 3], rsarr[:, -3], rsarr[:, -1]
-                id2 = (xs < 1.0)
+                id2 = (xs <= 1.0)
                 id1 = id1 * id2
                 #print(id1)
-                for nqrc in [1,2,3,4,5]:
+                for nqrc in [2,3,4,5]:
                     ids = (rsarr[:, 1] == nqrc)   
                     ids = id1 * ids
                     #if nqrc == 1:
                     #    avg_tests[ids] = np.mean(avg_tests[ids])
-                    xa, ya, za = 1.0-xs[ids], avg_tests[ids], std_tests[ids]
+                    xa, ya, za = xs[ids], avg_tests[ids], std_tests[ids]
                     sids = np.argsort(xa)
                     #print(nqrc, sids)
                     #ax.scatter(xs[ids], avg_tests[ids], label='Layers={}'.format(nqrc))
@@ -72,15 +73,17 @@ if __name__  == '__main__':
                         #ax.fill_between(xa[sids], ya[sids] - za[sids], ya[sids] + za[sids], facecolor=colors[nqrc-1], alpha=0.2)
                     
             
-            ax.set_xlabel('$1.0-\\alpha$', fontsize=20)
+            ax.set_xlabel('$\\alpha$', fontsize=20)
             #ax.set_ylabel('NMSE', fontsize=14)
             ax.set_yscale('log', base=10)
-            ax.set_xscale('log', base=10)
+            #ax.set_xscale('log', base=10)
             
             #ax.set_xticks(np.arange(0, 1.01, step=0.2))
             #ax.set_xlim([0.0, 1.01])
+            #ax.set_ylim([1e-2, 1.0])
+            #ax.set_ylim([np.min(avg_tests[id1])/1.2, 1.0])
+            ax.set_ylim([np.min(avg_tests[id1])/1.2, np.max(avg_tests[id1])*1.2])
             
-            #ax.set_ylim([np.min(avg_tests[id1])/1.2, 1.2*np.max(avg_tests[id1])])
             ax.set_title('NARMA{}'.format(order))
             ax.grid(True, which="both", ls="-", color='0.65')
             if i == 0:
@@ -98,7 +101,7 @@ if __name__  == '__main__':
     #plt.suptitle(outbase, fontsize=14)
     plt.tight_layout()
     if ntitle != '':
-        for ftype in ['pdf', 'png', 'svg']:
+        for ftype in ['png']:
             plt.savefig('{}_nrmse.{}'.format(outbase, ftype), bbox_inches='tight')
     plt.show()
     
