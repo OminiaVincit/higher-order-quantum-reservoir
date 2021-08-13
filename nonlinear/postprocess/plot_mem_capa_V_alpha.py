@@ -13,11 +13,11 @@ if __name__  == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--folder', type=str, default='rescapa_high_V')
     parser.add_argument('--prefix', type=str, default='full_random_qrc_stm_linear_pinv_2021-0')
-    parser.add_argument('--posfix', type=str, default='layers_5_capa_ntrials_10_capacity')
+    parser.add_argument('--posfix', type=str, default='layers_5_mask_0_cb_1_sm_0_sg_1.0_tp_0_ntrials_10_capacity')
     parser.add_argument('--ymin', type=float, default='0.0')
     parser.add_argument('--ymax', type=float, default='60.0')
     parser.add_argument('--taus', type=str, default='-4,-3,-2,-1,0,1,2,3,4,5,6,7')
-    parser.add_argument('--virtuals', type=str, default='1,5,15,25')
+    parser.add_argument('--virtuals', type=str, default='1,5,10,15,20')
     
     args = parser.parse_args()
     print(args)
@@ -72,8 +72,7 @@ if __name__  == '__main__':
             #else:
             color=putils.cycle[dcl]
             #color = colors[dcl]
-            #ax.errorbar(xs, avg_tests, yerr=std_tests, alpha = 0.8, elinewidth=2, linewidth=2, markersize=12, \
-            #    label='$V=${}'.format(V))
+            #ax.errorbar(xs, avg_tests, yerr=std_tests, alpha = 0.8, color=color, elinewidth=2, linewidth=2, markersize=12)
             ax.plot(xs, avg_tests, 's-', alpha = 0.8, linewidth=3, markersize=8, mec='k', mew=0.5, \
                         color=color, label='$V=${}, $\\tau=${:.3f}'.format(V, tau))
             ax.fill_between(xs, avg_tests - std_tests, avg_tests + std_tests, \

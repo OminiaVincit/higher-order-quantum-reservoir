@@ -3,9 +3,9 @@
 export OMP_NUM_THREADS=1
 
 BIN=../source/mc_hqrc.py
-N=10
+N=1
 J=1.0
-SAVE=../../../data/hqrc/memcapa_alpha_norm
+SAVE=../../../data/hqrc/memcapa_alpha_bw_input_bnorm
 PROC=101
 
 TAUS=\'3\' # The parameters for tau is 2**x for x in TAUS
@@ -23,16 +23,16 @@ SM=0
 SG=1.0
 TP=0
 
-for VS in '15' '20'
+for VS in '1' '5' '10' '15' '20'
 do
-for TASK in qrc_stm qrc_pc
+for TASK in qrc_stm
 do
-for CB in 1
+for CB in 0
 do
 for TAUS in '3'
 #for TAUS in \'-3\' \'-2\' \'-1\' \'0\' \'1\' \'2\' \'3\'
 do
-for MASK in 0
+for MASK in 1
 do
 for SOLVER in 'linear_pinv'
 do
