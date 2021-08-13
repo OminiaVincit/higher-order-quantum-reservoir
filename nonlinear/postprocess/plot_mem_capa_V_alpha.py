@@ -13,7 +13,7 @@ if __name__  == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--folder', type=str, default='rescapa_high_V')
     parser.add_argument('--prefix', type=str, default='full_random_qrc_stm_linear_pinv_2021-0')
-    parser.add_argument('--posfix', type=str, default='layers_5_mask_0_cb_1_sm_0_sg_1.0_tp_0_ntrials_10_capacity')
+    parser.add_argument('--posfix', type=str, default='layers_5_mask_1_cb_0_sm_0_sg_1.0_tp_0_ntrials_1_capacity')
     parser.add_argument('--ymin', type=float, default='0.0')
     parser.add_argument('--ymax', type=float, default='60.0')
     parser.add_argument('--taus', type=str, default='-4,-3,-2,-1,0,1,2,3,4,5,6,7')
