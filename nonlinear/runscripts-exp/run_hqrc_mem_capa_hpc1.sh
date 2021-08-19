@@ -3,7 +3,7 @@
 export OMP_NUM_THREADS=1
 
 BIN=../source/mc_hqrc.py
-N=1
+N=10
 J=1.0
 SAVE=/data/zoro/hqrc/memcapa_alpha_bw_input_bnorm
 PROC=101
