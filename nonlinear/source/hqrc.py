@@ -23,7 +23,7 @@ import psutil
 
 class HQRC(object):
     def __init__(self, nqrc, gamma, sparsity, sigma_input, \
-        type_input=0, use_corr=0, deep=0, nonlinear=0, mask_input=0, combine_input=1, feed_trials=400):
+        type_input=0, use_corr=0, deep=0, nonlinear=0, mask_input=0, combine_input=1, feed_trials=-1):
         self.nqrc = nqrc
         self.gamma = gamma
         self.sparsity = sparsity
@@ -102,11 +102,12 @@ class HQRC(object):
         # Create W_feed or load from saved Wout
         if self.W_feed.shape == ():
             W_feed = np.zeros((n_nodes, nqrc))
-            if self.nonlinear == 6:
-                for k in range(0, n_nodes, n_local_nodes):
-                    #qridx = int(k/n_local_nodes)
-                    W_feed[k, :] = 1.0 / nqrc
-            else:
+            # if self.nonlinear == 6:
+            #     for k in range(0, n_nodes, n_local_nodes):
+            #         #qridx = int(k/n_local_nodes)
+            #         W_feed[k, :] = 1.0 / nqrc
+            
+            if False:
                 if nqrc > 1:
                     for i in range(0, nqrc):
                         if self.deep == 0:
@@ -145,12 +146,14 @@ class HQRC(object):
                                 #if self.nonlinear == 0 or self.nonlinear == 3:
                                 #    smat *= (self.sigma_input / n_local_nodes)
                                 
-                                # else:
+                                # else: 
                                 #     smat /= np.std(smat)
                                 #     smat *= (self.sigma_input)
                                 bg = (i-1) * n_local_nodes
                                 ed = bg + n_local_nodes
                                 W_feed[bg:ed, i] = smat.copy()
+            else:
+                W_feed = np.random.normal(loc=0, scale=self.sigma_input, size=(n_nodes, nqrc))
                 # if self.radius > 0:
                 #     eigenvalues, eigvectors = splinalg.eigs(W_feed)
                 #     eigenvalues = np.abs(eigenvalues)
@@ -344,6 +347,10 @@ class HQRC(object):
                 # Min-max norm
                 tmp_states = (tmp_states - np.min(tmp_states)) / (np.max(tmp_states) - np.min(tmp_states))
                 tmp_states = shuffle(tmp_states)
+            elif self.nonlinear == 6:
+                tmp_states = [np.modf(x / (2*np.pi))[0] for x in tmp_states]
+                # to make sure the nonegative number
+                tmp_states = np.array([np.modf(x + 1.0) for x in tmp_states])
             #print(tmp_states, self.feed_min, self.feed_max)
             self.feed_inputs = tmp_states.copy().ravel()
             
@@ -401,7 +408,11 @@ class HQRC(object):
                     rho = ((1+value)/2) * rho + ((1-value)/2) *self.Xop[0] @ rho @ self.Xop[0]
                 else:
                     par_rho = partial_trace(rho, keep=[1], dims=[2**self.n_envs, 2**self.n_units], optimize=False)
-                    input_state = np.sqrt(1-value) * q0 + np.sqrt(value) * q1
+                    if self.type_input == 2:
+                        input_state = np.sqrt(1-value) * q0 + np.sqrt(value) * q1
+                    elif self.type_input == 3:
+                        angle_val = 2*np.pi*value
+                        input_state = np.cos(angle_val) * q0 + np.sin(angle_val) * q1
                     input_state = input_state @ input_state.T.conj() 
                     rho = np.kron(input_state, par_rho)
 
