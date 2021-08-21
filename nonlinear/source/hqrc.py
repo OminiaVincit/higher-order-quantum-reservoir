@@ -694,7 +694,7 @@ def get_IPC(qparams, ipcparams, length, logger, nqrc=1, gamma=0.0, ranseed=-1, N
     logger.info('{}: Executed time {}'.format(fname, timedelta(seconds=end_time - start_time)))
 
 def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
-        nqrc, gamma, sparsity, sigma_input, mask_input=0, combine_input=1, \
+        nqrc, gamma, sparsity, sigma_input, mask_input=0, combine_input=1, feed_nothing=False,\
         ranseed=-1, Ntrials=1, type_input=0, nonlinear=0):    
     MFlist = []
     MFstds = []
@@ -755,7 +755,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
             # Use the same ranseed the same trial
             train_pred_seq, train_loss, val_pred_seq, val_loss = \
             get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, val_output_seq, \
-                nqrc=nqrc, gamma=gamma, sparsity=sparsity, sigma_input=sigma_input, ranseed=ranseed_net, \
+                nqrc=nqrc, gamma=gamma, sparsity=sparsity, sigma_input=sigma_input, ranseed=ranseed_net, feed_nothing=feed_nothing,\
                 type_input=type_input, mask_input=mask_input, combine_input=combine_input, nonlinear=nonlinear)
 
             # Compute memory function

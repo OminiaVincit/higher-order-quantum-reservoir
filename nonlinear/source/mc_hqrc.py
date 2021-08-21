@@ -21,10 +21,10 @@ import utils
 from utils import *
 
 def memory_compute(taskname, qparams, nqrc, alpha, mask_input, combine_input, non_linear, sigma_input, type_input,\
-        train_len, val_len, buffer, dlist, ranseed, pid, send_end):
+        train_len, val_len, buffer, dlist, ranseed, pid, send_end, feed_nothing):
     btime = int(time.time() * 1000.0)
     rsarr = hqrc.memory_function(taskname, qparams, train_len=train_len, val_len=val_len, buffer=buffer, \
-        dlist=dlist, nqrc=nqrc, gamma=alpha, ranseed=ranseed, sparsity=1.0, type_input=type_input,\
+        dlist=dlist, nqrc=nqrc, gamma=alpha, ranseed=ranseed, sparsity=1.0, type_input=type_input, feed_nothing=feed_nothing,\
             sigma_input=sigma_input, mask_input=mask_input, combine_input=combine_input, nonlinear=non_linear)
     C = np.sum(rsarr[:, 1])
     etime = int(time.time() * 1000.0)
@@ -61,11 +61,12 @@ if __name__  == '__main__':
     parser.add_argument('--mask_input', type=int, default=0)
     parser.add_argument('--combine_input', type=int, default=1)
     parser.add_argument('--type_input', type=int, default=0)
+    parser.add_argument('--bnorm', type=int, default=0)
 
     parser.add_argument('--couplings', type=str, default='1.0', help='Maximum coupling energy')
     parser.add_argument('--taudeltas', type=str, default='-4,-3,-2,-1,0,1,2,3,4,5,6,7')
     parser.add_argument('--layers', type=str, default='5')
-    parser.add_argument('--strengths', type=str, default='0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9')
+    parser.add_argument('--strengths', type=str, default='0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0')
     parser.add_argument('--virtuals', type=str, default='1')
 
     parser.add_argument('--taskname', type=str, default='qrc_stm') # Use _stm or _pc
@@ -83,6 +84,10 @@ if __name__  == '__main__':
     nproc = min(nproc, len(dlist))
     print('Divided into {} processes'.format(nproc))
     
+    feed_nothing = False
+    if args.bnorm > 0:
+        feed_nothing = True
+
     dynamic, taskname, savedir, solver = args.dynamic, args.taskname, args.savedir, args.solver
     if os.path.isdir(savedir) == False:
         os.mkdir(savedir)
@@ -100,13 +105,13 @@ if __name__  == '__main__':
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
-    outbase = os.path.join(savedir, '{}_{}_{}_{}_tau_{}_strength_{}_V_{}_layers_{}_mask_{}_cb_{}_sm_{}_sg_{}_tp_{}_ntrials_{}'.format(\
+    outbase = os.path.join(savedir, '{}_{}_{}_{}_tau_{}_strength_{}_V_{}_layers_{}_mask_{}_cb_{}_sm_{}_sg_{}_tp_{}_bn_{}_ntrials_{}'.format(\
         dynamic, taskname, solver, datestr, \
         '_'.join([str(o) for o in taudeltas]), \
         '_'.join([str(o) for o in strengths]), \
         '_'.join([str(o) for o in virtuals]), \
         '_'.join([str(o) for o in layers]), \
-        mask_input, combine_input, non_linear, sigma_input, type_input, Ntrials))
+        mask_input, combine_input, non_linear, sigma_input, type_input, args.bnorm, Ntrials))
     
     log_filename = '{}.log'.format(outbase)
     logger = get_module_logger(__name__, log_filename)
@@ -133,7 +138,7 @@ if __name__  == '__main__':
                                 recv_end, send_end = multiprocessing.Pipe(False)
                                 p = multiprocessing.Process(target=memory_compute, \
                                     args=(taskname, qparams, nqrc, alpha, mask_input, combine_input, non_linear, \
-                                    sigma_input, type_input, train_len, val_len, buffer, dsmall, n, proc_id, send_end))
+                                    sigma_input, type_input, train_len, val_len, buffer, dsmall, n, proc_id, send_end, feed_nothing))
                                 jobs.append(p)
                                 pipels.append(recv_end)
                     
@@ -163,7 +168,8 @@ if __name__  == '__main__':
         sfile.write('solver={}, train_len={}, val_len={}, buffer={}\n'.format(\
             solver, train_len, val_len, buffer))
         sfile.write('beta={}, Ntrials={}\n'.format(beta, Ntrials))
-        sfile.write('n_units={}, non_linear={}, sigma_input={}, mask_input={}, combine_input={}\n'.format(n_units, non_linear, sigma_input, mask_input, combine_input))
+        sfile.write('n_units={}, non_linear={}, sigma_input={}, mask_input={}, combine_input={}, bnorm={}\n'.format(\
+            n_units, non_linear, sigma_input, mask_input, combine_input, args.bnorm))
         sfile.write('max_energy={}\n'.format(' '.join([str(v) for v in couplings])))
         sfile.write('taudeltas={}\n'.format(' '.join([str(v) for v in taudeltas])))
         sfile.write('layers={}\n'.format(' '.join([str(l) for l in layers])))
