@@ -58,14 +58,14 @@ def reduce_states_dimension(arr, n_neighbors=15, min_dist=0.1, n_components=2, n
 
 
 def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, mask_input, combine_input, \
-    nonlinear, sigma_input, type_input, sparsity, xs, idx, bg, ed, send_end):
+    nonlinear, sigma_input, type_input, sparsity, xs, idx, bg, ed, send_end, use_corr):
     """
     Dump raw data of states
     """
     print('Start pid={} with size {} (from {} to {})'.format(idx, len(xs), xs[0], xs[-1]))
     results = dict()
-    basename = '{}_nqr_{}_V_{}_sm_{}_alpha_{}_sg_{}_sparse_{}_ms_{}_cb_{}_tp_{}'.format(dynamic, \
-        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity, mask_input, combine_input, type_input)
+    basename = '{}_nqr_{}_V_{}_sm_{}_alpha_{}_sg_{}_sparse_{}_ms_{}_cb_{}_tp_{}_corr_{}'.format(dynamic, \
+        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity, mask_input, combine_input, type_input, use_corr)
     save_figdir = os.path.join(savedir, 'figs')
     os.makedirs(savedir, exist_ok=True)
     os.makedirs(save_figdir, exist_ok=True)
@@ -75,58 +75,61 @@ def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, mask_input
         tau = 2**x
         qparams = QRCParams(n_units=UNITS-1, n_envs=1, max_energy=1.0,\
             beta=BETA, virtual_nodes=V, tau=tau, init_rho=INIT_RHO, solver=LINEAR_PINV, dynamic=dynamic)
-        model = hqrc.HQRC(nqrc=nqrc, gamma=layer_strength, sparsity=sparsity, sigma_input=sigma_input, \
-            mask_input=mask_input, combine_input=combine_input, nonlinear=nonlinear, type_input=type_input, feed_trials = int(bg/2))
+        model = hqrc.HQRC(nqrc=nqrc, gamma=layer_strength, sparsity=sparsity, sigma_input=sigma_input, use_corr=use_corr,\
+            mask_input=mask_input, combine_input=combine_input, nonlinear=nonlinear, type_input=type_input, feed_trials = int(bg/2), feed_nothing=False)
         state_list, feed_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = 0)
-        state_list = state_list*2.0-1.0 
+        #state_list = state_list*2.0-1.0 
         results[x] = state_list
 
-        # Draw state and feedback
-        cmap = plt.get_cmap("viridis")
-        plt.style.use('seaborn-colorblind')
-        plt.rc('font', family='serif')
-        plt.rc('mathtext', fontset='cm')
-        plt.rcParams['font.size'] = 12
-        colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-    
-        fig, axs = plt.subplots(nqrc, 2, figsize=(18, 3*nqrc), squeeze=False)
+        if False:
+            # Draw state and feedback
+            cmap = plt.get_cmap("viridis")
+            plt.style.use('seaborn-colorblind')
+            plt.rc('font', family='serif')
+            plt.rc('mathtext', fontset='cm')
+            plt.rcParams['font.size'] = 12
+            colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+        
+            fig, axs = plt.subplots(nqrc, 2, figsize=(18, 3*nqrc), squeeze=False)
 
-        n_local_nodes = int(state_list.shape[1] / nqrc)
-        nobs = int(n_local_nodes / V)
-        xs = list(range(bg1, ed1))
-        vmin1, vmax1 = np.amin(input_seq[:,bg1:ed1]), np.amax(input_seq[:, bg1:ed1])
-        vmin2, vmax2 = np.amin(state_list[bg1:ed1, :]), np.amax(state_list[bg1:ed1, :])
-        if len(feed_list) > 0:
-            vmin1 = min(vmin1, np.amin(feed_list[bg1:ed1, :]))
-            vmax1 = max(vmax1, np.amax(feed_list[bg1:ed1, :]))
-        vmin1, vmax1 = 0.0, 1.0
+            n_local_nodes = int(state_list.shape[1] / nqrc)
+            nobs = int(n_local_nodes / V)
+            xs = list(range(bg1, ed1))
+            # vmin1, vmax1 = np.amin(input_seq[:,bg1:ed1]), np.amax(input_seq[:, bg1:ed1])
+            # vmin2, vmax2 = np.amin(state_list[bg1:ed1, :]), np.amax(state_list[bg1:ed1, :])
+            # if len(feed_list) > 0:
+            #     vmin1 = min(vmin1, np.amin(feed_list[bg1:ed1, :]))
+            #     vmax1 = max(vmax1, np.amax(feed_list[bg1:ed1, :]))
+            vmin1, vmax1 = 0.0, 1.0
 
-        outfile = 'tau_{:.3f}_{}'.format(tau, basename)
-        for i in range(nqrc):
-            ax1, ax2 = axs[i, 0], axs[i, 1]
-            ax1.plot(xs, input_seq[i, bg1:ed1], c='gray', label='Input')
-            ax1.plot(xs, (1.0-layer_strength)*input_seq[i, bg1:ed1], c='b', label='Scale-in', alpha=0.5)
+            outfile = 'tau_{:.3f}_{}'.format(tau, basename)
+            for i in range(nqrc):
+                ax1, ax2 = axs[i, 0], axs[i, 1]
+                ax1.plot(xs, input_seq[i, bg1:ed1], c='gray', label='Input')
+                ax1.plot(xs, (1.0-layer_strength)*input_seq[i, bg1:ed1], c='b', label='Scale-in', alpha=0.5)
+                
+                #print('Feedback list', feed_list[-1])
+                if len(feed_list) > 0:
+                    ax1.plot(xs, feed_list[bg1:ed1, i], c='k', label='Feedback', linestyle='dashed')
+                    combine_input_seq =  input_seq[i, bg1:ed1] * (1.0-layer_strength) + feed_list[bg1:ed1, i] * layer_strength
+                    ax1.plot(xs, combine_input_seq, c='r', label='Combine', linestyle='dashed', alpha=0.8)
+                    
+                for j in range(nobs):
+                    #print(nobs, n_local_nodes, state_list.shape, len(colors))
+                    #ax2.plot(xs, state_list[bg1:ed1, i*n_local_nodes + j], c=colors[j], label='QR{}-{}'.format(i+1,j+1))
+                    ax2.plot(xs, state_list[bg1:ed1, i*n_local_nodes + j])
             
-            #print('Feedback list', feed_list[-1])
-            if len(feed_list) > 0:
-                ax1.plot(xs, feed_list[bg1:ed1, i], c='k', label='Feedback', linestyle='dashed')
-                combine_input_seq =  input_seq[i, bg1:ed1] * (1.0-layer_strength) + feed_list[bg1:ed1, i] * layer_strength
-                ax1.plot(xs, combine_input_seq, c='r', label='Combine', linestyle='dashed', alpha=0.8)
-                
-            for j in range(nobs):
-                #print(nobs, n_local_nodes, state_list.shape, len(colors))
-                ax2.plot(xs, state_list[bg1:ed1, i*n_local_nodes + j], c=colors[j], label='QR{}-{}'.format(i+1,j+1))
-            ax1.legend()
-            ax2.legend()
-            if i == 0:
-                ax2.set_title('{}'.format(outfile))
-            ax1.set_title('Min={:.3f}, Max={:.3f}, Steps trials={}'.format(model.feed_min[i], model.feed_max[i], model.feed_trials))
-                
-            ax1.set_ylim([vmin1, vmax1])
-            ax2.set_ylim([vmin2, vmax2])
-        for ftype in ['png']:
-            figfile = os.path.join(save_figdir, '{}.{}'.format(outfile, ftype))
-            plt.savefig(figfile, bbox_inches='tight')
+                ax1.legend()
+                #ax2.legend()
+                if i == 0:
+                    ax2.set_title('{}'.format(outfile))
+                #ax1.set_title('Min={:.3f}, Max={:.3f}, Steps trials={}'.format(model.feed_min[i], model.feed_max[i], model.feed_trials))
+                    
+                ax1.set_ylim([vmin1, vmax1])
+                #ax2.set_ylim([vmin2, vmax2])
+            for ftype in ['png']:
+                figfile = os.path.join(save_figdir, '{}.{}'.format(outfile, ftype))
+                plt.savefig(figfile, bbox_inches='tight')
 
     outbase = os.path.join(savedir, basename)
     filename = '{}_states_id_{}.binaryfile'.format(outbase, idx)
@@ -150,6 +153,8 @@ if __name__  == '__main__':
     parser.add_argument('--combine_input', type=int, default=0, help='Combine input')
     parser.add_argument('--type_input', type=int, default=0)
     parser.add_argument('--nonlinear', type=int, default=0, help='The nonlinear of feedback matrix')
+    parser.add_argument('--use_corr', type=int, default=0, help='The nonlinear of feedback matrix')
+    
     parser.add_argument('--scale_input', type=float, default=1.0)
     parser.add_argument('--trans_input', type=float, default=0.0)
     
@@ -168,9 +173,9 @@ if __name__  == '__main__':
     bg, ed, lyap = args.bg, args.ed, args.lyap
     layer_strength, nonlinear, sparsity, sigma_input = args.strength, args.nonlinear, args.sparsity, args.sigma_input
     const_input, mask_input, combine_input, type_input = args.const, args.mask_input, args.combine_input, args.type_input
-    scale_input, trans_input = args.scale_input, args.trans_input
-    basename = '{}_nqr_{}_V_{}_sm_{}_a_{}_sg_{}_sparse_{}_ms_{}_cb_{}_tp_{}'.format(dynamic, \
-        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity, mask_input, combine_input, type_input)
+    use_corr, scale_input, trans_input = args.use_corr, args.scale_input, args.trans_input
+    basename = '{}_nqr_{}_V_{}_sm_{}_a_{}_sg_{}_sparse_{}_ms_{}_cb_{}_tp_{}_corr_{}'.format(dynamic, \
+        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity, mask_input, combine_input, type_input, use_corr)
 
     savedir = args.savedir
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
@@ -199,7 +204,7 @@ if __name__  == '__main__':
             recv_end, send_end = multiprocessing.Pipe(False)
             p = multiprocessing.Process(target=dumpstates_job, args=(savedir, dynamic, input_seq, \
                 nqrc, layer_strength, mask_input, combine_input, nonlinear, sigma_input, type_input,\
-                sparsity, xs, pid, bg, ed, send_end))
+                sparsity, xs, pid, bg, ed, send_end, use_corr))
 
             jobs.append(p)
             pipels.append(recv_end)
@@ -229,7 +234,7 @@ if __name__  == '__main__':
         filename = savedir
         with open(filename, 'rb') as rrs:
             z = pickle.load(rrs)
-    
+    os.remove(filename)
     # Plot file
     plt.rc('font', family='serif')
     plt.rc('mathtext', fontset='cm')
@@ -241,11 +246,16 @@ if __name__  == '__main__':
     #ax1 = axs.ravel()[0]
     #ax.plot(ts, rs, ls="", marker=",")
 
+    if use_corr == 0:
+        nstates = UNITS
+    else:
+        nstates = int((UNITS * (UNITS + 1)) / 2)
+
     fig = plt.figure(figsize=(16, 16), dpi=600)
     for i in range(nqrc):
         ax1 = plt.subplot2grid((nqrc,4), (i,0), colspan=2, rowspan=1)
-        sbg = 1 + i*UNITS
-        sed = (i+1)*UNITS
+        sbg = 1 + i*nstates
+        sed = (i+1)*nstates
         
         if lyap > 0:
             # # Very slow to run density plot
@@ -266,16 +276,29 @@ if __name__  == '__main__':
                 ax1.plot(stx, rs_units[k], linewidth=2)
         else:
             rs, ts = [], []
+            rs_in, ts_in = [], []
+
             for x in tx:
                 state_list = z[x]
                 ys = state_list[bg:ed, sbg:sed].ravel()
                 rs.extend(ys)
                 ts.extend([2**x] * len(ys))
+
+                ys_in = state_list[bg:ed, i*nstates].ravel()
+                rs_in.extend(ys_in)
+                ts_in.extend([2**x] * len(ys_in))
+
             ts = np.array(ts).ravel()
             rs = np.array(rs).ravel()
 
-            ax1.scatter(ts, rs, s=(12*72./fig.dpi)**2, marker='o', lw=0, rasterized=True)
-            ax1.set_yscale("symlog", base=10, linthresh=1e-5)
+            ts_in = np.array(ts_in).ravel()
+            rs_in = np.array(rs_in).ravel()
+
+
+            ax1.scatter(ts_in, rs_in, s=(12*72./fig.dpi)**2, marker='o', lw=0, rasterized=True, color='gray', alpha=0.7)
+            ax1.scatter(ts, rs, s=(12*72./fig.dpi)**2, marker='o', lw=0, rasterized=True, alpha=0.7)
+            #ax1.set_yscale("symlog", base=10, linthresh=1e-5)
+            #ax1.set_yscale("log", base=10)
         
         # Calculate maximum lyapunov exponent
         lya_maxs = []
@@ -294,6 +317,7 @@ if __name__  == '__main__':
         ax1.tick_params('both', length=3, width=1, which='minor')
         ax1.set_xlim([2**tx[0], 2**tx[-1]])
 
+    
     ids = [20, 60, 80, 100, 180]
     N = ed - bg
     colors = plt.cm.viridis(np.linspace(0, 1, N))
@@ -301,17 +325,20 @@ if __name__  == '__main__':
         ax2 = plt.subplot2grid((nqrc,4), (i,2))
         x = tx[ids[i]]
         state_list = z[x]
-        for j in range(1, UNITS):
+        for j in range(nstates):
             ys = state_list[bg:ed, j].ravel()
-            ax2.plot(ys)
+            if j == 0:
+                ax2.plot(ys, color='gray')
+            else:
+                ax2.plot(ys)
         ax2.set_title('2^{:.1f}'.format(x))
         #ax2.set_yticklabels([])
         #ax2.set_xticklabels([])
-
-        ax3 = plt.subplot2grid((nqrc,4), (i,3))
-        states = state_list[bg:ed, :UNITS]
-        mapper = reduce_states_dimension(states)
-        umap.plot.points(mapper, ax=ax3, theme='fire')
+        if False:
+            ax3 = plt.subplot2grid((nqrc,4), (i,3))
+            states = state_list[bg:ed, :nstates]
+            mapper = reduce_states_dimension(states)
+            umap.plot.points(mapper, ax=ax3, theme='fire')
 
         
 

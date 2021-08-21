@@ -20,7 +20,8 @@ import utils
 from utils import *
 
 def compute_job(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_output_seq, \
-        val_input_seq, val_output_seq, Ntrials, send_end, save_order, save_path, load_order, load_path, combine_input, mask_input):
+        val_input_seq, val_output_seq, Ntrials, send_end, save_order, save_path, load_order, load_path, \
+        combine_input, mask_input, type_input, nonlinear, sigma_input, feed_nothing):
     train_loss_ls, val_loss_ls = [], []
     print('Start process alpha={}, taudelta={}, virtual={}, Jdelta={}'.format(\
         alpha, qparams.tau, qparams.virtual_nodes, qparams.max_energy))
@@ -41,7 +42,9 @@ def compute_job(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_outpu
             local_load_path = os.path.join(load_path, 'trial_{}'.format(n))
             
         _, train_loss, _, val_loss = hqrc.get_loss(qparams, buffer, train_input_seq, train_output_seq, \
-            val_input_seq, val_output_seq, nqrc=nqrc, gamma=alpha, ranseed=n, deep=deep, saving_path=local_save_path, loading_path=local_load_path, combine_input=combine_input, mask_input=mask_input)
+            val_input_seq, val_output_seq, nqrc=nqrc, gamma=alpha, ranseed=n, deep=deep, \
+            saving_path=local_save_path, loading_path=local_load_path, nonlinear=nonlinear, feed_nothing=feed_nothing,\
+            combine_input=combine_input, mask_input=mask_input, type_input=type_input, sigma_input=sigma_input)
         train_loss_ls.append(train_loss)
         val_loss_ls.append(val_loss)
         print('trials={}, tau={},V={},alpha={}, train_loss={}, val_loss={}'.format(\
@@ -58,13 +61,13 @@ def compute_job(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_outpu
     send_end.send(rstr)
 
 def view_dynamic_job(qparams, nqrc, deep, alpha, train_input_seq, Ntrials, \
-    save_order, save_fig, load_order, load_path, combine_input, nonlinear, mask_input):
+    save_order, save_fig, load_order, load_path, combine_input, nonlinear, mask_input, type_input, sigma_input):
     print('Start view dynamics process alpha={}, taudelta={}, virtual={}, Jdelta={}'.format(\
         alpha, qparams.tau, qparams.virtual_nodes, qparams.max_energy))
     
     basename = 'train_{}_nqr_{}_deep_{}_tau_{:.3f}_V_{}'.format(\
         train_input_seq.shape[1], nqrc, deep, qparams.tau, qparams.virtual_nodes)
-    posfix = 'narma_{}_a_{}_nlin_{}_cb_{}_ms_{}'.format(save_order, alpha, nonlinear, combine_input, mask_input)
+    posfix = 'narma_{}_a_{}_nlin_{}_cb_{}_ms_{}_tp_{}'.format(save_order, alpha, nonlinear, combine_input, mask_input, type_input)
     if load_path != None:
         load_path = os.path.join(load_path, 'order_{}_{}'.format(load_order, basename))
     for n in range(Ntrials):
@@ -73,7 +76,9 @@ def view_dynamic_job(qparams, nqrc, deep, alpha, train_input_seq, Ntrials, \
             local_load_path = os.path.join(load_path, 'trial_{}'.format(n))
     
         state_list, feed_list = hqrc.view_dynamic(qparams, train_input_seq, \
-            nqrc=nqrc, gamma=alpha, ranseed=n, deep=deep, loading_path=local_load_path, combine_input=combine_input, nonlinear=nonlinear, mask_input=mask_input)
+            nqrc=nqrc, gamma=alpha, ranseed=n, deep=deep, loading_path=local_load_path, \
+            combine_input=combine_input, nonlinear=nonlinear, \
+            mask_input=mask_input, type_input=type_input, sigma_input=sigma_input)
         print('trials={}, tau={},V={},alpha={}, state_list={}'.format(\
             n, qparams.tau, qparams.virtual_nodes, alpha, state_list.shape, len(feed_list)))
 
@@ -164,10 +169,12 @@ if __name__  == '__main__':
     parser.add_argument('--load_model', type=int, default=0)
     parser.add_argument('--combine_input', type=int, default=1)
     parser.add_argument('--mask_input', type=int, default=0)
-    parser.add_argument('--sigma_feed', type=float, default=1.0)
+    parser.add_argument('--type_input', type=int, default=0)
+    
+    parser.add_argument('--sigma_input', type=float, default=1.0)
     parser.add_argument('--view_dynamic', type=int, default=0)
     parser.add_argument('--nonlinear', type=int, default=0)
-    
+    parser.add_argument('--bnorm', type=int, default=0)
     args = parser.parse_args()
     print(args)
 
@@ -175,7 +182,9 @@ if __name__  == '__main__':
     train_len, val_len, buffer = args.trainlen, args.vallen, args.transient
     V, rseed = args.virtuals, args.rseed
     init_rho, solver = args.rho, args.solver
-
+    feed_nothing = False
+    if args.bnorm > 0:
+        feed_nothing = True
     Ntrials = args.ntrials
     deep = args.deep
 
@@ -186,7 +195,8 @@ if __name__  == '__main__':
 
     save_model, load_model, load_order = args.save_model, args.load_model, args.load_order
     save_path, load_path = None, None
-    mask_input, combine_input, view_dynamic, nonlinear = args.mask_input, args.combine_input, args.view_dynamic, args.nonlinear
+    type_input, mask_input, combine_input = args.type_input, args.mask_input, args.combine_input
+    view_dynamic, nonlinear, sigma_input = args.view_dynamic, args.nonlinear, args.sigma_input
 
     if save_model > 0:
         save_path = os.path.join(savedir, 'saved_model')
@@ -210,11 +220,12 @@ if __name__  == '__main__':
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
 
     for order in orders:
-        outbase = os.path.join(savedir, '{}_{}_{}_units_{}_V_{}_QRs_{}_narma_{}_deep_{}_ntrials_{}_load_{}_od_{}_cb_{}_ms_{}'.format(\
+        outbase = os.path.join(savedir, '{}_{}_{}_units_{}_V_{}_QRs_{}_narma_{}_deep_{}_ntrials_{}_load_{}_od_{}_cb_{}_ms_{}_tp_{}_nl_{}_sig_{}_bn_{}'.format(\
             dynamic, solver, datestr, n_units, V,\
             #'_'.join([str(o) for o in strengths]), \
             '_'.join([str(o) for o in layers]), \
-            order, deep, Ntrials, load_model, load_order, combine_input, mask_input))
+            order, deep, Ntrials, load_model, load_order, \
+            combine_input, mask_input, type_input, nonlinear, sigma_input, args.bnorm))
         #np.random.seed(seed=rseed + order*100)
 
         jobs, pipels = [], []
@@ -240,10 +251,11 @@ if __name__  == '__main__':
                         beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
                     if view_dynamic == 0:
                         p = multiprocessing.Process(target=compute_job, args=(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_output_seq, \
-                        val_input_seq, val_output_seq, Ntrials, send_end, order, save_path, load_order, load_path, combine_input, mask_input))
+                        val_input_seq, val_output_seq, Ntrials, send_end, order, save_path, load_order, load_path, \
+                        combine_input, mask_input, type_input, nonlinear, sigma_input, feed_nothing))
                     else:
                         p = multiprocessing.Process(target=view_dynamic_job, args=(qparams, nqrc, deep, alpha, train_input_seq, \
-                            Ntrials, order, save_fig, load_order, load_path, combine_input, nonlinear, mask_input))    
+                            Ntrials, order, save_fig, load_order, load_path, combine_input, nonlinear, mask_input, type_input, sigma_input))    
                     jobs.append(p)
                     pipels.append(recv_end)
         # Start the process
@@ -275,5 +287,7 @@ if __name__  == '__main__':
                 sfile.write('deep={}\n'.format(deep))
                 sfile.write('ranseed={}\n'.format(rseed))
                 sfile.write('alpha={}, Ntrials={}\n'.format(alpha, Ntrials))
+                sfile.write('nonlinear={}, combine_input={}, mask_input={}, type_input={}, sigma_input={}\n'.format(\
+                    nonlinear, combine_input, mask_input, type_input, sigma_input))
 
 

@@ -22,20 +22,21 @@ import pickle
 import psutil
 
 class HQRC(object):
-    def __init__(self, nqrc, gamma, sparsity, sigma_input, \
-        type_input=0, use_corr=0, deep=0, nonlinear=0, mask_input=0, combine_input=1, feed_trials=-1):
+    def __init__(self, nqrc, gamma, sparsity, sigma_input, dim_input=1,\
+        type_input=0, use_corr=0, deep=0, nonlinear=0, mask_input=0, combine_input=1, feed_trials=-1, feed_nothing=True):
         self.nqrc = nqrc
         self.gamma = gamma
         self.sparsity = sparsity
         self.sigma_input = sigma_input
         self.type_input = type_input
+        self.dim_input  = dim_input
         self.use_corr = use_corr
         self.deep = deep
         self.nonlinear = nonlinear
         self.mask_input = mask_input # feedback between inputs
         self.combine_input = combine_input # combine input and feedback
         self.feed_trials = feed_trials
-        self.feed_nothing = True
+        self.feed_nothing = feed_nothing
         self.feed_mean = None
         self.feed_std  = None
         self.feed_max = None
@@ -111,13 +112,7 @@ class HQRC(object):
                 if nqrc > 1:
                     for i in range(0, nqrc):
                         if self.deep == 0:
-                            #smat = scipy.sparse.random(n_nodes, 1, density = self.sparsity).todense()
-                            if self.nonlinear == 0 or self.nonlinear == 3:
-                                smat = np.random.rand(n_nodes)
-                                #smat = scipy.sparse.random(n_nodes, 1, density = 0.3).todense()
-                            else:
-                                #smat = np.random.randn(n_nodes) * self.sigma_input
-                                smat = np.random.normal(loc=0, scale=self.sigma_input, size=(n_nodes, 1))
+                            smat = np.random.rand(n_nodes)
                             smat = np.ravel(smat)
                             bg = i * n_local_nodes
                             ed = bg + n_local_nodes 
@@ -153,7 +148,19 @@ class HQRC(object):
                                 ed = bg + n_local_nodes
                                 W_feed[bg:ed, i] = smat.copy()
             else:
-                W_feed = np.random.normal(loc=0, scale=self.sigma_input, size=(n_nodes, nqrc))
+                feed_dim = nqrc - self.dim_input
+                if self.nonlinear == 0 and self.feed_nothing == False:
+                    feed_mat = scipy.sparse.random(n_nodes, feed_dim, density = self.sparsity).todense()
+                    # normalize
+                    for i in range(feed_dim):
+                        colsum = np.sum(feed_mat[:,i].ravel())
+                        if colsum > 0:
+                            feed_mat[:, i] = feed_mat[:, i] / colsum
+                else:
+                    feed_mat = np.random.normal(loc=0, scale=self.sigma_input, size=(n_nodes, feed_dim))
+                W_feed[:, self.dim_input:] = feed_mat
+
+                #W_feed = scipy.sparse.random(n_nodes, nqrc, density = self.sparsity).todense() * self.sigma_input
                 # if self.radius > 0:
                 #     eigenvalues, eigvectors = splinalg.eigs(W_feed)
                 #     eigenvalues = np.abs(eigenvalues)
@@ -296,14 +303,20 @@ class HQRC(object):
         q0 = np.array([1, 0]).reshape((2, 1))
         q1 = np.array([0, 1]).reshape((2, 1))
 
-        if self.cur_states[0] is not None:
+        if self.cur_states[0] is None:
+            if scale_input == True:
+                    update_input = (1.0-self.gamma) * original_input
+            else:
+                # Use in masking input (keep the original input)
+                update_input = original_input
+        else:
             tmp_states = np.array(self.cur_states.copy(), dtype=np.float64).reshape(1, -1)
+            tmp_states = (tmp_states + 1.0) / 2.0
             #tmp_states = np.hstack( [tmp_states, np.ones([1, 1])])
             #print(tmp_states.shape, self.W_feed.shape)
             #tmp_states = expit(tmp_states)
             tmp_states = tmp_states @ self.W_feed
-            tmp_states = np.ravel(tmp_states) 
-            tmp_states = min_max_norm(tmp_states, self.feed_min, self.feed_max)
+            tmp_states = np.ravel(tmp_states)
             # if self.feed_min2 is not None:
             #     tmp_states = tmp_states - self.feed_min2
             #tmp_states = min_max_norm(tmp_states, self.feed_min2, self.feed_max2)
@@ -350,39 +363,49 @@ class HQRC(object):
             elif self.nonlinear == 6:
                 tmp_states = [np.modf(x / (2*np.pi))[0] for x in tmp_states]
                 # to make sure the nonegative number
-                tmp_states = np.array([np.modf(x + 1.0) for x in tmp_states])
+                tmp_states = np.array([np.modf(x + 1.0)[0] for x in tmp_states])
+            elif self.nonlinear == 7:
+                tmp_states = [np.modf(x)[0] for x in tmp_states]
+                tmp_states = np.array([np.modf(x + 1.0)[0] for x in tmp_states])
+            else:
+                tmp_states = min_max_norm(tmp_states, self.feed_min, self.feed_max)
             #print(tmp_states, self.feed_min, self.feed_max)
             self.feed_inputs = tmp_states.copy().ravel()
             
             tmp_states[tmp_states < 0.0] = 0.0
             tmp_states[tmp_states > 1.0] = 1.0
-            if self.type_input == 1:
-                tmp_states = tmp_states * 2.0 - 1.0
         #print('Original input',  original_input) 
         
-        if self.feed_nothing == True:
-            update_input = original_input
-        elif feedback_flag > 0:
-            if original_input[0] < -1.0:
-                # feedback between inputs
-                update_input = self.gamma * tmp_states
-                #print('Update input', update_input)
-            else:
-                # combine input
-                update_input = self.gamma * tmp_states + (1.0 - self.gamma) * original_input
-                #update_input = np.multiply(update_input, tmp_states)
-                        
-            # if update_input[0] < -1.0 or update_input[0] > 1.0:
-            #     # If the update_input goes out of range, just use the normal input
-            #     update_input = original_input
-        else:
-            if scale_input == True:
-                update_input = (1.0-self.gamma) * original_input
-            else:
-                # Use in masking input (keep the original input)
+            if self.feed_nothing == True:
                 update_input = original_input
-            
-            #print('Update input', update_input)
+            elif feedback_flag > 0:
+                if original_input[0] < -1.0:
+                    # feedback between inputs
+                    update_input = self.gamma * tmp_states
+                    #print('Update input', update_input)
+                else:
+                    # combine input
+                    if feedback_flag == 1:
+                        update_input = self.gamma * tmp_states + (1.0 - self.gamma) * original_input
+                    elif feedback_flag == 2:
+                        if self.gamma > 0:
+                            update_input = self.gamma * tmp_states
+                        else:
+                            update_input = original_input
+                    #update_input = np.multiply(update_input, tmp_states)
+                    #print('Combine input', self.gamma, tmp_states, original_input)
+                            
+                # if update_input[0] < -1.0 or update_input[0] > 1.0:
+                #     # If the update_input goes out of range, just use the normal input
+                #     update_input = original_input
+            else:
+                if scale_input == True:
+                    update_input = (1.0-self.gamma) * original_input
+                else:
+                    # Use in masking input (keep the original input)
+                    update_input = original_input
+                
+                #print('Update input', update_input)
 
                    
         if True:
@@ -390,7 +413,10 @@ class HQRC(object):
                 Uop = self.Uops[i]
                 rho = local_rhos[i]
                 # Obtain value from the input
-                value = update_input[i]
+                if i < self.dim_input:
+                    value = original_input[i]
+                else:
+                    value = update_input[i]
 
                 # Replace the density matrix
                 # rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
@@ -422,23 +448,23 @@ class HQRC(object):
                     # Time evolution of density matrix
                     rho = Uop @ rho @ Uop.T.conj()
                     for qindex in range(0, self.n_qubits):
-                        expectation_value = np.real(np.trace(self.Zop[qindex] @ rho))
-                        if self.type_input != 1:
-                            rvstate = (1.0 + expectation_value) / 2.0
-                            #rvstate = expectation_value
-                        else:
-                            rvstate = expectation_value
+                        rvstate = np.real(np.trace(self.Zop[qindex] @ rho))
+                        # if self.type_input != 1:
+                        #     rvstate = (1.0 + expectation_value) / 2.0
+                        #     #rvstate = expectation_value
+                        # else:
+                        #     rvstate = expectation_value
                         current_state.append(rvstate)
                     
                     if self.use_corr > 0:
                         for q1 in range(0, self.n_qubits):
                             for q2 in range(q1+1, self.n_qubits):
                                 cindex = (q1, q2)
-                                expectation_value = np.real(np.trace(self.Zop_corr[cindex] @ rho))
-                                if self.type_input != 1:
-                                    rvstate = (1.0 + expectation_value) / 2.0
-                                else:
-                                    rvstate = expectation_value
+                                rvstate = np.real(np.trace(self.Zop_corr[cindex] @ rho))
+                                # if self.type_input != 1:
+                                #     rvstate = (1.0 + expectation_value) / 2.0
+                                # else:
+                                #     rvstate = expectation_value
                                 current_state.append(rvstate)
 
                 # Size of current_state is Nqubits x Nvirtuals)
@@ -603,11 +629,11 @@ class HQRC(object):
         return state_list, feed_list
 
 def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, val_output_seq, \
-        ranseed, nqrc, gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, mask_input=0, combine_input=1,\
+        ranseed, nqrc, gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, mask_input=0, combine_input=1,feed_nothing=False,\
         deep=0, use_corr=0, nonlinear=0, saving_path=None, loading_path=None):
 
     model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, \
-        sigma_input=sigma_input, type_input=type_input, mask_input=mask_input, combine_input=combine_input,\
+        sigma_input=sigma_input, type_input=type_input, mask_input=mask_input, combine_input=combine_input,feed_nothing=feed_nothing,\
         deep=deep, use_corr=use_corr, nonlinear=nonlinear, feed_trials=buffer//2)
 
     train_input_seq = np.array(train_input_seq)
