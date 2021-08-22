@@ -21,7 +21,7 @@ from utils import *
 
 def compute_job(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_output_seq, \
         val_input_seq, val_output_seq, Ntrials, send_end, save_order, save_path, load_order, load_path, \
-        combine_input, mask_input, type_input, nonlinear, sigma_input, feed_nothing):
+        combine_input, mask_input, type_input, nonlinear, sigma_input, feed_nothing, qr_input):
     train_loss_ls, val_loss_ls = [], []
     print('Start process alpha={}, taudelta={}, virtual={}, Jdelta={}'.format(\
         alpha, qparams.tau, qparams.virtual_nodes, qparams.max_energy))
@@ -42,7 +42,7 @@ def compute_job(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_outpu
             local_load_path = os.path.join(load_path, 'trial_{}'.format(n))
             
         _, train_loss, _, val_loss = hqrc.get_loss(qparams, buffer, train_input_seq, train_output_seq, \
-            val_input_seq, val_output_seq, nqrc=nqrc, gamma=alpha, ranseed=n, deep=deep, \
+            val_input_seq, val_output_seq, nqrc=nqrc, gamma=alpha, ranseed=n, deep=deep, dim_input=qr_input,\
             saving_path=local_save_path, loading_path=local_load_path, nonlinear=nonlinear, feed_nothing=feed_nothing,\
             combine_input=combine_input, mask_input=mask_input, type_input=type_input, sigma_input=sigma_input)
         train_loss_ls.append(train_loss)
@@ -170,7 +170,8 @@ if __name__  == '__main__':
     parser.add_argument('--combine_input', type=int, default=1)
     parser.add_argument('--mask_input', type=int, default=0)
     parser.add_argument('--type_input', type=int, default=0)
-    
+    parser.add_argument('--qr_input', type=int, default=1)
+
     parser.add_argument('--sigma_input', type=float, default=1.0)
     parser.add_argument('--view_dynamic', type=int, default=0)
     parser.add_argument('--nonlinear', type=int, default=0)
@@ -197,6 +198,7 @@ if __name__  == '__main__':
     save_path, load_path = None, None
     type_input, mask_input, combine_input = args.type_input, args.mask_input, args.combine_input
     view_dynamic, nonlinear, sigma_input = args.view_dynamic, args.nonlinear, args.sigma_input
+    qr_input = args.qr_input
 
     if save_model > 0:
         save_path = os.path.join(savedir, 'saved_model')
@@ -220,12 +222,12 @@ if __name__  == '__main__':
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
 
     for order in orders:
-        outbase = os.path.join(savedir, '{}_{}_{}_units_{}_V_{}_QRs_{}_narma_{}_deep_{}_ntrials_{}_load_{}_od_{}_cb_{}_ms_{}_tp_{}_nl_{}_sig_{}_bn_{}'.format(\
+        outbase = os.path.join(savedir, '{}_{}_{}_units_{}_V_{}_QRs_{}_narma_{}_deep_{}_ntrials_{}_load_{}_od_{}_cb_{}_ms_{}_tp_{}_nl_{}_sig_{}_bn_{}_qrin_{}'.format(\
             dynamic, solver, datestr, n_units, V,\
             #'_'.join([str(o) for o in strengths]), \
             '_'.join([str(o) for o in layers]), \
             order, deep, Ntrials, load_model, load_order, \
-            combine_input, mask_input, type_input, nonlinear, sigma_input, args.bnorm))
+            combine_input, mask_input, type_input, nonlinear, sigma_input, args.bnorm, qr_input))
         #np.random.seed(seed=rseed + order*100)
 
         jobs, pipels = [], []
@@ -252,7 +254,7 @@ if __name__  == '__main__':
                     if view_dynamic == 0:
                         p = multiprocessing.Process(target=compute_job, args=(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_output_seq, \
                         val_input_seq, val_output_seq, Ntrials, send_end, order, save_path, load_order, load_path, \
-                        combine_input, mask_input, type_input, nonlinear, sigma_input, feed_nothing))
+                        combine_input, mask_input, type_input, nonlinear, sigma_input, feed_nothing, qr_input))
                     else:
                         p = multiprocessing.Process(target=view_dynamic_job, args=(qparams, nqrc, deep, alpha, train_input_seq, \
                             Ntrials, order, save_fig, load_order, load_path, combine_input, nonlinear, mask_input, type_input, sigma_input))    

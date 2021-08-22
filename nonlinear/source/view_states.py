@@ -58,7 +58,7 @@ def reduce_states_dimension(arr, n_neighbors=15, min_dist=0.1, n_components=2, n
 
 
 def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, mask_input, combine_input, \
-    nonlinear, sigma_input, type_input, sparsity, xs, idx, bg, ed, send_end, use_corr):
+    nonlinear, sigma_input, type_input, sparsity, xs, idx, bg, ed, send_end, use_corr, feed_nothing):
     """
     Dump raw data of states
     """
@@ -75,8 +75,8 @@ def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, mask_input
         tau = 2**x
         qparams = QRCParams(n_units=UNITS-1, n_envs=1, max_energy=1.0,\
             beta=BETA, virtual_nodes=V, tau=tau, init_rho=INIT_RHO, solver=LINEAR_PINV, dynamic=dynamic)
-        model = hqrc.HQRC(nqrc=nqrc, gamma=layer_strength, sparsity=sparsity, sigma_input=sigma_input, use_corr=use_corr,\
-            mask_input=mask_input, combine_input=combine_input, nonlinear=nonlinear, type_input=type_input, feed_trials = int(bg/2), feed_nothing=False)
+        model = hqrc.HQRC(nqrc=nqrc, gamma=layer_strength, sparsity=sparsity, sigma_input=sigma_input, use_corr=use_corr, feed_nothing=feed_nothing,\
+            mask_input=mask_input, combine_input=combine_input, nonlinear=nonlinear, type_input=type_input, feed_trials = int(bg/2))
         state_list, feed_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = 0)
         #state_list = state_list*2.0-1.0 
         results[x] = state_list
@@ -154,7 +154,8 @@ if __name__  == '__main__':
     parser.add_argument('--type_input', type=int, default=0)
     parser.add_argument('--nonlinear', type=int, default=0, help='The nonlinear of feedback matrix')
     parser.add_argument('--use_corr', type=int, default=0, help='The nonlinear of feedback matrix')
-    
+    parser.add_argument('--bnorm', type=int, default=0)
+
     parser.add_argument('--scale_input', type=float, default=1.0)
     parser.add_argument('--trans_input', type=float, default=0.0)
     
@@ -174,8 +175,13 @@ if __name__  == '__main__':
     layer_strength, nonlinear, sparsity, sigma_input = args.strength, args.nonlinear, args.sparsity, args.sigma_input
     const_input, mask_input, combine_input, type_input = args.const, args.mask_input, args.combine_input, args.type_input
     use_corr, scale_input, trans_input = args.use_corr, args.scale_input, args.trans_input
-    basename = '{}_nqr_{}_V_{}_sm_{}_a_{}_sg_{}_sparse_{}_ms_{}_cb_{}_tp_{}_corr_{}'.format(dynamic, \
-        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity, mask_input, combine_input, type_input, use_corr)
+    feed_nothing = False
+    if args.bnorm > 0:
+        feed_nothing = True
+
+    basename = '{}_nqr_{}_V_{}_sm_{}_a_{}_sg_{}_sparse_{}_ms_{}_cb_{}_tp_{}_corr_{}_bn_{}'.format(dynamic, \
+        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity, \
+        mask_input, combine_input, type_input, use_corr, args.bnorm)
 
     savedir = args.savedir
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
@@ -204,7 +210,7 @@ if __name__  == '__main__':
             recv_end, send_end = multiprocessing.Pipe(False)
             p = multiprocessing.Process(target=dumpstates_job, args=(savedir, dynamic, input_seq, \
                 nqrc, layer_strength, mask_input, combine_input, nonlinear, sigma_input, type_input,\
-                sparsity, xs, pid, bg, ed, send_end, use_corr))
+                sparsity, xs, pid, bg, ed, send_end, use_corr, feed_nothing))
 
             jobs.append(p)
             pipels.append(recv_end)

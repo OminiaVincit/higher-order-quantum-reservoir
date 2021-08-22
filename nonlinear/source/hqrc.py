@@ -630,9 +630,9 @@ class HQRC(object):
 
 def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, val_output_seq, \
         ranseed, nqrc, gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, mask_input=0, combine_input=1,feed_nothing=False,\
-        deep=0, use_corr=0, nonlinear=0, saving_path=None, loading_path=None):
+        deep=0, use_corr=0, nonlinear=0, saving_path=None, loading_path=None, dim_input=1):
 
-    model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, \
+    model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, dim_input=dim_input,\
         sigma_input=sigma_input, type_input=type_input, mask_input=mask_input, combine_input=combine_input,feed_nothing=feed_nothing,\
         deep=deep, use_corr=use_corr, nonlinear=nonlinear, feed_trials=buffer//2)
 
@@ -696,7 +696,7 @@ def get_IPC(qparams, ipcparams, length, logger, nqrc=1, gamma=0.0, ranseed=-1, N
 
 def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
         nqrc, gamma, sparsity, sigma_input, mask_input=0, combine_input=1, feed_nothing=False,\
-        ranseed=-1, Ntrials=1, type_input=0, nonlinear=0):    
+        ranseed=-1, Ntrials=1, type_input=0, nonlinear=0, dim_input=1):    
     MFlist = []
     MFstds = []
     train_list, val_list = [], []
@@ -757,7 +757,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
             train_pred_seq, train_loss, val_pred_seq, val_loss = \
             get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, val_output_seq, \
                 nqrc=nqrc, gamma=gamma, sparsity=sparsity, sigma_input=sigma_input, ranseed=ranseed_net, feed_nothing=feed_nothing,\
-                type_input=type_input, mask_input=mask_input, combine_input=combine_input, nonlinear=nonlinear)
+                type_input=type_input, mask_input=mask_input, combine_input=combine_input, nonlinear=nonlinear, dim_input=dim_input)
 
             # Compute memory function
             val_out_seq, val_pred_seq = val_output_seq.flatten(), val_pred_seq.flatten()

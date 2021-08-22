@@ -11,7 +11,7 @@ if __name__  == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--folder', type=str, default='resnarma_strength')
     parser.add_argument('--prefix', type=str, default='full_random_linear_pinv_2021-0')
-    parser.add_argument('--posfix', type=str, default='NRMSE')
+    parser.add_argument('--posfix', type=str, default='nl_0_sig_1.0_bn_0_NRMSE')
     parser.add_argument('--tau', type=float, default=8.0)
     parser.add_argument('--virtuals', type=int, default=5)
     parser.add_argument('--ntrials', type=int, default=10)
@@ -70,24 +70,25 @@ if __name__  == '__main__':
                             label='{}'.format(nqrc))
                     else:
                         ax.plot(xa[sids], ya[sids], lstype[deep], color=colors[nqrc-2], alpha = 0.8, linewidth=2.0, mec='k', mew=0.5, markersize=8, label='{}'.format(nqrc))
-                        #ax.fill_between(xa[sids], ya[sids] - za[sids], ya[sids] + za[sids], facecolor=colors[nqrc-1], alpha=0.2)
+                        ax.fill_between(xa[sids], ya[sids] - za[sids], ya[sids] + za[sids], facecolor=colors[nqrc-2], alpha=0.2)
                     
             
             ax.set_xlabel('$\\alpha$', fontsize=20)
             #ax.set_ylabel('NMSE', fontsize=14)
-            ax.set_yscale('log', base=10)
             #ax.set_xscale('log', base=10)
             
-            #ax.set_xticks(np.arange(0, 1.01, step=0.2))
-            #ax.set_xlim([0.0, 1.01])
+            ax.set_xticks(np.arange(0, 1.01, step=0.2))
+            ax.set_xlim([-0.02, 1.01])
             #ax.set_ylim([1e-2, 1.0])
             #ax.set_ylim([np.min(avg_tests[id1])/1.2, 1.0])
-            ax.set_ylim([np.min(avg_tests[id1])/1.2, np.max(avg_tests[id1])*1.2])
+            ax.set_ylim([np.min(avg_tests[id1])/1.1, np.max(avg_tests[id1])*1.1])
             
             ax.set_title('NARMA{}'.format(order))
             ax.grid(True, which="both", ls="-", color='0.65')
             if i == 0:
                 ax.legend(loc='best')
+            ax.set_yscale('log', base=10)
+            
     
     for ax in axs:
         #ax.minorticks_on()
@@ -97,7 +98,7 @@ if __name__  == '__main__':
     figsave = os.path.join(folder, 'figs')
     if os.path.isdir(figsave) == False:
         os.mkdir(figsave)
-    outbase = os.path.join(figsave, '{}_{}_tau_{}'.format(prefix, ntitle, tau))
+    outbase = os.path.join(figsave, '{}_{}_tau_{}'.format(prefix, ntitle.replace('.txt', ''), tau))
     #plt.suptitle(outbase, fontsize=14)
     plt.tight_layout()
     if ntitle != '':
