@@ -5,8 +5,8 @@ export OMP_NUM_THREADS=1
 EXE=../source/runIPC.py
 BINPLOT=../postprocess/plot_IPC_thres.py
 PARENT=/data/zoro/hqrc
+#T=2000000
 T=2000000
-#T=2000
 TS=_T_$T
 WD=50
 VAR=4
@@ -30,14 +30,14 @@ AMIN=0.0
 AMAX=1.0
 NAS=100
 EXP=0
-CB=1
+CB=2
 
 for MASK in 0
     do
     FRS='XXX'
     for SEED in 0 1 2 3 4
     do
-    LBS=IPC_bnorm_cb_$CB\_mask_$MASK\_seed_$SEED
+    LBS=IPC_one_input_cb_$CB\_mask_$MASK\_seed_$SEED
     SAVE=$PARENT\/$LBS
     FRS=$FRS,$LBS
 

@@ -32,7 +32,7 @@ def IPC_compute(qparams, ipcparams, length, ntrials, ranseed, log_filename, save
         else:
             gamma = alpha
         hqrc.get_IPC(qparams, ipcparams, length, nqrc=nqrc, gamma=gamma, logger=logger, ranseed=ranseed, Ntrials=ntrials, \
-            savedir=savedir, posfix='capa_alpha_{:.3f}_{}'.format(alpha, posfix), \
+            savedir=savedir, posfix='capa_alpha_{:.3f}_{}'.format(alpha, posfix), feed_nothing=False, nonlinear=0,\
             type_input=1, mask_input=mask_input, combine_input=combine_input, label='alpha_{:.3f}'.format(alpha))
     
 if __name__  == '__main__':
