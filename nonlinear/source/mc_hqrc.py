@@ -21,18 +21,18 @@ import utils
 from utils import *
 
 def memory_compute(taskname, qparams, nqrc, alpha, mask_input, combine_input, non_linear, sigma_input, type_input,\
-        train_len, val_len, buffer, dlist, ranseed, pid, send_end, feed_nothing):
+        train_len, val_len, buffer, dlist, ranseed, pid, send_end, feed_nothing, qr_input):
     btime = int(time.time() * 1000.0)
     rsarr = hqrc.memory_function(taskname, qparams, train_len=train_len, val_len=val_len, buffer=buffer, \
         dlist=dlist, nqrc=nqrc, gamma=alpha, ranseed=ranseed, sparsity=1.0, type_input=type_input, feed_nothing=feed_nothing,\
-            sigma_input=sigma_input, mask_input=mask_input, combine_input=combine_input, nonlinear=non_linear)
+            sigma_input=sigma_input, mask_input=mask_input, combine_input=combine_input, nonlinear=non_linear, dim_input=qr_input)
     C = np.sum(rsarr[:, 1])
     etime = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
-    print('{} Finished process {} in {} s with J={}, taudelta={}, V={}, layers={}, strength={}, dmin={}, dmax={}, capacity={}'.format(\
+    print('{} Finished process {} in {} s with J={}, taudelta={}, V={}, layers={}, qr_input={}, strength={}, dmin={}, dmax={}, capacity={}'.format(\
         datestr, pid, etime-btime, \
-        qparams.max_energy, qparams.tau, qparams.virtual_nodes, nqrc, alpha, dlist[0], dlist[-1], C))
+        qparams.max_energy, qparams.tau, qparams.virtual_nodes, nqrc, qr_input, alpha, dlist[0], dlist[-1], C))
     send_end.send('{}'.format(C))
 
 if __name__  == '__main__':
@@ -61,6 +61,7 @@ if __name__  == '__main__':
     parser.add_argument('--mask_input', type=int, default=0)
     parser.add_argument('--combine_input', type=int, default=1)
     parser.add_argument('--type_input', type=int, default=0)
+    parser.add_argument('--qr_input', type=int, default=1, help='Number of QRs using for input')
     parser.add_argument('--bnorm', type=int, default=0)
 
     parser.add_argument('--couplings', type=str, default='1.0', help='Maximum coupling energy')
@@ -77,7 +78,7 @@ if __name__  == '__main__':
     n_units, beta = args.units, args.beta
     train_len, val_len, buffer = args.trainlen, args.vallen, args.buffer
     nproc, init_rho, solver, mask_input, combine_input = args.nproc, args.rho, args.solver, args.mask_input, args.combine_input
-    non_linear, sigma_input, type_input = args.non_linear, args.sigma_input, args.type_input
+    non_linear, sigma_input, type_input, qr_input = args.non_linear, args.sigma_input, args.type_input, args.qr_input
 
     minD, maxD, interval, Ntrials = args.mind, args.maxd, args.interval, args.ntrials
     dlist = list(range(minD, maxD + 1, interval))
@@ -105,13 +106,13 @@ if __name__  == '__main__':
     timestamp = int(time.time() * 1000.0)
     now = datetime.datetime.now()
     datestr = now.strftime('{0:%Y-%m-%d-%H-%M-%S}'.format(now))
-    outbase = os.path.join(savedir, '{}_{}_{}_{}_tau_{}_strength_{}_V_{}_layers_{}_mask_{}_cb_{}_sm_{}_sg_{}_tp_{}_bn_{}_ntrials_{}'.format(\
+    outbase = os.path.join(savedir, '{}_{}_{}_{}_tau_{}_strength_{}_V_{}_layers_{}_mask_{}_cb_{}_sm_{}_sg_{}_tp_{}_bn_{}_qrin_{}_ntrials_{}'.format(\
         dynamic, taskname, solver, datestr, \
         '_'.join([str(o) for o in taudeltas]), \
         '_'.join([str(o) for o in strengths]), \
         '_'.join([str(o) for o in virtuals]), \
         '_'.join([str(o) for o in layers]), \
-        mask_input, combine_input, non_linear, sigma_input, type_input, args.bnorm, Ntrials))
+        mask_input, combine_input, non_linear, sigma_input, type_input, args.bnorm, qr_input, Ntrials))
     
     log_filename = '{}.log'.format(outbase)
     logger = get_module_logger(__name__, log_filename)
@@ -138,7 +139,7 @@ if __name__  == '__main__':
                                 recv_end, send_end = multiprocessing.Pipe(False)
                                 p = multiprocessing.Process(target=memory_compute, \
                                     args=(taskname, qparams, nqrc, alpha, mask_input, combine_input, non_linear, \
-                                    sigma_input, type_input, train_len, val_len, buffer, dsmall, n, proc_id, send_end, feed_nothing))
+                                    sigma_input, type_input, train_len, val_len, buffer, dsmall, n, proc_id, send_end, feed_nothing, qr_input))
                                 jobs.append(p)
                                 pipels.append(recv_end)
                     

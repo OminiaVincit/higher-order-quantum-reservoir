@@ -668,7 +668,7 @@ def view_dynamic(qparams, input_seq, ranseed, nqrc, \
 
 def get_IPC(qparams, ipcparams, length, logger, nqrc=1, gamma=0.0, ranseed=-1, Ntrials=1, savedir=None, \
     posfix='capa', feed_nothing=False, sparsity=1.0, nonlinear = 0,\
-    sigma_input=1.0, type_input=1, mask_input=0, combine_input=1, label=''):
+    sigma_input=1.0, type_input=1, mask_input=0, combine_input=1, label='', dim_input=1):
     start_time = time.monotonic()
     fname = '{}_{}'.format(label, sys._getframe().f_code.co_name)
     transient = length // 2
@@ -684,7 +684,7 @@ def get_IPC(qparams, ipcparams, length, logger, nqrc=1, gamma=0.0, ranseed=-1, N
         input_signals = np.tile(input_signals, (nqrc, 1))
 
         ipc = IPC(ipcparams, log=logger, savedir=savedir, label=label)
-        model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, feed_nothing=feed_nothing, nonlinear = nonlinear, sigma_input=sigma_input, \
+        model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, feed_nothing=feed_nothing, nonlinear = nonlinear, sigma_input=sigma_input, dim_input=dim_input,\
             type_input=type_input, mask_input=mask_input, combine_input=combine_input, feed_trials=transient//2)
         output_signals, _ = model.init_forward(qparams, input_signals, init_rs=True, ranseed = n + ranseed)
         logger.debug('{}: n={} per {} trials, input shape = {}, output shape={}'.format(fname, n+1, Ntrials, input_signals.shape, output_signals.shape))
