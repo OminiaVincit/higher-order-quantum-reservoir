@@ -54,8 +54,8 @@ def compute_job(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_outpu
     std_train, std_val = np.std(train_loss_ls), np.std(val_loss_ls)
     #mean_train, mean_val = np.random.rand(), np.random.rand()
 
-    rstr = '{} {} {} {} {} {} {} {}'.format(\
-        save_order, nqrc, qparams.tau, alpha, \
+    rstr = '{} {} {} {} {} {} {} {} {}'.format(\
+        save_order, nqrc, qr_input, qparams.tau, alpha, \
             mean_train, mean_val, std_train, std_val)
     print('Finish process {}'.format(rstr))
     send_end.send(rstr)
@@ -170,7 +170,7 @@ if __name__  == '__main__':
     parser.add_argument('--combine_input', type=int, default=1)
     parser.add_argument('--mask_input', type=int, default=0)
     parser.add_argument('--type_input', type=int, default=0)
-    parser.add_argument('--qr_input', type=int, default=1)
+    parser.add_argument('--qrins', type=str, default=1)
 
     parser.add_argument('--sigma_input', type=float, default=1.0)
     parser.add_argument('--view_dynamic', type=int, default=0)
@@ -198,7 +198,7 @@ if __name__  == '__main__':
     save_path, load_path = None, None
     type_input, mask_input, combine_input = args.type_input, args.mask_input, args.combine_input
     view_dynamic, nonlinear, sigma_input = args.view_dynamic, args.nonlinear, args.sigma_input
-    qr_input = args.qr_input
+    
 
     if save_model > 0:
         save_path = os.path.join(savedir, 'saved_model')
@@ -215,6 +215,7 @@ if __name__  == '__main__':
     layers = [int(x) for x in args.nqrc.split(',')]
     strengths = [float(x) for x in args.strengths.split(',')]
     orders = [int(x) for x in args.orders.split(',')]
+    qrins  = [int(x) for x in args.qrins.split(',')]
 
     # Evaluation
     timestamp = int(time.time() * 1000.0)
@@ -227,7 +228,8 @@ if __name__  == '__main__':
             #'_'.join([str(o) for o in strengths]), \
             '_'.join([str(o) for o in layers]), \
             order, deep, Ntrials, load_model, load_order, \
-            combine_input, mask_input, type_input, nonlinear, sigma_input, args.bnorm, qr_input))
+            combine_input, mask_input, type_input, nonlinear, sigma_input, args.bnorm, \
+            '_'.join([str(o) for o in qrins])))
         #np.random.seed(seed=rseed + order*100)
 
         jobs, pipels = [], []
@@ -246,20 +248,21 @@ if __name__  == '__main__':
         for nqrc in layers:
             train_input_seq = np.tile(train_input_seq_org, (nqrc, 1))
             val_input_seq = np.tile(val_input_seq_org, (nqrc, 1))
-            for alpha in strengths:
-                for tau in taudeltas:
-                    recv_end, send_end = multiprocessing.Pipe(False)
-                    qparams = QRCParams(n_units=n_units-1, n_envs=1, max_energy=max_energy,\
-                        beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
-                    if view_dynamic == 0:
-                        p = multiprocessing.Process(target=compute_job, args=(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_output_seq, \
-                        val_input_seq, val_output_seq, Ntrials, send_end, order, save_path, load_order, load_path, \
-                        combine_input, mask_input, type_input, nonlinear, sigma_input, feed_nothing, qr_input))
-                    else:
-                        p = multiprocessing.Process(target=view_dynamic_job, args=(qparams, nqrc, deep, alpha, train_input_seq, \
-                            Ntrials, order, save_fig, load_order, load_path, combine_input, nonlinear, mask_input, type_input, sigma_input))    
-                    jobs.append(p)
-                    pipels.append(recv_end)
+            for qr_input in qrins:
+                for alpha in strengths:
+                    for tau in taudeltas:
+                        recv_end, send_end = multiprocessing.Pipe(False)
+                        qparams = QRCParams(n_units=n_units-1, n_envs=1, max_energy=max_energy,\
+                            beta=beta, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
+                        if view_dynamic == 0:
+                            p = multiprocessing.Process(target=compute_job, args=(qparams, nqrc, deep, alpha, buffer, train_input_seq, train_output_seq, \
+                            val_input_seq, val_output_seq, Ntrials, send_end, order, save_path, load_order, load_path, \
+                            combine_input, mask_input, type_input, nonlinear, sigma_input, feed_nothing, qr_input))
+                        else:
+                            p = multiprocessing.Process(target=view_dynamic_job, args=(qparams, nqrc, deep, alpha, train_input_seq, \
+                                Ntrials, order, save_fig, load_order, load_path, combine_input, nonlinear, mask_input, type_input, sigma_input))    
+                        jobs.append(p)
+                        pipels.append(recv_end)
         # Start the process
         for p in jobs:
             p.start()

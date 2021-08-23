@@ -8,7 +8,7 @@ VAL=2000
 T=2000
 UNITS=5
 DEEP=0
-SAVE=../../../data/hqrc/narma_nrmse_oneinput_tau_8_qr
+SAVE=../../../data/hqrc/narma_nrmse_tau_8_m_eff
 QR='5'
 N=10
 #TAU='0.0,1.0,2.0,3.0,4.0'
@@ -23,16 +23,14 @@ NONLINEAR=0
 BNORM=0
 
 ORDERS='5,10,15,20'
+QRINS='1,2,3,4,5'
 SOLVER='linear_pinv'
 
-for QR_INPUT in 4 3 2 1
-do
 for SIG_INPUT in 1.0
 do
-for V in 1
+for V in 1 5 10 20
 do
-python $BIN --qr_input $QR_INPUT --bnorm $BNORM --orders $ORDERS --sigma_input $SIG_INPUT --nonlinear $NONLINEAR --type_input $TP_INPUT --mask_input $MS_INPUT --combine_input $CB_INPUT --deep $DEEP --units $UNITS --strengths $ALPHA --solver $SOLVER --savedir $SAVE --trainlen $TRAIN --vallen $VAL --transient $T --nqrc $QR --ntrials $N --virtuals $V --taudelta $TAUS
-done
+python $BIN --qrins $QRINS --bnorm $BNORM --orders $ORDERS --sigma_input $SIG_INPUT --nonlinear $NONLINEAR --type_input $TP_INPUT --mask_input $MS_INPUT --combine_input $CB_INPUT --deep $DEEP --units $UNITS --strengths $ALPHA --solver $SOLVER --savedir $SAVE --trainlen $TRAIN --vallen $VAL --transient $T --nqrc $QR --ntrials $N --virtuals $V --taudelta $TAUS
 done
 done
 #SOLVER='linear_pinv'
