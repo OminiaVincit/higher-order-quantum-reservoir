@@ -39,8 +39,8 @@ if __name__  == '__main__':
 
     posfix  = 'alpha_{:.3f}_V_{}_hqrc_IPC_{}_{}_nqrc_{}_nspins_{}'.format(alpha, V, dynamic, solver, nqrc, nspins)
     print(posfix)
-    taus = list(np.arange(-7, 7.1, 0.02))
-    taus = [float(2**x) for x in taus]
+    taus = list(np.arange(-7, 7.1, 0.05))
+    #taus = [float(2**x) for x in taus]
 
     folders = [str(x) for x in folders.split(',')]
     degcapa_ls = []
@@ -53,7 +53,8 @@ if __name__  == '__main__':
         degcapa, xs = [], []
         for tB in taus:
             tarr = []
-            pattern = '{}/{}_tau_{:.6f}_{}*{}*T_{}*.pickle'.format(dfolder, prefix, tB, posfix, keystr, T)
+            tau = 2**tB
+            pattern = '{}/{}_tau_{:.6f}_{}*{}*T_{}*.pickle'.format(dfolder, prefix, tau, posfix, keystr, T)
             filenames = glob.glob(pattern)
             #print(pattern1)
             for filename in filenames:
@@ -82,7 +83,7 @@ if __name__  == '__main__':
 
     sum_by_cols = np.sum(degcapa_mean, axis=0)
     
-    fig = plt.figure(figsize=(20, 6), dpi=600)
+    fig = plt.figure(figsize=(24, 9), dpi=600)
     cmap = plt.get_cmap('nipy_spectral')
     putils.setPlot(fontsize=20, labelsize=16)
     colors = putils.cycle
@@ -93,12 +94,14 @@ if __name__  == '__main__':
     ax1 = plt.subplot2grid((1,1), (0,0), colspan=1, rowspan=1)
     #ax1.set_title('THRES_{}_{}'.format(thres, posfix), size=14)
 
-    ax1.bar(xs, degcapa_mean[0], width=width, color=d_colors[0], edgecolor='gray', label='deg-0')
+    #ax1.bar(xs, degcapa_mean[0], width=width, color=d_colors[0], edgecolor='gray', label='deg-0')
+    
     #ax2.bar(xs, degcapa[0] / sum_by_cols,  width=width, color=d_colors[0], edgecolor='k', label='deg-0')
     for i in range(1, N):
         bt = degcapa_mean[:i].reshape(i, -1)
         bt = np.sum(bt, axis=0).ravel()
-        ax1.bar(xs, degcapa_mean[i], bottom=bt, width=width, label='deg-{}'.format(i), color=d_colors[i], edgecolor='gray')
+        ax1.bar(xs, degcapa_mean[i], bottom=bt, width=width, label='deg-{}'.format(i), color=d_colors[i], edgecolor='k')
+        #print(i, degcapa_mean[i])
         #ax2.bar(xs, degcapa[i] / sum_by_cols, bottom=bt/sum_by_cols, width=width, label='deg-{}'.format(i), color=d_colors[i], edgecolor='k')
     # m_avg, m_std = dict(), dict()
     # m_avg[0], m_std[0] = degcapa_mean[1], degcapa_std[1]
@@ -106,9 +109,9 @@ if __name__  == '__main__':
     #m_avg[2], m_std[2] = degcapa_mean[3] + degcapa_mean[4], degcapa_std[3] + degcapa_std[4]
     
     
-    ax1.set_xlabel('$\\tau$', size=32)
+    ax1.set_xlabel('$log(\\tau)$', size=32)
     ax1.set_ylabel('Total IPC', fontsize=28)
-    ax1.set_xscale('log', basex=2)
+    #ax1.set_xscale('log', basex=2)
     ax1.set_xlim([taus[0], taus[-1]])
     #ax1.set_xticks(np.linspace(amin, amax, 6))
     #ax1.set_xticks(list(range(int(amin), int(amax)+1)))

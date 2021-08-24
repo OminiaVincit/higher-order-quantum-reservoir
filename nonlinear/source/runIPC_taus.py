@@ -104,7 +104,7 @@ if __name__  == '__main__':
     virtuals = [int(x) for x in args.virtuals.split(',')]
     alpha = args.alpha
     #taus = [float(x) for x in args.taus.split(',')]
-    taus = list(np.arange(-7, 7.1, 0.02))
+    taus = list(np.arange(-7, 7.1, 0.05))
     taus = [float(2**x) for x in taus]
     nproc = min(len(taus), args.nproc)
     lst = np.array_split(taus, nproc)
