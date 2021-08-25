@@ -127,7 +127,7 @@ if __name__  == '__main__':
     #ax1.set_ylim([0, 4.0])
     #ax1.set_xscale('log', basex=2)
     ax1.axhline(y=args.max_capa, color='k', linestyle='-')
-
+    ax1.grid(True, axis='y', which="both", ls="-", color='0.65')
     ax1.legend()
     #ax2.legend()
     
