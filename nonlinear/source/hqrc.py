@@ -147,7 +147,7 @@ class HQRC(object):
                                 bg = (i-1) * n_local_nodes
                                 ed = bg + n_local_nodes
                                 W_feed[bg:ed, i] = smat.copy()
-            elif self.gamma > 0:
+            elif self.gamma > 0 and nqrc > self.dim_input:
                 feed_dim = nqrc - self.dim_input
                 if self.nonlinear == 0 and self.feed_nothing == False:
                     feed_mat = scipy.sparse.random(n_nodes, feed_dim, density = self.sparsity).todense()
