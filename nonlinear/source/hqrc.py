@@ -413,7 +413,7 @@ class HQRC(object):
                 Uop = self.Uops[i]
                 rho = local_rhos[i]
                 # Obtain value from the input
-                if i < self.dim_input:
+                if i < self.dim_input and feedback_flag == 2:
                     value = original_input[i]
                 else:
                     value = update_input[i]
@@ -762,9 +762,9 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
             # Compute memory function
             val_out_seq, val_pred_seq = val_output_seq.flatten(), val_pred_seq.flatten()
             #print('cov', val_output_seq.shape, val_pred_seq.shape)
-            cov_matrix = np.cov(np.array([val_out_seq, val_pred_seq]))
-            MF_d = cov_matrix[0][1] ** 2
-            MF_d = MF_d / (np.var(val_out_seq) * np.var(val_pred_seq))
+            cor_matrix = np.corrcoef(np.array([val_out_seq, val_pred_seq]))
+            MF_d = cor_matrix[0][1] ** 2
+            #MF_d = MF_d / (np.var(val_out_seq) * np.var(val_pred_seq))
             # print('d={}, n={}, MF={}'.format(d, n, MF_d))
             train_loss_ls.append(train_loss)
             val_loss_ls.append(val_loss)
