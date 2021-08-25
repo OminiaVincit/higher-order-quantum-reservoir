@@ -20,11 +20,10 @@ import utils
 from utils import *
 from loginit import get_module_logger
 import pickle
-import umap
-import umap.plot
+#import umap
 from scipy import sparse
 from sklearn.metrics.pairwise import pairwise_distances
-import nolds # to calculate lyapunov eff
+#import nolds # to calculate lyapunov eff
 from collections import defaultdict
 
 UNITS=5
@@ -58,14 +57,15 @@ def reduce_states_dimension(arr, n_neighbors=15, min_dist=0.1, n_components=2, n
 
 
 def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, mask_input, combine_input, \
-    nonlinear, sigma_input, type_input, sparsity, xs, idx, bg, ed, send_end, use_corr, feed_nothing):
+    nonlinear, sigma_input, type_input, sparsity, xs, idx, bg, ed, send_end, use_corr, feed_nothing, qr_input, ranseed):
     """
     Dump raw data of states
     """
     print('Start pid={} with size {} (from {} to {})'.format(idx, len(xs), xs[0], xs[-1]))
     results = dict()
-    basename = '{}_nqr_{}_V_{}_sm_{}_alpha_{}_sg_{}_sparse_{}_ms_{}_cb_{}_tp_{}_corr_{}'.format(dynamic, \
-        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity, mask_input, combine_input, type_input, use_corr)
+    basename = '{}_nqr_{}_V_{}_sm_{}_alpha_{}_sg_{}_sparse_{}_ms_{}_cb_{}_tp_{}_corr_{}_qrin_{}_seed_{}'.format(dynamic, \
+        nqrc, V, nonlinear, layer_strength, sigma_input, sparsity, \
+        mask_input, combine_input, type_input, use_corr, qr_input, ranseed)
     save_figdir = os.path.join(savedir, 'figs')
     os.makedirs(savedir, exist_ok=True)
     os.makedirs(save_figdir, exist_ok=True)
@@ -76,8 +76,8 @@ def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, mask_input
         qparams = QRCParams(n_units=UNITS-1, n_envs=1, max_energy=1.0,\
             beta=BETA, virtual_nodes=V, tau=tau, init_rho=INIT_RHO, solver=LINEAR_PINV, dynamic=dynamic)
         model = hqrc.HQRC(nqrc=nqrc, gamma=layer_strength, sparsity=sparsity, sigma_input=sigma_input, use_corr=use_corr, feed_nothing=feed_nothing,\
-            mask_input=mask_input, combine_input=combine_input, nonlinear=nonlinear, type_input=type_input, feed_trials = int(bg/2))
-        state_list, feed_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = 0)
+            dim_input=qr_input, mask_input=mask_input, combine_input=combine_input, nonlinear=nonlinear, type_input=type_input, feed_trials = int(bg/2))
+        state_list, feed_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = ranseed)
         #state_list = state_list*2.0-1.0 
         results[x] = state_list
 
@@ -152,6 +152,8 @@ if __name__  == '__main__':
     parser.add_argument('--mask_input', type=int, default=0, help='Mask input')
     parser.add_argument('--combine_input', type=int, default=0, help='Combine input')
     parser.add_argument('--type_input', type=int, default=0)
+    parser.add_argument('--qr_input', type=int, default=1)
+
     parser.add_argument('--nonlinear', type=int, default=0, help='The nonlinear of feedback matrix')
     parser.add_argument('--use_corr', type=int, default=0, help='The nonlinear of feedback matrix')
     parser.add_argument('--bnorm', type=int, default=0)
@@ -166,22 +168,26 @@ if __name__  == '__main__':
     parser.add_argument('--interval', type=float, default=INTERVAL, help='tau-interval')
     parser.add_argument('--savedir', type=str, default='res_states')
     parser.add_argument('--lyap', type=int, default=0)
+    parser.add_argument('--norm_sig', type=int, default=1)
+    parser.add_argument('--ranseed', type=int, default=0)
     
     args = parser.parse_args()
     print(args)
 
     length, nqrc, nproc, dynamic = args.length, args.nqrc, args.nproc, args.dynamic
-    bg, ed, lyap = args.bg, args.ed, args.lyap
+    bg, ed, lyap, ranseed = args.bg, args.ed, args.lyap, args.ranseed
     layer_strength, nonlinear, sparsity, sigma_input = args.strength, args.nonlinear, args.sparsity, args.sigma_input
     const_input, mask_input, combine_input, type_input = args.const, args.mask_input, args.combine_input, args.type_input
-    use_corr, scale_input, trans_input = args.use_corr, args.scale_input, args.trans_input
+    use_corr, scale_input, trans_input, qr_input = args.use_corr, args.scale_input, args.trans_input, args.qr_input
+    norm_sig = args.norm_sig
+
     feed_nothing = False
     if args.bnorm > 0:
         feed_nothing = True
 
-    basename = '{}_nqr_{}_V_{}_sm_{}_a_{}_sg_{}_sparse_{}_ms_{}_cb_{}_tp_{}_corr_{}_bn_{}'.format(dynamic, \
+    basename = '{}_nqr_{}_V_{}_sm_{}_a_{}_sg_{}_sparse_{}_ms_{}_cb_{}_tp_{}_corr_{}_bn_{}_qrin_{}_seed_{}'.format(dynamic, \
         nqrc, V, nonlinear, layer_strength, sigma_input, sparsity, \
-        mask_input, combine_input, type_input, use_corr, args.bnorm)
+        mask_input, combine_input, type_input, use_corr, args.bnorm, qr_input, ranseed)
 
     savedir = args.savedir
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
@@ -210,7 +216,7 @@ if __name__  == '__main__':
             recv_end, send_end = multiprocessing.Pipe(False)
             p = multiprocessing.Process(target=dumpstates_job, args=(savedir, dynamic, input_seq, \
                 nqrc, layer_strength, mask_input, combine_input, nonlinear, sigma_input, type_input,\
-                sparsity, xs, pid, bg, ed, send_end, use_corr, feed_nothing))
+                sparsity, xs, pid, bg, ed, send_end, use_corr, feed_nothing, qr_input, ranseed))
 
             jobs.append(p)
             pipels.append(recv_end)
@@ -257,9 +263,11 @@ if __name__  == '__main__':
     else:
         nstates = int((UNITS * (UNITS + 1)) / 2)
 
-    fig = plt.figure(figsize=(16, 16), dpi=600)
+    fig = plt.figure(figsize=(20, 20), dpi=600)
     for i in range(nqrc):
-        ax1 = plt.subplot2grid((nqrc,4), (i,0), colspan=2, rowspan=1)
+        ax1 = plt.subplot2grid((2*nqrc,4), (2*i,0), colspan=2, rowspan=1)
+        ax2 = plt.subplot2grid((2*nqrc,4), (2*i,2), colspan=2, rowspan=1)
+
         sbg = 1 + i*nstates
         sed = (i+1)*nstates
         
@@ -300,11 +308,17 @@ if __name__  == '__main__':
             ts_in = np.array(ts_in).ravel()
             rs_in = np.array(rs_in).ravel()
 
+            ids_in = ts_in >= 2**0
+            ids = ts >= 2**0
 
             ax1.scatter(ts_in, rs_in, s=(12*72./fig.dpi)**2, marker='o', lw=0, rasterized=True, color='gray', alpha=0.7)
             ax1.scatter(ts, rs, s=(12*72./fig.dpi)**2, marker='o', lw=0, rasterized=True, alpha=0.7)
-            #ax1.set_yscale("symlog", base=10, linthresh=1e-5)
-            #ax1.set_yscale("log", base=10)
+            
+            ax2.scatter(ts_in[ids_in], rs_in[ids_in], s=(12*72./fig.dpi)**2, marker='o', lw=0, rasterized=True, color='gray', alpha=0.7)
+            ax2.scatter(ts[ids], rs[ids], s=(12*72./fig.dpi)**2, marker='o', lw=0, rasterized=True, alpha=0.7)
+            
+            #ax1.set_yscale("symlog", basey=10, linthresh=1e-5)
+            #ax1.set_yscale("log", basey=10)
         
         # Calculate maximum lyapunov exponent
         lya_maxs = []
@@ -314,41 +328,47 @@ if __name__  == '__main__':
 
         if i == 0:
             ax1.set_title('{}_QR_{}'.format(os.path.basename(filename), i+1), fontsize=8)
-        ax1.set_xscale("log", base=2)
-        
-        ax1.grid(alpha=0.8, axis='x')
-        ax1.set_xticks([2**x for x in np.arange(-7,7.1,1.0)])
-        ax1.minorticks_on()
-        ax1.tick_params('both', length=6, width=1, which='major')
-        ax1.tick_params('both', length=3, width=1, which='minor')
+        for ax in [ax1, ax2]:
+            ax1.set_xscale("log", basex=2)
+            ax1.grid(alpha=0.8, axis='x')
+            ax1.minorticks_on()
+            ax1.tick_params('both', length=6, width=1, which='major')
+            ax1.tick_params('both', length=3, width=1, which='minor')
+
         ax1.set_xlim([2**tx[0], 2**tx[-1]])
-
-    
-    ids = [20, 60, 80, 100, 180]
-    N = ed - bg
-    colors = plt.cm.viridis(np.linspace(0, 1, N))
-    for i in range(len(ids)):
-        ax2 = plt.subplot2grid((nqrc,4), (i,2))
-        x = tx[ids[i]]
-        state_list = z[x]
-        for j in range(nstates):
-            ys = state_list[bg:ed, j].ravel()
-            if j == 0:
-                ax2.plot(ys, color='gray')
-            else:
-                ax2.plot(ys)
-        ax2.set_title('2^{:.1f}'.format(x))
-        #ax2.set_yticklabels([])
-        #ax2.set_xticklabels([])
-        if False:
-            ax3 = plt.subplot2grid((nqrc,4), (i,3))
-            states = state_list[bg:ed, :nstates]
-            mapper = reduce_states_dimension(states)
-            umap.plot.points(mapper, ax=ax3, theme='fire')
-
+        ax1.set_xticks([2**x for x in np.arange(-7,7.1,1.0)])
         
-
-    outbase = filename.replace('.binaryfile', '_bg_{}_ed_{}_lyap_{}'.format(bg, ed, lyap))
+        ax2.set_xlim([2**0.0, 2**7.0])
+        ax2.set_xticks([2**x for x in np.arange(0,7.1,1.0)])
+        
+        ids = [50, 400, 800, 1200]
+        colors = plt.cm.viridis(np.linspace(0, 1, ed-bg))
+        for k in range(len(ids)):
+            ax3 = plt.subplot2grid((2*nqrc,4), (2*i+1,k))
+            
+            x = tx[ids[k]]
+            state_list = z[x]
+            for j in range(nstates):
+                ys = state_list[bg:ed, j + i*nstates].ravel()
+                if norm_sig > 0:
+                    diff = np.max(ys) - np.min(ys)
+                    ys = ys - np.min(ys)
+                    if diff > 0.0:
+                        ys = ys / diff
+                if j == 0:
+                    ax3.plot(ys, color='gray')
+                else:
+                    ax3.plot(ys)
+            ax3.set_title('2^{:.1f}'.format(x))
+            #ax2.set_yticklabels([])
+            #ax2.set_xticklabels([])
+            if False:
+                ax3 = plt.subplot2grid((nqrc,4), (i,3))
+                states = state_list[bg:ed, :nstates]
+                mapper = reduce_states_dimension(states)
+                umap.plot.points(mapper, ax=ax3, theme='fire')
+    
+    outbase = filename.replace('.binaryfile', '_bg_{}_ed_{}_norm_{}'.format(bg, ed, norm_sig))
     for ftype in ['png']:
-        plt.savefig('{}_v4.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
+        plt.savefig('{}_v6.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
     plt.show()
