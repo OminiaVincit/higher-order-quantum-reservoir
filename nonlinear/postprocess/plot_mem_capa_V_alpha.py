@@ -18,12 +18,14 @@ if __name__  == '__main__':
     parser.add_argument('--ymax', type=float, default='60.0')
     parser.add_argument('--taus', type=str, default='-4,-3,-2,-1,0,1,2,3,4,5,6,7')
     parser.add_argument('--virtuals', type=str, default='1,5,10,15,20')
-    
+    parser.add_argument('--scale_input', type=int, default=0)
+
     args = parser.parse_args()
     print(args)
 
     folder, prefix, posfix = args.folder, args.prefix, args.posfix
     ymin, ymax = args.ymin, args.ymax
+    scale_input = args.scale_input
     
     tstr = args.taus.replace('\'','')
     taus_log = [float(x) for x in tstr.split(',')]
@@ -71,6 +73,8 @@ if __name__  == '__main__':
             #    color = 'gray'
             #else:
             color=putils.cycle[dcl]
+            if scale_input > 0:
+                xs = 1.0 - xs
             #color = colors[dcl]
             #ax.errorbar(xs, avg_tests, yerr=std_tests, alpha = 0.8, color=color, elinewidth=2, linewidth=2, markersize=12)
             ax.plot(xs, avg_tests, 's-', alpha = 0.8, linewidth=3, markersize=8, mec='k', mew=0.5, \
@@ -79,13 +83,19 @@ if __name__  == '__main__':
                 facecolor=color, alpha=0.2)
             dcl += 1
 
-    ax.set_xlabel('$\\alpha$', fontsize=24)
+    if scale_input > 0:
+        ax.set_xlabel('Input scaling', fontsize=24)
+        ax.set_xlim([1e-5, 1.01])
+        ax.set_xscale('log',basex=10)
+    else:
+        ax.set_xlabel('$\\alpha$', fontsize=24)
+        ax.set_xticks(np.linspace(0.0, 1.0, 11))
+        ax.set_xlim([0.0, 1.01])
+
     #ax.set_xscale('log',base=10)
     ax.set_ylabel('MC', fontsize=24)
     #ax.set_ylim([np.min(avg_tests)/2, 2*np.max(avg_tests)])
     ax.set_ylim([ymin, ymax])
-    ax.set_xticks(np.linspace(0.0, 1.0, 11))
-    ax.set_xlim([0.0, 1.01])
     #ax.set_xticklabels(labels='')
     #ax.set_yticklabels(labels='')
     ax.grid(True, which="both", ls="-", color='0.65')
