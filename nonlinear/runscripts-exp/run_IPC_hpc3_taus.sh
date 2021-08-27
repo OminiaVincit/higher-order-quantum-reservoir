@@ -24,13 +24,13 @@ QR=5
 THRES=0.0
 DYNAMIC='full_random'
 CAPA=25
-WIDTH=0.1
-CB=2
+WIDTH=0.05
+CB=0
 MASK=0
 
-for QRIN in 3 2 1 4
+for QRIN in 5
 do
-for ALPHA in 1.0
+for ALPHA in 0.9 0.99 0.999 0.9999 0.99999
 do
 FRS='XXX'
 for SEED in 0
@@ -39,10 +39,10 @@ LBS=IPC_cb_$CB\_qrin_$QRIN\_seed_$SEED
 SAVE=$PARENT\/$LBS
 FRS=$FRS,$LBS
 
-python $EXE  --combine_input $CB --alpha $ALPHA --mask_input $MASK --qr_input $QRIN --nqrc $QR --nproc $NPROC --spins $NSPINS --seed $SEED --dynamic $DYNAMIC --deg_delays $DELAYS --thres $THRES --virtuals $V --length $T --max_deg $DEG --max_window $WD --max_num_var $VAR --savedir $SAVE
+#python $EXE  --combine_input $CB --alpha $ALPHA --mask_input $MASK --qr_input $QRIN --nqrc $QR --nproc $NPROC --spins $NSPINS --seed $SEED --dynamic $DYNAMIC --deg_delays $DELAYS --thres $THRES --virtuals $V --length $T --max_deg $DEG --max_window $WD --max_num_var $VAR --savedir $SAVE
 
 P=mdeg_4_mvar_4
-for THRES in 0.0 1e-4
+for THRES in 0.0 5e-5 1e-4
 do
 python $BINPLOT --parent $PARENT --folders $FRS --T $T --thres $THRES --alpha $ALPHA --nqrc $QR --dynamic $DYNAMIC --virtuals $V --nspins $NSPINS --keystr $P  --max_capa $CAPA --width $WIDTH
 done
