@@ -22,15 +22,17 @@ DYNAMIC_HALF_RANDOM = 'half_random'
 DYNAMIC_FULL_CONST_TRANS = 'full_const_trans'
 DYNAMIC_FULL_CONST_COEFF = 'full_const_coeff'
 DYNAMIC_ION_TRAP = 'ion_trap'
-DINAMIC_PHASE_TRANS = 'phase_trans'
+DYNAMIC_PHASE_TRANS = 'phase_trans'
 
 class QRCParams():
     def __init__(self, n_units, n_envs, max_energy, virtual_nodes, tau, init_rho, \
-        beta, solver, dynamic, non_diag=1.0, alpha=1.0):
+        beta, solver, dynamic, non_diag_var, non_diag_const=4.0, alpha=1.0):
         self.n_units = n_units
         self.n_envs = n_envs
         self.max_energy = max_energy
-        self.non_diag = non_diag
+        self.non_diag_var = non_diag_var
+        self.non_diag_const = non_diag_const
+        
         self.alpha = alpha
         self.beta = beta
         self.virtual_nodes = virtual_nodes
@@ -40,10 +42,74 @@ class QRCParams():
         self.dynamic = dynamic
 
     def info(self):
-        print('units={},n_envs={},J={},non_diag={},alpha={},V={},t={},init_rho={}'.format(\
-            self.n_units, self.n_envs, self.max_energy, self.non_diag, self.alpha,
+        print('units={},n_envs={},J={},non_diag_var={},alpha={},V={},t={},init_rho={}'.format(\
+            self.n_units, self.n_envs, self.max_energy, self.non_diag_var, self.alpha,
             self.virtual_nodes, self.tau, self.init_rho))
 
+# class scaler(object):
+# 	def __init__(self, tt, trans=0.0, ratio=1.0):
+# 		self.tt = tt
+# 		self.data_min = 0
+# 		self.data_max = 0
+# 		self.data_mean = 0
+# 		self.data_std = 0
+# 		self.trans  = trans
+# 		self.ratio = ratio      
+
+# 	def scaleData(self, input_sequence, reuse=None):
+# 		# data_mean = np.mean(train_input_sequence,0)
+# 		# data_std = np.std(train_input_sequence,0)
+# 		# train_input_sequence = (train_input_sequence-data_mean)/data_std
+# 		if reuse == None:
+# 			self.data_mean = np.mean(input_sequence,0)
+# 			self.data_std = np.std(input_sequence,0)
+# 			self.data_min = np.min(input_sequence,0)
+# 			self.data_max = np.max(input_sequence,0)
+# 		if self.tt == "MinMaxZeroOne":
+# 			input_sequence = np.array((input_sequence-self.data_min)/(self.data_max-self.data_min))
+# 		elif self.tt == "Standard" or self.tt == "standard":
+# 			input_sequence = np.array((input_sequence-self.data_mean)/self.data_std)
+# 		elif self.tt == "Linear" or self.tt == "linear":
+# 			input_sequence = np.array((input_sequence + self.trans) / self.ratio)
+# 		elif self.tt != "no":
+# 			raise ValueError("Scaler not implemented.")
+# 		return input_sequence
+
+# 	def descaleData(self, input_sequence):
+# 		if self.tt == "MinMaxZeroOne":
+# 			input_sequence = np.array(input_sequence*(self.data_max - self.data_min) + self.data_min)
+# 		elif self.tt == "Standard" or self.tt == "standard":
+# 			input_sequence = np.array(input_sequence*self.data_std.T + self.data_mean)
+# 		elif self.tt == "Linear" or self.tt == "linear":
+# 			input_sequence = np.array(input_sequence*self.ratio - self.trans)
+# 		elif self.tt != "no":
+# 			raise ValueError("Scaler not implemented.")
+# 		return input_sequence
+
+def cal_NRMSE(pred, truth):
+    assert(pred.shape == truth.shape)
+    N, M = pred.shape
+    sigma = np.std(truth[:, :], axis=0)
+    sigma2 = np.square(sigma)
+    rs = []
+    for i in range(N):
+        diff = pred[i, :] - truth[i, :]
+        diff2 = np.square(diff)
+        mse  = np.mean(diff2 / sigma2)
+        rmse = np.sqrt(mse)
+        rs.append(rmse)
+    return rs
+
+def clipping(val, minval, maxval):
+    return max(min(val, maxval), minval)
+
+def add_noise(data, percent):
+    std_data = np.std(data, axis=0)
+    std_data = np.reshape(std_data, (1, -1))
+    std_data = np.repeat(std_data, np.shape(data)[0], axis=0)
+    noise = np.multiply(np.random.randn(*np.shape(data)), percent/1000.0*std_data)
+    data += noise
+    return data
 
 def min_max_norm(tmp_arr, min_arr, max_arr):
     if min_arr is None or max_arr is None:

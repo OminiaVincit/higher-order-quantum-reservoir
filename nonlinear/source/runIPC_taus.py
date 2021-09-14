@@ -111,7 +111,7 @@ if __name__  == '__main__':
 
     if os.path.isfile(savedir) == False:
         for V in virtuals:
-            posfix = 'alpha_{:.3f}_V_{}_{}'.format(alpha, V, basename)
+            posfix = 'alpha_{:.6f}_V_{}_{}'.format(alpha, V, basename)
             jobs, pipels = [], []
             for pid in range(nproc):
                 tBs = lst[pid]

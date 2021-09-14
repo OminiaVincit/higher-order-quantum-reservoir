@@ -56,11 +56,12 @@ class HQRC(object):
         self.virtual_nodes = qparams.virtual_nodes
         self.tau = qparams.tau
         self.max_energy = qparams.max_energy
-        self.non_diag = qparams.non_diag
         self.alpha = qparams.alpha
         self.solver = qparams.solver
         self.dynamic = qparams.dynamic
-
+        self.non_diag_var = qparams.non_diag_var
+        self.non_diag_const = qparams.non_diag_const
+        
         # Overwrite parameter data
         self.W_feed = np.array(None)
         self.Uops = []
@@ -75,7 +76,8 @@ class HQRC(object):
                 self.virtual_nodes = data["virtual_nodes"]
                 self.tau = data["tau"]
                 self.max_energy = data["max_energy"]
-                self.non_diag = data["non_diag"]
+                self.non_diag_var = data["non_diag_var"]
+                self.non_diag_const = data["non_diag_const"]
                 self.solver = data["solver"]
                 self.dynamic = data["dynamic"]
                 self.Uops = data["Uops"]
@@ -215,7 +217,7 @@ class HQRC(object):
         if len(self.Uops) == 0:
             # create coupling strength for ion trap
             a = self.alpha
-            bc = self.non_diag
+            bc = self.non_diag_const
             Nalpha = 0
             for qindex1 in range(Nspins):
                 for qindex2 in range(qindex1+1, Nspins):
@@ -235,8 +237,8 @@ class HQRC(object):
                 for qindex in range(Nspins):
                     if self.dynamic == DYNAMIC_FULL_RANDOM:
                         coef = (np.random.rand()-0.5) * 2 * self.max_energy
-                    elif self.dynamic == DINAMIC_PHASE_TRANS:
-                        coef = (np.random.rand()-0.5) * 2 * self.non_diag + self.max_energy
+                    elif self.dynamic == DYNAMIC_PHASE_TRANS:
+                        coef = (np.random.rand()-0.5) * 2 * self.non_diag_var + self.non_diag_const
                     else:
                         coef = B
                     hamiltonian -= coef * self.Zop[qindex]
@@ -317,6 +319,7 @@ class HQRC(object):
             #tmp_states = expit(tmp_states)
             tmp_states = tmp_states @ self.W_feed
             tmp_states = np.ravel(tmp_states)
+            
             # if self.feed_min2 is not None:
             #     tmp_states = tmp_states - self.feed_min2
             #tmp_states = min_max_norm(tmp_states, self.feed_min2, self.feed_max2)
@@ -427,12 +430,15 @@ class HQRC(object):
                 if self.type_input == 0:
                     rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
                     # for input in [0, 1]
+                    value = clipping(value, minval=0.0, maxval=1.0)
                     rho = (1 - value) * rho + value * self.Xop[0] @ rho @ self.Xop[0]
                 elif self.type_input == 1:
+                    value = clipping(value, minval=-1.0, maxval=1.0)
                     rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
                     # for input in [-1, 1]
                     rho = ((1+value)/2) * rho + ((1-value)/2) *self.Xop[0] @ rho @ self.Xop[0]
                 else:
+                    value = clipping(value, minval=0.0, maxval=1.0)
                     par_rho = partial_trace(rho, keep=[1], dims=[2**self.n_envs, 2**self.n_units], optimize=False)
                     if self.type_input == 2:
                         input_state = np.sqrt(1-value) * q0 + np.sqrt(value) * q1
@@ -586,7 +592,8 @@ class HQRC(object):
             "virtual_nodes": self.virtual_nodes,
             "tau": self.tau,
             "max_energy": self.max_energy,
-            "non_diag": self.non_diag,
+            "non_diag_const": self.non_diag_const,
+            "non_diag_var": self.non_diag_var,
             "alpha": self.alpha,
             "solver": self.solver,
             "dynamic": self.dynamic,
@@ -630,7 +637,7 @@ class HQRC(object):
 
 def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, val_output_seq, \
         ranseed, nqrc, gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, mask_input=0, combine_input=1,feed_nothing=False,\
-        deep=0, use_corr=0, nonlinear=0, saving_path=None, loading_path=None, dim_input=1):
+        deep=0, use_corr=0, nonlinear=0, saving_path=None, loading_path=None, dim_input=0):
 
     model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, dim_input=dim_input,\
         sigma_input=sigma_input, type_input=type_input, mask_input=mask_input, combine_input=combine_input,feed_nothing=feed_nothing,\
@@ -651,6 +658,40 @@ def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, 
     #print("val_loss={}, shape".format(val_loss), val_pred_seq_ls.shape)
 
     return train_pred_seq, train_loss, val_pred_seq, val_loss
+
+def closed_loop(qparams, buffer, train_input_seq, train_output_seq, valsteps, ranseed, nqrc, \
+    gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, mask_input=0, combine_input=1, \
+    feed_nothing=False, deep=0, use_corr=0, nonlinear=0):
+    model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, dim_input=0,\
+        sigma_input=sigma_input, type_input=type_input, mask_input=mask_input, \
+        combine_input=combine_input, feed_nothing=feed_nothing,\
+        deep=deep, use_corr=use_corr, nonlinear=nonlinear, feed_trials=buffer//2)
+    
+    train_input_seq = np.array(train_input_seq)
+    train_output_seq = np.array(train_output_seq)
+    
+    model.train_to_predict(train_input_seq, train_output_seq, buffer, qparams, ranseed)
+    train_pred_seq, _ = model.predict(train_input_seq, train_output_seq, buffer=buffer, use_lastrho=False)
+    
+    val_pred_seq = []
+    current_input = train_pred_seq[-1].copy().ravel()
+    ndup = int(nqrc/len(current_input))
+    for n in range(valsteps):
+        #if n < 100:
+        #    print(n, current_input)
+        current_input = np.tile(current_input, (ndup, 1)).ravel()
+        local_rhos = model.last_rhos.copy()
+        local_rhos = model.step_forward(local_rhos, current_input, feedback_flag=combine_input)
+        model.last_rhos = local_rhos.copy()
+        state = np.array(model.cur_states, dtype=np.float64)
+        stacked_state = np.hstack( [state.reshape((1, -1)), np.ones([1, 1])])
+        pred_vec = stacked_state @ model.W_out
+        pred_vec = pred_vec.ravel()
+        current_input = pred_vec.copy()
+        val_pred_seq.append(pred_vec.copy())
+        
+    val_pred_seq = np.array(val_pred_seq)
+    return train_pred_seq, val_pred_seq
 
 def view_dynamic(qparams, input_seq, ranseed, nqrc, \
     gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, mask_input=0, combine_input=1,\

@@ -38,6 +38,8 @@ if __name__  == '__main__':
     alpha = args.alpha
 
     posfix  = 'alpha_{:.3f}_V_{}_hqrc_IPC_{}_{}_nqrc_{}_nspins_{}'.format(alpha, V, dynamic, solver, nqrc, nspins)
+    posfix2  = 'alpha_{:.6f}_V_{}_hqrc_IPC_{}_{}_nqrc_{}_nspins_{}'.format(alpha, V, dynamic, solver, nqrc, nspins)
+    
     print(posfix)
     taus = list(np.arange(-7, 7.1, 0.05))
     #taus = [float(2**x) for x in taus]
@@ -56,6 +58,8 @@ if __name__  == '__main__':
             tau = 2**tB
             pattern = '{}/{}_tau_{:.6f}_{}*{}*T_{}*.pickle'.format(dfolder, prefix, tau, posfix, keystr, T)
             filenames = glob.glob(pattern)
+            pattern2 = '{}/{}_tau_{:.6f}_{}*{}*T_{}*.pickle'.format(dfolder, prefix, tau, posfix2, keystr, T)
+            filenames.extend(glob.glob(pattern2))
             #print(pattern1)
             for filename in filenames:
                 #print(filename)
@@ -141,7 +145,7 @@ if __name__  == '__main__':
     fig_folder = os.path.join(folder, 'figs')
     if os.path.isdir(fig_folder) == False:
         os.mkdir(fig_folder)
-    outbase = os.path.join(fig_folder, 'fig_thres_{}_{}'.format(thres, posfix))
+    outbase = os.path.join(fig_folder, 'fig_thres_{}_{}'.format(thres, posfix2))
     for ftype in ['png', 'svg']:
         plt.savefig('{}.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
     plt.show()
