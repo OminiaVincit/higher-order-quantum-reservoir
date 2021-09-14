@@ -115,8 +115,7 @@ if __name__  == '__main__':
         logdir = os.path.join(savedir, 'log')
         if os.path.isdir(logdir) == False:
             os.mkdir(logdir)
-        log_filename = '{}.log'.format(stmp)
-        log_filename = os.path.join(logdir, stmp)
+        log_filename = os.path.join(logdir, '{}.log'.format(stmp))
         logger = get_module_logger(__name__, log_filename)
         logger.info(log_filename)
 
