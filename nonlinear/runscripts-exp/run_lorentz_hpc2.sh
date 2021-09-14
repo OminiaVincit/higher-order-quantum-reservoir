@@ -19,10 +19,10 @@ CB=0
 TYIN=0
 SIG=1.0
 NON=0
-LOAD=0
+LOAD=1
 N=1
 
-for V in 1
+for V in 10
 do
 python $EXE --tau $TAU --Ntrials $N --load_result $LOAD --savedir $SAVE --units $UNITS --virtuals $V --nqrc $NQRC --nonlinear $NON --combine_input $CB --type_input $TYIN --solver $SOLVER --dynamic $DYNAMIC --dt $DT --T_buf $BUF --T_train $TRAIN --T_val $VAL
 done

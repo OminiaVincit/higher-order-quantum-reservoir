@@ -22,7 +22,7 @@ import gendata as gdata
 import pickle
 from loginit import get_module_logger
 
-mpl.rcParams['agg.path.chunksize'] = 100000
+mpl.rcParams['agg.path.chunksize'] = 10000000
 
 def chaos_job(dataset, args, strength, noise_level):
     nqrc, type_input, combine_input = args.nqrc, args.type_input, args.combine_input
@@ -101,27 +101,31 @@ def chaos_job(dataset, args, strength, noise_level):
             logger.debug('ntrial={}, shape train_pred={}, val_pred={}, pred_seq={}'.format(ntrial, train_pred_seq.shape, val_pred_seq.shape, pred_seq.shape))
             
             # Save results
-            results = {
-                'args': args,
-                'qparams': qparams,
-                'vmin': vmin,
-                'vmax': vmax,
-                'prediction': pred_seq,
-                'nrmse': nrmse,
-                'train_loss': train_loss,
-                'val_loss': val_loss,
-                'ntrial': ntrial
-            }
-            with open(res_path, "wb") as wfile:
-                pickle.dump(results, wfile, pickle.HIGHEST_PROTOCOL)
-                logger.info('Dumped results to {}'.format(res_path))
-                del results
+            if ntrial == 0:
+                results = {
+                    'args': args,
+                    'qparams': qparams,
+                    'vmin': vmin,
+                    'vmax': vmax,
+                    'prediction': pred_seq,
+                    'nrmse': nrmse,
+                    'train_loss': train_loss,
+                    'val_loss': val_loss,
+                    'ntrial': ntrial
+                }
+                with open(res_path, "wb") as wfile:
+                    pickle.dump(results, wfile, pickle.HIGHEST_PROTOCOL)
+                    logger.info('Dumped results to {}'.format(res_path))
+                    del results
         else:
             with open(res_path, "rb") as rfile:
                 results = pickle.load(rfile)
                 logger.info('Loaded results from {}'.format(res_path))
                 nrmse = results['nrmse']
                 pred_seq = results['prediction']
+                train_loss = results['train_loss']
+                val_loss = results['val_loss']
+                vmin, vmax = results['vmin'], results['vmax']
 
         if ntrial == 0:
             # Plot to file
@@ -130,23 +134,39 @@ def chaos_job(dataset, args, strength, noise_level):
             plt.rcParams["font.size"] = 20
             plt.rcParams['xtick.labelsize'] = 24
             plt.rcParams['ytick.labelsize'] = 24
-            fig = plt.figure(figsize=(24, 6))
+            fig = plt.figure(figsize=(20, 24))
 
-            ax = plt.subplot2grid((1, 4), (0,0), projection='3d', colspan=1, rowspan=1)
-            ax.plot3D(target_seq[train_len:, 0], target_seq[train_len:, 1], target_seq[train_len:, 2], label='Target')
-            ax.plot3D(pred_seq[train_len:,0], pred_seq[train_len:,1], pred_seq[train_len:,2], label='Predict')
+            ax = plt.subplot2grid((4, 1), (0,0), projection='3d', colspan=1, rowspan=3)
+
+            ax.plot3D(target_seq[train_len:, 0], target_seq[train_len:, 1], target_seq[train_len:, 2], label='Target', alpha=0.9, rasterized=True)
+            ax.plot3D(pred_seq[train_len:, 0], pred_seq[train_len:, 1], pred_seq[train_len:, 2], label='Predict', alpha=0.8, rasterized=True)
+            
+            #seqlen = len(target_seq)
+            # s = 10
+            # cmap_target = plt.cm.winter
+            # cmap_pred = plt.cm.viridis
+                
+            # for i in range(train_len, seqlen-s, s):
+            #     c = cmap_pred( (i-train_len) / (seqlen-train_len))
+            #     ax.plot3D(pred_seq[i:i+s+1, 0], pred_seq[i:i+s+1, 1], pred_seq[i:i+s+1, 2], label='Predict', color=c)
+            
             ax.set_xticks([])
             ax.set_yticks([])
             ax.set_zticks([])
-            #bx.w_xaxis.set_pane_color((0.0, 0.0, 0.0, 0.9))
-            #bx.w_yaxis.set_pane_color((0.0, 0.0, 0.0, 0.9))
-            #bx.w_zaxis.set_pane_color((0.0, 0.0, 0.0, 0.9))
+            ax.w_xaxis.set_pane_color((0.0, 0.0, 0.0, 0.9))
+            ax.w_yaxis.set_pane_color((0.0, 0.0, 0.0, 0.9))
+            ax.w_zaxis.set_pane_color((0.0, 0.0, 0.0, 0.9))
             ax.grid(False)
-            ax.legend()
+            #ax.legend()
             ax.set_title('ntrial={}, loss val={:.6f}, train={:.6f}'.format(ntrial, val_loss, train_loss), fontsize=12)
-            
-            bx = plt.subplot2grid((1, 4), (0,1), colspan=3, rowspan=1)
-            bx.plot(range(buffer + 1, length), nrmse, linewidth=2.0)
+            ax.set_xlim([-25, 25])
+            ax.set_ylim([-25, 25])
+            ax.set_zlim([0, 50])
+            #ax.set_axis_off()
+            #ax.set_facecolor('k')
+
+            bx = plt.subplot2grid((4, 1), (3,0), colspan=1, rowspan=1)
+            bx.plot(range(buffer + 1, length), nrmse, linewidth=2.0, rasterized=True)
             bx.axvline(x=buffer, label='T-buffer', c='k')
             bx.axvline(x=buffer + train_len, label='T-train', c='r')
             bx.set_yscale('log')
@@ -161,7 +181,7 @@ def chaos_job(dataset, args, strength, noise_level):
             for ftype in ['png']:
                 transparent = (ftype != 'png')
                 figfile = '{}_test_{}.{}'.format(outbase, ntrial, ftype)
-                plt.savefig(figfile, bbox_inches='tight', transparent=transparent, dpi=600)
+                plt.savefig(figfile, bbox_inches='tight', transparent=transparent, dpi=120)
                 logger.info('Output to file {}'.format(figfile))
             plt.show()
 
@@ -234,7 +254,7 @@ if __name__  == '__main__':
         print('Data {} not found. Exited!'.format(datname))
         exit(1)
     
-    jobs = []
+    jobs, pipels = [], []
     for strength in np.linspace(0, 1, 21):
         for noise_level in [0.0, 0.01, 0.05, 0.1]:
             p = multiprocessing.Process(target=chaos_job, args=(dataset, args, strength, noise_level))
