@@ -10,7 +10,7 @@ import os
 import scipy
 import argparse
 import multiprocessing
-import matplotlib
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
 from matplotlib import ticker
@@ -21,6 +21,8 @@ import utils as utils
 import gendata as gdata
 import pickle
 from loginit import get_module_logger
+
+mpl.rcParams['agg.path.chunksize'] = 100000
 
 def chaos_job(dataset, args, strength, noise_level):
     nqrc, type_input, combine_input = args.nqrc, args.type_input, args.combine_input
