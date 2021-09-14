@@ -26,7 +26,7 @@ rho = 28
 beta = 8./3
 dimensions = 3
 
-T1 = 1000; T2 = 2000; dt = 0.01;
+T1 = 1000; T2 = 2000; dt = 0.01
 
 
 # INTEGRATION
