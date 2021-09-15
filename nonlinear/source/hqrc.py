@@ -286,7 +286,7 @@ class HQRC(object):
     def __get_comput_nodes(self):
         return self.__get_qr_nodes() * self.nqrc
     
-    def __reset_states(self):
+    def reset_states(self):
         self.cur_states = [None] * self.nqrc
 
     def gen_rand_rhos(self, ranseed):
@@ -629,7 +629,7 @@ class HQRC(object):
         return prediction_seq, nrmse_loss
     
     def init_forward(self, qparams, input_seq, init_rs, ranseed, loading_path=None):
-        self.__reset_states()
+        self.reset_states()
         if init_rs == True:
             self.__init_reservoir(qparams, ranseed, loading_path)
         _, state_list, feed_list =  self.feed_forward(input_seq, predict=False, use_lastrho=False)
@@ -647,7 +647,7 @@ def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, 
     train_output_seq = np.array(train_output_seq)
     
     model.train_to_predict(train_input_seq, train_output_seq, buffer, qparams, ranseed, saving_path=saving_path, loading_path=loading_path)
-
+    model.reset_states()
     train_pred_seq, train_loss = model.predict(train_input_seq, train_output_seq, buffer=buffer, use_lastrho=False)
     #print("train_loss={}, shape".format(train_loss), train_pred_seq_ls.shape)
     
@@ -662,6 +662,7 @@ def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, 
 def closed_loop(qparams, buffer, train_input_seq, train_output_seq, valsteps, ranseed, nqrc, \
     gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, mask_input=0, combine_input=1, \
     feed_nothing=False, deep=0, use_corr=0, nonlinear=0):
+
     model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, dim_input=0,\
         sigma_input=sigma_input, type_input=type_input, mask_input=mask_input, \
         combine_input=combine_input, feed_nothing=feed_nothing,\
@@ -671,6 +672,7 @@ def closed_loop(qparams, buffer, train_input_seq, train_output_seq, valsteps, ra
     train_output_seq = np.array(train_output_seq)
     
     model.train_to_predict(train_input_seq, train_output_seq, buffer, qparams, ranseed)
+    model.reset_states()
     train_pred_seq, _ = model.predict(train_input_seq, train_output_seq, buffer=buffer, use_lastrho=False)
     
     val_pred_seq = []
