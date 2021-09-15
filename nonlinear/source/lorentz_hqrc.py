@@ -7,7 +7,6 @@ Emulate Lorentz attractor on HQRC
 import sys
 import numpy as np
 import os
-import scipy
 import argparse
 import multiprocessing
 import matplotlib as mpl
@@ -15,14 +14,11 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
 from matplotlib import ticker
 import time
-import datetime
 import hqrc as hqrc
 import utils as utils
 import gendata as gdata
 import pickle
 from loginit import get_module_logger
-
-mpl.rcParams['agg.path.chunksize'] = 10000000
 
 def chaos_job(dataset, args, strength, noise_level):
     nqrc, type_input, combine_input = args.nqrc, args.type_input, args.combine_input
@@ -128,62 +124,10 @@ def chaos_job(dataset, args, strength, noise_level):
                 vmin, vmax = results['vmin'], results['vmax']
 
         if ntrial == 0:
-            # Plot to file
-            plt.rc('font', family='serif')
-            plt.rc('mathtext', fontset='cm')
-            plt.rcParams["font.size"] = 20
-            plt.rcParams['xtick.labelsize'] = 24
-            plt.rcParams['ytick.labelsize'] = 24
-            fig = plt.figure(figsize=(20, 24))
-
-            ax = plt.subplot2grid((4, 1), (0,0), projection='3d', colspan=1, rowspan=3)
-
-            ax.plot3D(target_seq[train_len:, 0], target_seq[train_len:, 1], target_seq[train_len:, 2], label='Target', alpha=0.9, rasterized=True)
-            ax.plot3D(pred_seq[train_len:, 0], pred_seq[train_len:, 1], pred_seq[train_len:, 2], label='Predict', alpha=0.8, rasterized=True)
-            
-            #seqlen = len(target_seq)
-            # s = 10
-            # cmap_target = plt.cm.winter
-            # cmap_pred = plt.cm.viridis
-                
-            # for i in range(train_len, seqlen-s, s):
-            #     c = cmap_pred( (i-train_len) / (seqlen-train_len))
-            #     ax.plot3D(pred_seq[i:i+s+1, 0], pred_seq[i:i+s+1, 1], pred_seq[i:i+s+1, 2], label='Predict', color=c)
-            
-            ax.set_xticks([])
-            ax.set_yticks([])
-            ax.set_zticks([])
-            ax.w_xaxis.set_pane_color((0.0, 0.0, 0.0, 0.9))
-            ax.w_yaxis.set_pane_color((0.0, 0.0, 0.0, 0.9))
-            ax.w_zaxis.set_pane_color((0.0, 0.0, 0.0, 0.9))
-            ax.grid(False)
-            #ax.legend()
-            ax.set_title('ntrial={}, loss val={:.6f}, train={:.6f}'.format(ntrial, val_loss, train_loss), fontsize=12)
-            ax.set_xlim([-25, 25])
-            ax.set_ylim([-25, 25])
-            ax.set_zlim([0, 50])
-            #ax.set_axis_off()
-            #ax.set_facecolor('k')
-
-            bx = plt.subplot2grid((4, 1), (3,0), colspan=1, rowspan=1)
-            bx.plot(range(buffer + 1, length), nrmse, linewidth=2.0, rasterized=True)
-            bx.axvline(x=buffer, label='T-buffer', c='k')
-            bx.axvline(x=buffer + train_len, label='T-train', c='r')
-            bx.set_yscale('log')
-            bx.tick_params('both', length=10, width=1, which='both', \
-                    labelsize=16, direction='in', grid_alpha=0.6)
-            bx.legend()
-            bx.set_title(basename, fontsize=12)
-            bx.set_ylabel('NRMSE')
-            bx.set_xlabel('Time steps')
-
-            outbase = os.path.join(save_fig, basename)
-            for ftype in ['png']:
-                transparent = (ftype != 'png')
-                figfile = '{}_test_{}.{}'.format(outbase, ntrial, ftype)
-                plt.savefig(figfile, bbox_inches='tight', transparent=transparent, dpi=120)
-                logger.info('Output to file {}'.format(figfile))
-            plt.show()
+            n_title = 'ntrial={}, loss val={:.6f}, train={:.6f}'.format(ntrial, val_loss, train_loss)
+            outbase = os.path.join(save_fig, '{}_test_{}'.format(basename, ntrial))
+            utils.plot_lorentz(target_seq, pred_seq, nrmse, buffer, train_len, val_len, outbase, n_title, ftypes=['png'])
+            logger.info('Output to file {}'.format(outbase))
 
 if __name__  == '__main__':
     # Check for command line arguments

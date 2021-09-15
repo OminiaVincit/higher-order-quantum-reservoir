@@ -3,6 +3,7 @@
     Utils for higher-order quantum reservoir computing framework
 """
 import sys
+import os
 import numpy as np
 import math
 from scipy.stats import unitary_group
@@ -296,3 +297,65 @@ def __random_density_bures(length, rank=None, seed=None):
     ginibre = density.dot(__ginibre_matrix(length, rank, seed))
     ginibre = ginibre.dot(ginibre.conj().T)
     return ginibre / np.trace(ginibre)
+
+def plot_lorentz(target_seq, pred_seq, nrmse, buffer, train_len, val_len, outbase, n_title, ftypes=['png']):
+    import matplotlib.pyplot as plt
+
+    # Plot to file
+    plt.rc('font', family='serif')
+    plt.rc('mathtext', fontset='cm')
+    plt.rcParams["font.size"] = 20
+    plt.rcParams['xtick.labelsize'] = 24
+    plt.rcParams['ytick.labelsize'] = 24
+    #plt.rcParams['agg.path.chunksize'] = 100000
+
+    fig = plt.figure(figsize=(20, 24))
+
+    ax = plt.subplot2grid((4, 1), (0,0), projection='3d', colspan=1, rowspan=3)
+    
+    ax.plot3D(target_seq[train_len:, 0], target_seq[train_len:, 1], target_seq[train_len:, 2], label='Target', alpha=0.9, rasterized=True, linestyle='-')
+    ax.plot3D(pred_seq[train_len:, 0], pred_seq[train_len:, 1], pred_seq[train_len:, 2], '.', label='Predict',alpha=0.8, rasterized=True, linestyle='None')
+    
+    #seqlen = len(target_seq)
+    # s = 10
+    # cmap_target = plt.cm.winter
+    # cmap_pred = plt.cm.viridis
+        
+    # for i in range(train_len, seqlen-s, s):
+    #     c = cmap_pred( (i-train_len) / (seqlen-train_len))
+    #     ax.plot3D(pred_seq[i:i+s+1, 0], pred_seq[i:i+s+1, 1], pred_seq[i:i+s+1, 2], label='Predict', color=c)
+    
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_zticks([])
+    ax.w_xaxis.set_pane_color((0.0, 0.0, 0.0, 0.9))
+    ax.w_yaxis.set_pane_color((0.0, 0.0, 0.0, 0.9))
+    ax.w_zaxis.set_pane_color((0.0, 0.0, 0.0, 0.9))
+    ax.grid(False)
+    #ax.legend()
+    ax.set_title(n_title, fontsize=12)
+    ax.set_xlim([-25, 25])
+    ax.set_ylim([-25, 25])
+    ax.set_zlim([0, 50])
+    #ax.set_axis_off()
+    #ax.set_facecolor('k')
+
+    bx = plt.subplot2grid((4, 1), (3,0), colspan=1, rowspan=1)
+    bx.plot(range(buffer + 1, buffer + train_len + val_len), nrmse, linewidth=2.0, rasterized=True, linestyle='-')
+    bx.axvline(x=buffer, label='T-buffer', c='k')
+    bx.axvline(x=buffer + train_len, label='T-train', c='r')
+    bx.set_yscale('log')
+    bx.tick_params('both', length=10, width=1, which='both', \
+            labelsize=16, direction='in', grid_alpha=0.6)
+    bx.legend()
+    bx.set_title(os.path.basename(outbase), fontsize=12)
+    bx.set_ylabel('NRMSE')
+    bx.set_xlabel('Time steps')
+
+    
+    for ftype in ftypes:
+        transparent = (ftype != 'png')
+        figfile = '{}.{}'.format(outbase, ftype)
+        plt.savefig(figfile, bbox_inches='tight', transparent=transparent, dpi=120)
+    #plt.show()
+    plt.clf()
