@@ -87,8 +87,14 @@ class QRCParams():
 # 			raise ValueError("Scaler not implemented.")
 # 		return input_sequence
 
+def replaceNaN(data):
+    data[np.isnan(data)]=float('Inf')
+    return data
+
 def cal_NRMSE(pred, truth):
     assert(pred.shape == truth.shape)
+    pred = replaceNaN(pred)
+
     N, M = pred.shape
     sigma = np.std(truth[:, :], axis=0)
     sigma2 = np.square(sigma)
@@ -100,6 +106,15 @@ def cal_NRMSE(pred, truth):
         rmse = np.sqrt(mse)
         rs.append(rmse)
     return rs
+
+def get_num_accurate_pred(nerror, thresh=0.05):
+    nerror_bool = nerror < thresh
+    n_max = np.shape(nerror)[0]
+    n = 0
+    while nerror_bool[n] == True:
+        n += 1
+        if n == n_max: break
+    return n
 
 def clipping(val, minval, maxval):
     return max(min(val, maxval), minval)
@@ -298,7 +313,8 @@ def __random_density_bures(length, rank=None, seed=None):
     ginibre = ginibre.dot(ginibre.conj().T)
     return ginibre / np.trace(ginibre)
 
-def plot_lorentz(target_seq, pred_seq, nrmse, buffer, train_len, val_len, outbase, n_title, ftypes=['png']):
+def plot_lorentz(target_seq, pred_seq, nrmse, buffer, train_len, val_len, outbase, n_title, \
+    ftypes=['png'], pertubed_targets=[]):
     import matplotlib.pyplot as plt
 
     # Plot to file
@@ -315,6 +331,10 @@ def plot_lorentz(target_seq, pred_seq, nrmse, buffer, train_len, val_len, outbas
     
     ax.plot3D(target_seq[train_len:, 0], target_seq[train_len:, 1], target_seq[train_len:, 2], label='Target', alpha=0.9, rasterized=True, linestyle='-')
     ax.plot3D(pred_seq[train_len:, 0], pred_seq[train_len:, 1], pred_seq[train_len:, 2], '.', label='Predict',alpha=0.8, rasterized=True, linestyle='None')
+    for i in range(len(pertubed_targets)):
+        pertubed_preds = pertubed_targets[i]
+        ax.plot3D(pertubed_preds[train_len:, 0], pertubed_preds[train_len:, 1], pertubed_preds[train_len:, 2], \
+            label='Target-{}'.format(i+1), alpha=0.9, rasterized=True, linestyle='-')
     
     #seqlen = len(target_seq)
     # s = 10

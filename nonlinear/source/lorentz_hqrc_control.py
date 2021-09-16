@@ -20,9 +20,7 @@ import gendata as gdata
 import pickle
 from loginit import get_module_logger
 
-LORENTZ_LYAPUNOV = 0.9056
-
-def chaos_job(dataset, args, strength, noise_level):
+def chaos_job(data, pertubed_data, args, strength, noise_level):
     nqrc, type_input, combine_input = args.nqrc, args.type_input, args.combine_input
     nonlinear, sigma_input = args.nonlinear, args.sigma_input
     n_units, max_energy, reg = args.units, args.coupling, args.reg
@@ -44,8 +42,8 @@ def chaos_job(dataset, args, strength, noise_level):
     os.makedirs(resdir, exist_ok=True)
 
     # Evaluation
-    basename = '{}_{}_var_{}_{}_units_{}_V_{}_QRs_{}_trials_{}_tau_{}_alpha_{:.3f}_cb_{}_tp_{}_nl_{}_sig_{}_noise_{:.3f}_dt_{}_T_{}_{}_{}_seed_{}'.format(\
-        datname, dynamic, non_diag_var, solver, n_units, V, nqrc, Ntrials, \
+    basename = '{}_{}_{}_var_{}_{}_units_{}_V_{}_QRs_{}_trials_{}_tau_{}_alpha_{:.3f}_cb_{}_tp_{}_nl_{}_sig_{}_noise_{:.3f}_dt_{}_T_{}_{}_{}_seed_{}'.format(\
+        datname, args.lo_rhos.replace(',','_'), dynamic, non_diag_var, solver, n_units, V, nqrc, Ntrials, \
         tau, strength, combine_input, type_input, nonlinear, sigma_input, noise_level, dt, T_buf, T_train, T_val, rseed)
     
     log_filename = os.path.join(logdir, '{}.log'.format(basename))
@@ -58,30 +56,50 @@ def chaos_job(dataset, args, strength, noise_level):
     val_len  = int(T_val / dt)
     length = buffer + train_len + val_len
 
-    data = dataset['u'][:(length)]
     target_seq = data[(buffer+1):length]
-    
+    pertubed_strengths = []
+    #test_strengths = np.linspace(0.0, 0.2, val_len)
+    test_strengths = []
+
+    if load_result == 0:
+        vmin, vmax = np.min(data), np.max(data)
+        for pdata in pertubed_data:
+            vmin = min(np.min(pdata), vmin)
+            vmax = max(np.max(pdata), vmax)
+
+        train_input_seq = np.array(data[: buffer + train_len]).T
+        ndup = int(nqrc/train_input_seq.shape[0])
+        train_input_seq = np.tile(train_input_seq, (ndup, 1))
+        train_input_seq = utils.add_noise(train_input_seq, noise_level)
+
+        train_input_seq = utils.min_max_norm(train_input_seq, vmin, vmax)
+        train_output_seq = utils.min_max_norm(np.array(data[1 : buffer + train_len + 1]), vmin, vmax)
+
+        pertubed_inputs, pertubed_outputs, pertubed_targets = [], [], []
+        for pdata in pertubed_data:
+            ptrain_input_seq = np.array(pdata[: buffer + train_len]).T
+            ndup = int(nqrc/ptrain_input_seq.shape[0])
+            ptrain_input_seq = np.tile(ptrain_input_seq, (ndup, 1))
+            ptrain_input_seq = utils.add_noise(ptrain_input_seq, noise_level)
+
+            ptrain_input_seq = utils.min_max_norm(ptrain_input_seq, vmin, vmax)
+            ptrain_output_seq = utils.min_max_norm(np.array(pdata[1 : buffer + train_len + 1]), vmin, vmax)
+            pertubed_inputs.append(ptrain_input_seq)
+            pertubed_outputs.append(ptrain_output_seq)
+            pertubed_targets.append(pdata[(buffer+1):length])
+
     for ntrial in range(Ntrials):
         res_path = os.path.join(resdir, 'rs_{}_{}.pickle'.format(ntrial, basename))
         ranseed = rseed + (ntrial+1)*100
         if load_result == 0:
-            train_input_seq = np.array(data[: buffer + train_len]).T
-            ndup = int(nqrc/train_input_seq.shape[0])
-            train_input_seq = np.tile(train_input_seq, (ndup, 1))
-            train_input_seq = utils.add_noise(train_input_seq, noise_level)
-
-            vmin, vmax = np.min(train_input_seq), np.max(train_input_seq)
-            train_input_seq = utils.min_max_norm(train_input_seq, vmin, vmax)
-            
-            train_output_seq = utils.min_max_norm(np.array(data[1 : buffer + train_len + 1]), vmin, vmax)
-            #val_output_seq = np.array(data[(buffer + train_len + 1):])
-            
             qparams = utils.QRCParams(n_units=n_units-1, n_envs=1, max_energy=max_energy, non_diag_var=non_diag_var, non_diag_const=non_diag_const,\
                 beta=reg, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
                 
             train_pred_seq, val_pred_seq = hqrc.closed_loop(qparams, buffer, train_input_seq, train_output_seq, val_len, ranseed=ranseed, nqrc=nqrc,\
                 gamma=strength, sigma_input=sigma_input, type_input=type_input, combine_input=combine_input,\
-                deep=deep, nonlinear=nonlinear)
+                deep=deep, nonlinear=nonlinear, \
+                pertubed_inputs=pertubed_inputs, pertubed_outputs=pertubed_outputs,\
+                pertubed_gammas=pertubed_strengths, test_gammas=test_strengths)
             
             pred_seq = np.concatenate([train_pred_seq, val_pred_seq])
             # descaling data
@@ -89,21 +107,14 @@ def chaos_job(dataset, args, strength, noise_level):
             # Compute NRMSE
             pred_seq = pred_seq[buffer:(length-1)]
             nrmse = np.array(utils.cal_NRMSE(pred_seq, target_seq))
-            
+
             nrmse_file = log_filename.replace('.log', '_nrmse_{}.txt'.format(ntrial))
             np.savetxt(nrmse_file, nrmse)
             #np.save(pred_file, pred_seq)
 
             train_loss, val_loss = np.mean(nrmse[:train_len]), np.mean(nrmse[train_len:])
-            num_accurate_pred_005 = utils.get_num_accurate_pred(nrmse[train_len:], thresh=0.005)
-            num_accurate_pred_05  = utils.get_num_accurate_pred(nrmse[train_len:], thresh=0.05)
-            pred_time_005 = num_accurate_pred_005 * LORENTZ_LYAPUNOV * dt
-            pred_time_05  = num_accurate_pred_05  * LORENTZ_LYAPUNOV * dt
-
-            logger.info('ntrial={}, loss val={}, train={}, pred_time_005={}, pred_time_05={}'.format(\
-                ntrial, val_loss, train_loss, pred_time_005, pred_time_05))
-            logger.debug('ntrial={}, shape train_pred={}, val_pred={}, pred_seq={}'.format(\
-                ntrial, train_pred_seq.shape, val_pred_seq.shape, pred_seq.shape))
+            logger.info('ntrial={}, loss val={}, train={}'.format(ntrial, val_loss, train_loss))
+            logger.debug('ntrial={}, shape train_pred={}, val_pred={}, pred_seq={}'.format(ntrial, train_pred_seq.shape, val_pred_seq.shape, pred_seq.shape))
             
             # Save results
             if ntrial == 0:
@@ -116,12 +127,7 @@ def chaos_job(dataset, args, strength, noise_level):
                     'nrmse': nrmse,
                     'train_loss': train_loss,
                     'val_loss': val_loss,
-                    'ntrial': ntrial,
-                    'lyapunov': LORENTZ_LYAPUNOV,
-                    'num_accurate_pred_005': num_accurate_pred_005,
-                    'num_accurate_pred_05': num_accurate_pred_05,
-                    'pred_time_005': pred_time_005,
-                    'pred_time_05': pred_time_05
+                    'ntrial': ntrial
                 }
                 with open(res_path, "wb") as wfile:
                     pickle.dump(results, wfile, pickle.HIGHEST_PROTOCOL)
@@ -140,7 +146,7 @@ def chaos_job(dataset, args, strength, noise_level):
         if ntrial == 0:
             n_title = 'ntrial={}, loss val={:.6f}, train={:.6f}'.format(ntrial, val_loss, train_loss)
             outbase = os.path.join(save_fig, '{}_test_{}'.format(basename, ntrial))
-            utils.plot_lorentz(target_seq, pred_seq, nrmse, buffer, train_len, val_len, outbase, n_title, ftypes=['png'])
+            utils.plot_lorentz(target_seq, pred_seq, nrmse, buffer, train_len, val_len, outbase, n_title, ftypes=['png'], pertubed_targets=pertubed_targets)
             logger.info('Output to file {}'.format(outbase))
 
 if __name__  == '__main__':
@@ -155,7 +161,7 @@ if __name__  == '__main__':
     parser.add_argument('--dynamic', type=str, default=utils.DYNAMIC_FULL_RANDOM,\
         help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
     parser.add_argument('--non_diag_var', type=float, default=2.0, help='non_diag_var for phase_trans dynamic')
-    parser.add_argument('--non_diag_const', type=float, default=2.0, help='non_diag_const for phase_trans dynamic')
+    parser.add_argument('--non_diag_const', type=float, default=4.0, help='non_diag_const for phase_trans dynamic')
 
     parser.add_argument('--datname', type=str, default='lorentz')
     parser.add_argument('--dt', type=float, default=0.01)
@@ -166,7 +172,7 @@ if __name__  == '__main__':
     parser.add_argument('--Ntrials', type=int, default=1)
     parser.add_argument('--virtuals', type=int, default=1)
 
-    parser.add_argument('--tau', type=float, default=10.0, help='Interval between the inputs')
+    parser.add_argument('--tau', type=float, default=8.0, help='Interval between the inputs')
     parser.add_argument('--strength', type=float, default=0.0, help='Connection strengths')
     parser.add_argument('--nqrc', type=int, default=3, help='Number of reservoirs')
 
@@ -179,12 +185,14 @@ if __name__  == '__main__':
     parser.add_argument('--sigma_input', type=float, default=1.0)
     parser.add_argument('--nonlinear', type=int, default=0)
     parser.add_argument('--noise_level', type=float, default=0.1)
-
+    parser.add_argument('--lo_rhos', type=str, default='23.0,24.0')
     parser.add_argument('--load_result', type=int, default=0)
 
     args = parser.parse_args()
     T_buf, T_train, T_val, dt = args.T_buf, args.T_train, args.T_val, args.dt
     savedir, datname = args.savedir, args.datname
+    strength = args.strength
+    lo_rhos = [float(x) for x in args.lo_rhos.split(',')]
 
     os.makedirs(savedir, exist_ok=True)
     save_fig = os.path.join(savedir, 'figs')
@@ -196,27 +204,41 @@ if __name__  == '__main__':
     resdir = os.path.join(savedir, 'results')
     os.makedirs(resdir, exist_ok=True)
     
-    if datname == 'lorentz':
-        data_path = os.path.join(datdir, '{}_dt_{}_{}_{}_{}.pickle'.format(datname, dt, T_buf, T_train, T_val))
-        if os.path.isfile(data_path) == True:
-            with open(data_path, "rb") as dfile:
-                dataset = pickle.load(dfile)
-                print('Loaded data from {}'.format(data_path))
-        else:
-            dataset = gdata.Lorenz3D(T1 = 0, T2 = T_val + T_train + T_buf, dt = dt)
-            with open(data_path, "wb") as dfile:
-                pickle.dump(dataset, dfile, pickle.HIGHEST_PROTOCOL)
-                print('Dumped data to {}'.format(data_path))
-        print('Data set shape {}'.format(dataset['u'].shape))
-    else:
-        print('Data {} not found. Exited!'.format(datname))
-        exit(1)
+    # if datname == 'lorentz':
+    #     data_path = os.path.join(datdir, '{}_rho_{}_dt_{}_{}_{}_{}.pickle'.format(datname, lo_rho, dt, T_buf, T_train, T_val))
+    #     if os.path.isfile(data_path) == True:
+    #         with open(data_path, "rb") as dfile:
+    #             dataset = pickle.load(dfile)
+    #             print('Loaded data from {}'.format(data_path))
+    #     else:
+    #         dataset = gdata.Lorenz3D(rho=lo_rho, T1 = 0, T2 = T_val + T_train + T_buf, dt = dt)
+    #         with open(data_path, "wb") as dfile:
+    #             pickle.dump(dataset, dfile, pickle.HIGHEST_PROTOCOL)
+    #             print('Dumped data to {}'.format(data_path))
+    #     print('Data set shape {}'.format(dataset['u'].shape))
+    # else:
+    #     print('Data {} not found. Exited!'.format(datname))
+    #     exit(1)
     
+
+    buffer = int(T_buf / dt)
+    train_len = int(T_train / dt)
+    val_len  = int(T_val / dt)
+    length = buffer + train_len + val_len
+
+    
+    dataset1 = gdata.Lorenz3D(rho=lo_rhos[0], T1 = 0, T2 = T_val + T_train + T_buf, dt = dt, random=False)
+    data1 = dataset1['u'][:(length)]
+    
+    pdata = []
+    for lo_rho in lo_rhos[1:]:
+        dataset2 = gdata.Lorenz3D(rho=lo_rho, T1 = 0, T2 = T_val + T_train + T_buf, dt = dt, random=False)
+        pdata.append(dataset2['u'][:(length)])
+
     jobs, pipels = [], []
-    for strength in np.linspace(0, 1, 21):
-        for noise_level in [0.0, 0.01, 0.05, 0.1]:
-            p = multiprocessing.Process(target=chaos_job, args=(dataset, args, strength, noise_level))
-            jobs.append(p)
+    for noise_level in [0.0, 0.01, 0.05, 0.1]:
+        p = multiprocessing.Process(target=chaos_job, args=(data1, pdata, args, strength, noise_level))
+        jobs.append(p)
     
     # Start the process
     for p in jobs:

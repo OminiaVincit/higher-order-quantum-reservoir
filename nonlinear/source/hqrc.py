@@ -238,7 +238,7 @@ class HQRC(object):
                     if self.dynamic == DYNAMIC_FULL_RANDOM:
                         coef = (np.random.rand()-0.5) * 2 * self.max_energy
                     elif self.dynamic == DYNAMIC_PHASE_TRANS:
-                        coef = (np.random.rand()-0.5) * 2 * self.non_diag_var + self.non_diag_const
+                        coef = (np.random.rand()-0.5) * self.non_diag_var + self.non_diag_const
                     else:
                         coef = B
                     hamiltonian -= coef * self.Zop[qindex]
@@ -250,6 +250,8 @@ class HQRC(object):
                         elif self.dynamic == DYNAMIC_ION_TRAP:
                             coef = np.abs(qindex2 - qindex1)**(-a) / Nalpha
                             coef = self.max_energy * coef
+                        elif self.dynamic == DYNAMIC_PHASE_TRANS:
+                            coef = (np.random.rand()-0.5) * self.max_energy
                         else:
                             coef = (np.random.rand()-0.5) * 2 * self.max_energy
                         hamiltonian -= coef * self.Xop[qindex1] @ self.Xop[qindex2]
@@ -532,25 +534,46 @@ class HQRC(object):
         return predict_seq, state_list, feed_list
 
 
-    def __train(self, input_seq, output_seq, buffer, beta):
+    def __train(self, input_seq, output_seq, buffer, beta, \
+        pertubed_gammas=[], pertubed_inputs=[], pertubed_outputs=[]):
         assert(input_seq.shape[1] == output_seq.shape[0])
         self.start_time = time.time()
         Nout = output_seq.shape[1]
         self.W_out = np.random.rand(self.__get_comput_nodes() + 1, Nout)
 
-        _, state_list, _ = self.feed_forward(input_seq, predict=False, use_lastrho=False)
+        true_gamma = self.gamma
+        state_list_ls, output_list_ls = [], []
+        for i in range(len(pertubed_inputs)):
+            pgamma = pertubed_gammas[i]
+            pinput = pertubed_inputs[i]
+            poutput = pertubed_outputs[i].copy()
+            poutput = poutput[buffer:, :]
+            output_list_ls.append(poutput)
 
-        state_list = np.array(state_list)
-        state_list = state_list[buffer:, :]
+            self.gamma = pgamma
+            self.reset_states()
+            _, p_state_list, _ = self.feed_forward(pinput, predict=False, use_lastrho=False)
+            p_state_list = p_state_list[buffer:, :]
+            state_list_ls.append(p_state_list)
 
-        # discard the transitient state for training
-        X = np.reshape(state_list, [-1, self.__get_comput_nodes()])
-        #print('shape', X.shape, state_list.shape)
-        X = np.hstack( [state_list, np.ones([X.shape[0], 1]) ] )
-
-        discard_output = output_seq[buffer:, :]
-        Y = np.reshape(discard_output, [discard_output.shape[0], -1])
+        self.gamma = true_gamma
+        self.reset_states()
+        _, p_state_list, _ = self.feed_forward(input_seq, predict=False, use_lastrho=False)
         
+        # discard the transitient state for training
+        p_state_list = p_state_list[buffer:, :]
+
+        state_list_ls.append(p_state_list)
+        state_list = np.concatenate(state_list_ls, axis=0)
+        
+        X = np.hstack( [state_list, np.ones([state_list.shape[0], 1]) ] )
+        #print('shape', X.shape, state_list.shape)
+        
+        discard_output = output_seq[buffer:, :]
+        output_list_ls.append(discard_output)
+        Y = np.concatenate(output_list_ls, axis=0)
+        #Y = np.reshape(discard_output, [discard_output.shape[0], -1])
+
         if self.solver == LINEAR_PINV:
             self.W_out = np.linalg.pinv(X, rcond = beta) @ Y
         else:
@@ -567,9 +590,11 @@ class HQRC(object):
             else:
                 raise ValueError('Undefined solver')
 
-    def train_to_predict(self, input_seq, output_seq, buffer, qparams, ranseed, saving_path=None, loading_path=None):
+    def train_to_predict(self, input_seq, output_seq, buffer, qparams, ranseed, \
+        saving_path=None, loading_path=None, pertubed_gammas=[], pertubed_inputs=[], pertubed_outputs=[]):
         self.__init_reservoir(qparams, ranseed, loading_path)
-        self.__train(input_seq, output_seq, buffer, qparams.beta)
+        self.__train(input_seq, output_seq, buffer, qparams.beta, \
+            pertubed_gammas=pertubed_gammas, pertubed_inputs=pertubed_inputs, pertubed_outputs=pertubed_outputs)
         if saving_path != None:
             self.save_model(saving_path=saving_path)
 
@@ -646,7 +671,8 @@ def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, 
     train_input_seq = np.array(train_input_seq)
     train_output_seq = np.array(train_output_seq)
     
-    model.train_to_predict(train_input_seq, train_output_seq, buffer, qparams, ranseed, saving_path=saving_path, loading_path=loading_path)
+    model.train_to_predict(train_input_seq, train_output_seq, buffer, qparams, ranseed, \
+        saving_path=saving_path, loading_path=loading_path)
     model.reset_states()
     train_pred_seq, train_loss = model.predict(train_input_seq, train_output_seq, buffer=buffer, use_lastrho=False)
     #print("train_loss={}, shape".format(train_loss), train_pred_seq_ls.shape)
@@ -661,7 +687,8 @@ def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, 
 
 def closed_loop(qparams, buffer, train_input_seq, train_output_seq, valsteps, ranseed, nqrc, \
     gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, mask_input=0, combine_input=1, \
-    feed_nothing=False, deep=0, use_corr=0, nonlinear=0):
+    feed_nothing=False, deep=0, use_corr=0, nonlinear=0, \
+    pertubed_gammas=[], pertubed_inputs=[], pertubed_outputs=[], test_gammas=[]):
 
     model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, dim_input=0,\
         sigma_input=sigma_input, type_input=type_input, mask_input=mask_input, \
@@ -671,9 +698,11 @@ def closed_loop(qparams, buffer, train_input_seq, train_output_seq, valsteps, ra
     train_input_seq = np.array(train_input_seq)
     train_output_seq = np.array(train_output_seq)
     
-    model.train_to_predict(train_input_seq, train_output_seq, buffer, qparams, ranseed)
+    model.train_to_predict(train_input_seq, train_output_seq, buffer, qparams, ranseed, \
+        pertubed_gammas=pertubed_gammas, pertubed_inputs=pertubed_inputs, pertubed_outputs=pertubed_outputs)
     model.reset_states()
-    train_pred_seq, _ = model.predict(train_input_seq, train_output_seq, buffer=buffer, use_lastrho=False)
+    train_pred_seq, _ = model.predict(train_input_seq, train_output_seq, \
+        buffer=buffer, use_lastrho=False)
     
     val_pred_seq = []
     current_input = train_pred_seq[-1].copy().ravel()
@@ -681,6 +710,8 @@ def closed_loop(qparams, buffer, train_input_seq, train_output_seq, valsteps, ra
     for n in range(valsteps):
         #if n < 100:
         #    print(n, current_input)
+        if len(test_gammas) >= valsteps:
+            model.gamma = test_gammas[n]
         current_input = np.tile(current_input, (ndup, 1)).ravel()
         local_rhos = model.last_rhos.copy()
         local_rhos = model.step_forward(local_rhos, current_input, feedback_flag=combine_input)
