@@ -20,7 +20,7 @@ TYIN=0
 SIG=1.0
 NON=0
 LOAD=0
-N=1
+N=10
 
 for V in 5 10 15
 do

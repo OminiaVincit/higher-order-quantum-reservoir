@@ -61,24 +61,23 @@ def chaos_job(dataset, args, strength, noise_level):
     data = dataset['u'][:(length)]
     target_seq = data[(buffer+1):length]
     
+    train_input_seq = np.array(data[: buffer + train_len]).T
+    ndup = int(nqrc/train_input_seq.shape[0])
+    train_input_seq = np.tile(train_input_seq, (ndup, 1))
+    train_input_seq = utils.add_noise(train_input_seq, noise_level)
+
+    vmin, vmax = np.min(train_input_seq), np.max(train_input_seq)
+    train_input_seq = utils.min_max_norm(train_input_seq, vmin, vmax)
+    
+    train_output_seq = utils.min_max_norm(np.array(data[1 : buffer + train_len + 1]), vmin, vmax)
+    #val_output_seq = np.array(data[(buffer + train_len + 1):])
+    qparams = utils.QRCParams(n_units=n_units-1, n_envs=1, max_energy=max_energy, non_diag_var=non_diag_var, non_diag_const=non_diag_const,\
+        beta=reg, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
+    
     for ntrial in range(Ntrials):
         res_path = os.path.join(resdir, 'rs_{}_{}.pickle'.format(ntrial, basename))
         ranseed = rseed + (ntrial+1)*100
         if load_result == 0:
-            train_input_seq = np.array(data[: buffer + train_len]).T
-            ndup = int(nqrc/train_input_seq.shape[0])
-            train_input_seq = np.tile(train_input_seq, (ndup, 1))
-            train_input_seq = utils.add_noise(train_input_seq, noise_level)
-
-            vmin, vmax = np.min(train_input_seq), np.max(train_input_seq)
-            train_input_seq = utils.min_max_norm(train_input_seq, vmin, vmax)
-            
-            train_output_seq = utils.min_max_norm(np.array(data[1 : buffer + train_len + 1]), vmin, vmax)
-            #val_output_seq = np.array(data[(buffer + train_len + 1):])
-            
-            qparams = utils.QRCParams(n_units=n_units-1, n_envs=1, max_energy=max_energy, non_diag_var=non_diag_var, non_diag_const=non_diag_const,\
-                beta=reg, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
-                
             train_pred_seq, val_pred_seq = hqrc.closed_loop(qparams, buffer, train_input_seq, train_output_seq, val_len, ranseed=ranseed, nqrc=nqrc,\
                 gamma=strength, sigma_input=sigma_input, type_input=type_input, combine_input=combine_input,\
                 deep=deep, nonlinear=nonlinear)
