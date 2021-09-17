@@ -5,7 +5,7 @@ export OMP_NUM_THREADS=1
 BIN=../source/mc_hqrc.py
 N=10
 J=1.0
-SAVE=../../../data/hqrc/memcapa_scaling_input
+SAVE=../../../data/hqrc/memcapa_eff_feed
 PROC=101
 
 TAUS=\'3\' # The parameters for tau is 2**x for x in TAUS
@@ -13,7 +13,6 @@ TAUS=\'3\' # The parameters for tau is 2**x for x in TAUS
 #STRENGTHS='0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0'
 #STRENGTHS='0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0'
 STRENGTHS='0.0,0.5,0.9,0.99,0.999,0.9999,0.99999,1.0'
-VS='1'
 QRS='5'
 
 MIND=0
@@ -25,13 +24,13 @@ SG=1.0
 TP=0
 BN=0
 
-for QRIN in 5
+for QRIN in 1 2 3 4
 do
 for VS in '1' '5' '10'
 do
 for TASK in qrc_pc
 do
-for CB in 0
+for CB in 2
 do
 for TAUS in '3'
 #for TAUS in \'-3\' \'-2\' \'-1\' \'0\' \'1\' \'2\' \'3\'
