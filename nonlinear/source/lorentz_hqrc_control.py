@@ -41,9 +41,15 @@ def chaos_job(data, pertubed_data, args, strength, noise_level):
     resdir = os.path.join(savedir, 'results')
     os.makedirs(resdir, exist_ok=True)
 
+    if args.pertubed_strengths != ',':
+        pertubed_strengths = [float(x) for x in args.pertubed_strengths.split(',')]
+    else:
+        pertubed_strengths = []
+
     # Evaluation
-    basename = '{}_{}_{}_var_{}_{}_units_{}_V_{}_QRs_{}_trials_{}_tau_{}_alpha_{:.3f}_cb_{}_tp_{}_nl_{}_sig_{}_noise_{:.3f}_dt_{}_T_{}_{}_{}_seed_{}'.format(\
-        datname, args.lo_rhos.replace(',','_'), dynamic, non_diag_var, solver, n_units, V, nqrc, Ntrials, \
+    basename = '{}_{}_{}_{}_{}_var_{}_{}_units_{}_V_{}_QRs_{}_trials_{}_tau_{}_alpha_{:.3f}_cb_{}_tp_{}_nl_{}_sig_{}_noise_{:.3f}_dt_{}_T_{}_{}_{}_seed_{}'.format(\
+        datname, args.main_rho, args.lo_rhos.replace(',','_'), args.pertubed_strengths.replace(',','_'), \
+        dynamic, non_diag_var, solver, n_units, V, nqrc, Ntrials, \
         tau, strength, combine_input, type_input, nonlinear, sigma_input, noise_level, dt, T_buf, T_train, T_val, rseed)
     
     log_filename = os.path.join(logdir, '{}.log'.format(basename))
@@ -56,45 +62,47 @@ def chaos_job(data, pertubed_data, args, strength, noise_level):
     val_len  = int(T_val / dt)
     length = buffer + train_len + val_len
 
-    target_seq = data[(buffer+1):length]
-    pertubed_strengths = []
-    #test_strengths = np.linspace(0.0, 0.2, val_len)
+    #test_strengths = np.linspace(0.0, 0.8, val_len)
     test_strengths = []
 
-    if load_result == 0:
-        vmin, vmax = np.min(data), np.max(data)
-        for pdata in pertubed_data:
-            vmin = min(np.min(pdata), vmin)
-            vmax = max(np.max(pdata), vmax)
+    pertubed_inputs, pertubed_outputs, pertubed_targets = [], [], []
+    # vmin, vmax = np.min(data), np.max(data)
+    # for pdata in pertubed_data:
+    #     vmin = min(np.min(pdata), vmin)
+    #     vmax = max(np.max(pdata), vmax)
 
-        train_input_seq = np.array(data[: buffer + train_len]).T
-        ndup = int(nqrc/train_input_seq.shape[0])
-        train_input_seq = np.tile(train_input_seq, (ndup, 1))
+    train_input_seq = np.array(data[: buffer + train_len]).T
+    ndup = int(nqrc/train_input_seq.shape[0])
+    train_input_seq = np.tile(train_input_seq, (ndup, 1))
+    if len(pertubed_data) == 0:
         train_input_seq = utils.add_noise(train_input_seq, noise_level)
 
-        train_input_seq = utils.min_max_norm(train_input_seq, vmin, vmax)
-        train_output_seq = utils.min_max_norm(np.array(data[1 : buffer + train_len + 1]), vmin, vmax)
+    vmin, vmax = np.min(train_input_seq), np.max(train_input_seq)
+    train_input_seq = utils.min_max_norm(train_input_seq, vmin, vmax)
+    train_output_seq = utils.min_max_norm(np.array(data[1 : buffer + train_len + 1]), vmin, vmax)
+    target_seq = data[(buffer+1):length]
+    
+    for pdata in pertubed_data:
+        ptrain_input_seq = np.array(pdata[: buffer + train_len]).T
+        ndup = int(nqrc/ptrain_input_seq.shape[0])
+        ptrain_input_seq = np.tile(ptrain_input_seq, (ndup, 1))
+        ptrain_input_seq = utils.add_noise(ptrain_input_seq, noise_level)
 
-        pertubed_inputs, pertubed_outputs, pertubed_targets = [], [], []
-        for pdata in pertubed_data:
-            ptrain_input_seq = np.array(pdata[: buffer + train_len]).T
-            ndup = int(nqrc/ptrain_input_seq.shape[0])
-            ptrain_input_seq = np.tile(ptrain_input_seq, (ndup, 1))
-            ptrain_input_seq = utils.add_noise(ptrain_input_seq, noise_level)
+        pvmin, pvmax = np.min(ptrain_input_seq), np.max(ptrain_input_seq)
+        ptrain_input_seq = utils.min_max_norm(ptrain_input_seq, pvmin, pvmax)
+        ptrain_output_seq = utils.min_max_norm(np.array(pdata[1 : buffer + train_len + 1]), pvmin, pvmax)
 
-            ptrain_input_seq = utils.min_max_norm(ptrain_input_seq, vmin, vmax)
-            ptrain_output_seq = utils.min_max_norm(np.array(pdata[1 : buffer + train_len + 1]), vmin, vmax)
-            pertubed_inputs.append(ptrain_input_seq)
-            pertubed_outputs.append(ptrain_output_seq)
-            pertubed_targets.append(pdata[(buffer+1):length])
+        pertubed_inputs.append(ptrain_input_seq)
+        pertubed_outputs.append(ptrain_output_seq)
+        pertubed_targets.append(pdata[(buffer+1):length])
+    
+    qparams = utils.QRCParams(n_units=n_units-1, n_envs=1, max_energy=max_energy, non_diag_var=non_diag_var, non_diag_const=non_diag_const,\
+        beta=reg, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
 
     for ntrial in range(Ntrials):
         res_path = os.path.join(resdir, 'rs_{}_{}.pickle'.format(ntrial, basename))
         ranseed = rseed + (ntrial+1)*100
         if load_result == 0:
-            qparams = utils.QRCParams(n_units=n_units-1, n_envs=1, max_energy=max_energy, non_diag_var=non_diag_var, non_diag_const=non_diag_const,\
-                beta=reg, virtual_nodes=V, tau=tau, init_rho=init_rho, solver=solver, dynamic=dynamic)
-                
             train_pred_seq, val_pred_seq = hqrc.closed_loop(qparams, buffer, train_input_seq, train_output_seq, val_len, ranseed=ranseed, nqrc=nqrc,\
                 gamma=strength, sigma_input=sigma_input, type_input=type_input, combine_input=combine_input,\
                 deep=deep, nonlinear=nonlinear, \
@@ -186,14 +194,18 @@ if __name__  == '__main__':
     parser.add_argument('--nonlinear', type=int, default=0)
     parser.add_argument('--noise_level', type=float, default=0.1)
     parser.add_argument('--lo_rhos', type=str, default='23.0,24.0')
+    parser.add_argument('--main_rho', type=float, default=28.0)
+    parser.add_argument('--pertubed_strengths', type=str, default='0.0,0.2')
     parser.add_argument('--load_result', type=int, default=0)
 
     args = parser.parse_args()
     T_buf, T_train, T_val, dt = args.T_buf, args.T_train, args.T_val, args.dt
     savedir, datname = args.savedir, args.datname
-    strength = args.strength
-    lo_rhos = [float(x) for x in args.lo_rhos.split(',')]
-
+    main_rho, strength = args.main_rho, args.strength
+    if args.lo_rhos != ',':
+        lo_rhos = [float(x) for x in args.lo_rhos.split(',')]
+    else:
+        lo_rhos = []
     os.makedirs(savedir, exist_ok=True)
     save_fig = os.path.join(savedir, 'figs')
     os.makedirs(save_fig, exist_ok=True)
@@ -227,17 +239,17 @@ if __name__  == '__main__':
     length = buffer + train_len + val_len
 
     
-    dataset1 = gdata.Lorenz3D(rho=lo_rhos[0], T1 = 0, T2 = T_val + T_train + T_buf, dt = dt, random=False)
-    data1 = dataset1['u'][:(length)]
+    dataset = gdata.Lorenz3D(rho=main_rho, T1 = 0, T2 = T_val + T_train + T_buf, dt = dt, random=False)
+    data = dataset['u'][:(length)]
     
     pdata = []
-    for lo_rho in lo_rhos[1:]:
+    for lo_rho in lo_rhos:
         dataset2 = gdata.Lorenz3D(rho=lo_rho, T1 = 0, T2 = T_val + T_train + T_buf, dt = dt, random=False)
         pdata.append(dataset2['u'][:(length)])
 
     jobs, pipels = [], []
     for noise_level in [0.0, 0.01, 0.05, 0.1]:
-        p = multiprocessing.Process(target=chaos_job, args=(data1, pdata, args, strength, noise_level))
+        p = multiprocessing.Process(target=chaos_job, args=(data, pdata, args, strength, noise_level))
         jobs.append(p)
     
     # Start the process

@@ -551,26 +551,26 @@ class HQRC(object):
             output_list_ls.append(poutput)
 
             self.gamma = pgamma
-            self.reset_states()
-            _, p_state_list, _ = self.feed_forward(pinput, predict=False, use_lastrho=False)
+            #self.reset_states()
+            _, p_state_list, _ = self.feed_forward(pinput, predict=False, use_lastrho=True)
             p_state_list = p_state_list[buffer:, :]
             state_list_ls.append(p_state_list)
 
         self.gamma = true_gamma
-        self.reset_states()
-        _, p_state_list, _ = self.feed_forward(input_seq, predict=False, use_lastrho=False)
-        
-        # discard the transitient state for training
-        p_state_list = p_state_list[buffer:, :]
+        if len(pertubed_inputs) == 0:
+            _, p_state_list, _ = self.feed_forward(input_seq, predict=False, use_lastrho=False)
+            
+            # discard the transitient state for training
+            p_state_list = p_state_list[buffer:, :]
+            state_list_ls.append(p_state_list)
+            discard_output = output_seq[buffer:, :]
+            output_list_ls.append(discard_output)
 
-        state_list_ls.append(p_state_list)
+        # Training
         state_list = np.concatenate(state_list_ls, axis=0)
-        
         X = np.hstack( [state_list, np.ones([state_list.shape[0], 1]) ] )
         #print('shape', X.shape, state_list.shape)
-        
-        discard_output = output_seq[buffer:, :]
-        output_list_ls.append(discard_output)
+    
         Y = np.concatenate(output_list_ls, axis=0)
         #Y = np.reshape(discard_output, [discard_output.shape[0], -1])
 
@@ -700,16 +700,29 @@ def closed_loop(qparams, buffer, train_input_seq, train_output_seq, valsteps, ra
     
     model.train_to_predict(train_input_seq, train_output_seq, buffer, qparams, ranseed, \
         pertubed_gammas=pertubed_gammas, pertubed_inputs=pertubed_inputs, pertubed_outputs=pertubed_outputs)
+    
+    # train_pred_seq = [0.0] * len(train_input_seq)
+    # if len(pertubed_inputs) == 0:
+    #     model.reset_states()
+    #     train_pred_seq, _ = model.predict(train_input_seq, train_output_seq, \
+    #         buffer=buffer, use_lastrho=False)
+    #     current_input = train_pred_seq[-1].copy().ravel()
+    # else:
+    #     state = np.array(model.cur_states, dtype=np.float64)
+    #     stacked_state = np.hstack( [state.reshape((1, -1)), np.ones([1, 1])])
+    #     pred_vec = stacked_state @ model.W_out
+    #     current_input = pred_vec.ravel()
+
     model.reset_states()
     train_pred_seq, _ = model.predict(train_input_seq, train_output_seq, \
         buffer=buffer, use_lastrho=False)
-    
-    val_pred_seq = []
     current_input = train_pred_seq[-1].copy().ravel()
+
+    val_pred_seq = []
     ndup = int(nqrc/len(current_input))
     for n in range(valsteps):
-        #if n < 100:
-        #    print(n, current_input)
+        #if n < 10:
+        #    print(n, current_input, model.cur_states)
         if len(test_gammas) >= valsteps:
             model.gamma = test_gammas[n]
         current_input = np.tile(current_input, (ndup, 1)).ravel()
