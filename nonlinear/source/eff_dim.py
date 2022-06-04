@@ -113,12 +113,7 @@ if __name__  == '__main__':
     
     if os.path.isfile(savedir) == False:
         # prepare the data
-        if type_input == 0 or type_input == 2:
-            data = np.random.rand(length)
-        elif type_input == 1:
-            # Read from file: random_binary_input
-            data = np.loadtxt(args.input_file)[:length,1]
-
+        data = np.loadtxt(args.input_file)[:length,1]
         input_seq = np.array(data)
         print(input_seq.shape)
         input_seq = np.tile(input_seq, (nqrc, 1))

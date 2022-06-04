@@ -78,7 +78,6 @@ def dumpstates_job(savedir, dynamic, input_seq, nqrc, layer_strength, mask_input
         model = hqrc.HQRC(nqrc=nqrc, gamma=layer_strength, sparsity=sparsity, sigma_input=sigma_input, use_corr=use_corr, feed_nothing=feed_nothing,\
             dim_input=qr_input, mask_input=mask_input, combine_input=combine_input, nonlinear=nonlinear, type_input=type_input, feed_trials = int(bg/2))
         state_list, feed_list = model.init_forward(qparams, input_seq, init_rs = True, ranseed = ranseed)
-        #state_list = state_list*2.0-1.0 
         results[x] = state_list
 
         if False:
