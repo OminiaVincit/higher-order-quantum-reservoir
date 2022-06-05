@@ -9,10 +9,10 @@ BIN=../source/eff_dim.py
 LENGTH=10000
 BUFFER=9000
 
-SAVE=../../../data/hqrc/dynamics_rand/eff
+SAVE=../../../data/hqrc/dynamics_sinwave/eff
 
-#INPUT_FILE=../data/sin_input_T_50.txt
-INPUT_FILE=../data/rand_input_101000.txt
+INPUT_FILE=../data/sin_input_T_50.txt
+#NPUT_FILE=../data/rand_input_101000.txt
 
 QR=5
 PROC=100
