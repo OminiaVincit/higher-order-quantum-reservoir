@@ -1,5 +1,6 @@
 #!/usr/bin/bash
 # Script to view dynamics of the HQRC
+# Update version 2022-06-06
 export OMP_NUM_THREADS=1
 
 BIN=../source/eff_dim.py
@@ -9,10 +10,11 @@ BIN=../source/eff_dim.py
 LENGTH=10000
 BUFFER=9000
 
-SAVE=../../../data/hqrc/dynamics_sinwave/eff
+BASE='const_input_0.5_101000'
+SAVE=../../../data/hqrc/$BASE/eff
 
-INPUT_FILE=../data/sin_input_T_50.txt
-#NPUT_FILE=../data/rand_input_101000.txt
+#INPUT_FILE=../data/sin_input_T_50.txt
+INPUT_FILE=../data/$BASE.txt
 
 QR=5
 PROC=100

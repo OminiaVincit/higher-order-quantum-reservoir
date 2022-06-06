@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """
     View bifurcation diagrams and dynamics for higher-order quantum reservoir
-    See run_view_states.sh for an example of the running script
+    See run_view_states_angle.sh for an example of the running script
+    Update version 2022-06-06 for new encoding method
 """
 import sys
 import numpy as np
