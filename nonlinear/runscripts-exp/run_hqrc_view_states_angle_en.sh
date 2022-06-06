@@ -13,8 +13,12 @@ ED=9200
 # ED=1000
 # BG=800
 
-SAVE=../../../data/hqrc/dynamics_sinwave
-INPUT_FILE=../data/sin_input_T_50.txt
+BASE='const_input_0.5_101000'
+BASE='rand_input_101000'
+BASE='sin_input_T_50'
+
+SAVE=../../../data/hqrc/$BASE
+INPUT_FILE=../data/$BASE.txt
 
 QR=5
 PROC=100
@@ -27,9 +31,9 @@ for OP in 'X'
 do
 for TP in 5
 do
-for GAM in 1.0
+for GAM in 1.0 0.0
 do
-for RD in 0
+for RD in 5
 do
 python $BIN --gamma $GAM --type_op $OP --input_file $INPUT_FILE --randseed $RD --type_input $TP --interval $INT --savedir $SAVE --length $LENGTH --bg $BG --ed $ED --nqrc $QR --nproc $PROC
 done

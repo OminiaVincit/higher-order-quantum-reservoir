@@ -140,9 +140,12 @@ if __name__  == '__main__':
 
     if os.path.isfile(savedir) == False:
         # prepare the data
-        # Read from file: random_binary_input
-        data = np.loadtxt(args.input_file)[:length,1]
-
+        if os.path.isfile(args.input_file):
+            # Read from file: 
+            data = np.loadtxt(args.input_file)[:length,1]
+        else:
+            print('File not found {}'.format(args.input_file))
+            exit(1)
         # if type_input == 0 or type_input == 2:
         #     data = np.random.rand(length)
         # elif type_input == 1:
