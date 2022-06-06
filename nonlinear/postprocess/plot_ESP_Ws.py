@@ -10,11 +10,11 @@ import plot_utils as putils
 if __name__  == '__main__':
     # Check for command line arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--folder', type=str, default='../../../data/hqrc/dynamics_rand/esp')
+    parser.add_argument('--folder', type=str, default='../../../data/hqrc/dynamics_sinwave/esp')
     parser.add_argument('--dynamic', type=str, default='phase_trans')
     parser.add_argument('--nqrc', type=int, default=5)
     parser.add_argument('--virtuals', type=int, default=1)
-    parser.add_argument('--length', type=int, default=11000)
+    parser.add_argument('--length', type=int, default=10000)
     parser.add_argument('--gamma', type=float, default=0.0)
 
     args = parser.parse_args()
