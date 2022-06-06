@@ -204,14 +204,14 @@ if __name__  == '__main__':
     ax.tick_params('both', length=8, width=1, which='major', labelsize=20, direction = "out")
     ax.tick_params('both', length=4, width=1, which='minor', direction = "out")
 
-    for log_W in log_Ws:
-        tarr = rsarr['{:.6f}'.format(log_W)]
+    for log_W in sorted(rsarr.keys()):
+        tarr = rsarr[log_W]
         xs, ys, zs = tarr[:, 0], tarr[:, 1], tarr[:, 2]
         MC = np.sum(ys)
         #plt.errorbar(xs, ys, yerr=zs, elinewidth=2, linewidth=2, markersize=12, \
         #    label='$\\tau\Delta$={}'.format(tau)) #markerfacecolor='None',
         ax.plot(xs, ys, linewidth=2, markersize=12, marker='s',  \
-            label='$W$={}, MC={:.2f}'.format(10**log_W, MC), alpha=0.7)
+            label='$log(W)$={}, MC={:.2f}'.format(log_W, MC), alpha=0.7)
     
     ax.set_xlim([0, 50])    
     ax.set_ylim([0, 1.0])
