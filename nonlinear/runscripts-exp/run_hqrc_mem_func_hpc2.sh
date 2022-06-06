@@ -16,7 +16,8 @@ PROC=101
 SOLVER='ridge_pinv'
 #SOLVER='linear_pinv'
 
-LOGWS=\'-2.0,-1.8,-1.6,-1.4,-1.2,-1.0,-0.8,-0.6,-0.4,-0.2,0.0\' # The parameters for W is 10**x for W in LOGWS
+#LOGWS=\'-2.0,-1.8,-1.6,-1.4,-1.2,-1.0,-0.8,-0.6,-0.4,-0.2,0.0\' # The parameters for W is 10**x for W in LOGWS
+LOGWS=\'-1.9,-1.7,-1.5,-1.3,-1.1,-0.9,-0.7,-0.5,-0.3,-0.1\' # The parameters for W is 10**x for W in LOGWS
 
 MIND=0
 MAXD=200
