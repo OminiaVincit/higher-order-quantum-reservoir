@@ -35,7 +35,7 @@ DYNAMIC='phase_trans'
 CAPA=6
 WIDTH=0.05
 CB=1
-OP='Z'
+OP='X'
 TP=5
 GAMMA=0.0
 

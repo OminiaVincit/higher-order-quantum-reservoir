@@ -21,6 +21,7 @@ if __name__  == '__main__':
     parser.add_argument('--thres', type=float, default=0.0)
     parser.add_argument('--width', type=float, default=0.1)
     parser.add_argument('--max_capa', type=float, default=4.0)
+    parser.add_argument('--max_mc', type=float, default=2.0)
     
     parser.add_argument('--nspins', type=int, default=6, help='Number of spins')
     parser.add_argument('--max_energy', type=float, default=1.0)
@@ -184,7 +185,7 @@ if __name__  == '__main__':
         dcl += 1
     ax2.set_ylabel('Degree 1', fontsize=32)
     ax2.grid(True, which="both", ls="-", color='0.65')
-
+    ax2.set_ylim([0, 2.0])
     for ax in [ax1, ax2]:
         ax.set_xscale('log')
         ax.set_xlabel('W', fontsize=28)
