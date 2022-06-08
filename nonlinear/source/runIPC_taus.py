@@ -121,7 +121,7 @@ if __name__  == '__main__':
                 # degfile = os.path.join(savedir, 'degree_{}.txt'.format(posfix))
                 # if os.path.isfile(degfile) == True:
                 #     continue
-                qparams = QRCParams(n_units=n_spins-1, n_envs=1, max_energy=max_energy, \
+                qparams = QRCParams(n_units=n_spins-1, n_envs=1, max_energy=max_energy, non_diag_var=1.0,\
                             beta=beta, virtual_nodes=V, tau=1.0, init_rho=init_rho, solver=solver, dynamic=dynamic)
                 p = multiprocessing.Process(target=IPC_compute, \
                     args=(qparams, ipcparams, length, ntrials, ranseed, log_filename, savedir, posfix, nqrc, tBs, alpha,\
