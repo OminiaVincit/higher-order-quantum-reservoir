@@ -48,6 +48,7 @@ if __name__  == '__main__':
 
     folders = [str(x) for x in folders.split(',')]
     degcapa_ls, mem_delays_ls = [], []
+    local_mem_ls = defaultdict(list)
     avg_mem, std_mem = defaultdict(list), defaultdict(list)
     key1 = 'delay=0'
     key2 = 'delay=1'
@@ -62,9 +63,9 @@ if __name__  == '__main__':
             continue
         dfolder = os.path.join(folder, 'ipc')
         degcapa, mem_delays, xs = [], [], []
+        local_mem = defaultdict(list)
         for logW in log_Ws:
             tarr = []
-            local_mem = defaultdict(list)
             pattern1 = '{}/{}_logW_{:.3f}_{}*{}*T_{}*.pickle'.format(dfolder, prefix, logW, posfix, keystr, T)
             filenames = glob.glob(pattern1)
             #print(pattern1)
@@ -88,9 +89,9 @@ if __name__  == '__main__':
                 xs.append(10**logW)
                 break
             
-            for key in keys:
-                avg_mem[key].append(np.mean(local_mem[key]))
-                std_mem[key].append(np.std(local_mem[key]))
+        for key in keys:
+            local_mem[key] = np.array(local_mem[key])
+            local_mem_ls[key].append(local_mem[key])
 
         if len(degcapa) == 0:
             continue
@@ -103,9 +104,11 @@ if __name__  == '__main__':
     mem_delays_ls = np.array(mem_delays_ls)
 
     for key in keys:
-        avg_mem[key] = np.array(avg_mem[key])
-        std_mem[key] = np.array(std_mem[key])
-        print('Shape ', avg_mem[key].shape)
+        local_mem_ls[key] = np.array(local_mem_ls[key])
+        print('Shape ', local_mem_ls[key].shape)
+        avg_mem[key] = np.mean(local_mem_ls[key], axis=0)
+        std_mem[key] = np.std(local_mem_ls[key], axis=0)
+        
 
     print(degcapa_ls.shape, len(xs))
     degcapa_mean = np.mean(degcapa_ls, axis=0)
@@ -175,7 +178,7 @@ if __name__  == '__main__':
     for key in keys:
         color = colors[dcl]
         ax2.plot(xs, avg_mem[key], 's-', alpha = 0.8, linewidth=3, markersize=10, mec='k', mew=0.5, \
-                            color=color, label=key)
+            color=color, label=key)
         ax2.fill_between(xs, avg_mem[key] - std_mem[key], avg_mem[key] + std_mem[key], \
             facecolor=color, alpha=0.2)
         dcl += 1
