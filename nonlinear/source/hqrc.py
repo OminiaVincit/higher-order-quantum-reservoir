@@ -866,7 +866,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
         val_input_seq = np.tile(val_input_seq, (nqrc, 1))
             
         train_out, val_out = [], []
-        if '_pc' in taskname:
+        if '_pc' in taskname or 'binary' in taskname:
             for k in range(length):
                 yk = 0
                 if k >= d:
