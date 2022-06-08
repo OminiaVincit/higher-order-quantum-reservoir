@@ -7,10 +7,10 @@ export OMP_NUM_THREADS=1
 EXE=../source/runIPC_Ws.py
 BINPLOT=../postprocess/plot_IPC_Ws.py
 
-BASE='rand_input_101000'
-BASE='rand_input'
+BASE='rand_input_2001000'
+#BASE='rand_input'
 
-PARENT=../../../data/hqrc/$BASE/IPC_v20220607
+PARENT=../../../data/hqrc/$BASE/IPC_v20220608
 INPUT=../data/$BASE.txt
 
 #T=2000000
@@ -26,21 +26,21 @@ DELAYS='0,100,50,50,20'
 #
 V='1'
 TAUS='10.0'
-NSPINS=5
+NSPINS=6
 NPROC=101
-QR=1
+QR=5
 
 THRES=0.0
 DYNAMIC='phase_trans'
-CAPA=5
-WIDTH=0.01
-CB=0
+CAPA=30
+WIDTH=0.05
+CB=1
 OP='X'
 TP=5
 GAMMA=0.0
 
 FRS='XXX'
-for SEED in 0
+for SEED in 0 1 2 3 4 5 6 7 8 9
 do
 LBS=IPC_op_$OP\_tp_$TP\_cb_$CB\_gam_$GAMMA\_seed_$SEED
 SAVE=$PARENT\/$LBS
@@ -51,7 +51,7 @@ done
 
 P=mdeg_4_mvar_4
 
-for THRES in 0.0 1e-4
+for THRES in 0.0 2e-5
 do
 python $BINPLOT --solver 'linear_pinv_' --parent $PARENT --folders $FRS --T $T --thres $THRES --nqrc $QR --dynamic $DYNAMIC --virtuals $V --taus $TAUS --nspins $NSPINS --keystr $P  --max_capa $CAPA --width $WIDTH
 done
