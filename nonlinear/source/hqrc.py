@@ -348,7 +348,7 @@ class HQRC(object):
 
         if self.cur_states[0] is None:
             if scale_input == True:
-                    update_input = (1.0-self.gamma) * original_input
+                update_input = (1.0-self.gamma) * original_input
             else:
                 # Use in masking input (keep the original input)
                 update_input = original_input
@@ -801,8 +801,8 @@ def view_dynamic(qparams, input_seq, ranseed, nqrc, \
     return state_list, feed_list
 
 def get_IPC(qparams, ipcparams, length, logger, nqrc=1, gamma=0.0, ranseed=-1, Ntrials=1, savedir=None, \
-    posfix='capa', feed_nothing=False, sparsity=1.0, nonlinear = 0,\
-    sigma_input=1.0, type_input=1, mask_input=0, combine_input=1, label='', dim_input=1):
+    posfix='capa', feed_nothing=False, sparsity=1.0, nonlinear = 0, type_op='Z',\
+    sigma_input=1.0, type_input=1, mask_input=0, combine_input=1, label='', dim_input=1, input_file=''):
     start_time = time.monotonic()
     fname = '{}_{}'.format(label, sys._getframe().f_code.co_name)
     transient = length // 2
@@ -810,20 +810,24 @@ def get_IPC(qparams, ipcparams, length, logger, nqrc=1, gamma=0.0, ranseed=-1, N
     if ranseed >= 0:
         np.random.seed(seed=ranseed)
     for n in range(Ntrials):
-        if type_input != 1:
-            input_signals = np.random.uniform(0, 1, length) 
+        if os.path.isfile(input_file):
+            print('Data from input file {}'.format(input_file))
+            # Read from file: 
+            input_signals = np.loadtxt(input_file)[:length, 1]
         else:
-            input_signals = np.random.uniform(-1, 1, length)
+            input_signals = np.random.uniform(0, 1, length) 
+        
+        rescale_input_signals = input_signals * 2.0 - 1.0
         input_signals = np.array(input_signals)
         input_signals = np.tile(input_signals, (nqrc, 1))
 
         ipc = IPC(ipcparams, log=logger, savedir=savedir, label=label)
         model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, feed_nothing=feed_nothing, nonlinear = nonlinear, sigma_input=sigma_input, dim_input=dim_input,\
-            type_input=type_input, mask_input=mask_input, combine_input=combine_input, feed_trials=transient//2)
+            type_input=type_input, type_op=type_op, mask_input=mask_input, combine_input=combine_input, feed_trials=transient//2)
         output_signals, _ = model.init_forward(qparams, input_signals, init_rs=True, ranseed = n + ranseed)
         logger.debug('{}: n={} per {} trials, input shape = {}, output shape={}'.format(fname, n+1, Ntrials, input_signals.shape, output_signals.shape))
         
-        ipc.run(input_signals[0, transient:], output_signals[transient:])
+        ipc.run(rescale_input_signals[transient:], output_signals[transient:])
         ipc.write_results(posfix=posfix)
     end_time = time.monotonic()
     logger.info('{}: Executed time {}'.format(fname, timedelta(seconds=end_time - start_time)))

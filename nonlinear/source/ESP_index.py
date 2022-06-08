@@ -91,14 +91,14 @@ if __name__  == '__main__':
     parser.add_argument('--gamma', type=float, default=0.0, help='Feedback strength')
 
     parser.add_argument('--type_input', type=int, default=0)
-    parser.add_argument('--type_op', type=str, default='X')
+    parser.add_argument('--type_op', type=str, default='Z')
     parser.add_argument('--randseed', type=int, default=0)
     
     parser.add_argument('--nproc', type=int, default=50)
     parser.add_argument('--dynamic', type=str, default=DYNAMIC_PHASE_TRANS,\
         help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
 
-    parser.add_argument('--interval', type=float, default=INTERVAL, help='tau-interval')
+    parser.add_argument('--interval', type=float, default=INTERVAL, help='logW-interval')
     parser.add_argument('--savedir', type=str, default='res_esp_index')
     parser.add_argument('--input_file', type=str, default='../data/sin_input_T_50.txt')
     
