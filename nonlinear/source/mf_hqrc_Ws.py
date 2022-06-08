@@ -103,7 +103,7 @@ if __name__  == '__main__':
     task, savedir, solver = args.task, args.savedir, args.solver
     taskname = os.path.basename(task)
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
-        os.mkdir(savedir)
+        os.makedirs(savedir)
 
     tstr = args.log_Ws.replace('\'','')
     log_Ws = [float(x) for x in tstr.split(',')]
