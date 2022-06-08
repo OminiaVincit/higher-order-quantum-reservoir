@@ -185,8 +185,8 @@ if __name__  == '__main__':
     for ax in [ax1, ax2]:
         ax.set_xscale('log')
         ax.set_xlabel('W', fontsize=28)
-        ax.tick_params('both', length=10, width=1, which='major', labelsize=28)
-        ax.tick_params('both', length=6, width=1, which='minor')
+        ax.tick_params('both', length=12, width=1, which='major', labelsize=28)
+        ax.tick_params('both', length=8, width=1, which='minor')
 
         ax.set_xlim([xs[0], xs[-1]])
         ax.legend()
