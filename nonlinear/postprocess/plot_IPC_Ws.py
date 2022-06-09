@@ -185,7 +185,7 @@ if __name__  == '__main__':
         dcl += 1
     ax2.set_ylabel('Degree 1', fontsize=32)
     ax2.grid(True, which="both", ls="-", color='0.65')
-    ax2.set_ylim([0, 2.0])
+    ax2.set_ylim([0, args.max_mc])
     for ax in [ax1, ax2]:
         ax.set_xscale('log')
         ax.set_xlabel('W', fontsize=28)

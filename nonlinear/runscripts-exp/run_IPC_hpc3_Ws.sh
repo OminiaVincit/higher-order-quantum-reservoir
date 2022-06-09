@@ -37,7 +37,7 @@ WIDTH=0.05
 CB=1
 OP='X'
 TP=5
-GAMMA=0.0
+GAMMA=1.0
 
 FRS='XXX'
 for SEED in 0 1 2 3 4 5 6 7 8 9
@@ -51,9 +51,9 @@ done
 
 P=mdeg_4_mvar_4
 
-for THRES in 0.0 2e-5
+for THRES in 0.0 2e-5 7e-5
 do
-python $BINPLOT --solver 'linear_pinv_' --parent $PARENT --folders $FRS --T $T --thres $THRES --nqrc $QR --dynamic $DYNAMIC --virtuals $V --taus $TAUS --nspins $NSPINS --keystr $P  --max_capa $CAPA --width $WIDTH
+python $BINPLOT --max_mc 6.0 --solver 'linear_pinv_' --parent $PARENT --folders $FRS --T $T --thres $THRES --nqrc $QR --dynamic $DYNAMIC --virtuals $V --taus $TAUS --nspins $NSPINS --keystr $P  --max_capa $CAPA --width $WIDTH
 done
 
 
