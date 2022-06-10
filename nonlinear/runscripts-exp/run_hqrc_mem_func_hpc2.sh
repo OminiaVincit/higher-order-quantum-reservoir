@@ -25,17 +25,18 @@ MAXD=200
 INT=1
 CB=1
 TP=5
-OP='X'
+OP='Z'
 
 TRAIN=3000
 VAL=1000
 BUF=1000
 RHO=1 #Version 2022-06-08 should be 1 to evaluate the fluctiation when sepcifing the initial density matrix
 
-for gamma in 0.0
+for gamma in 1.0 0.0
 do
 for V in 1
 do
 python $BIN --rho $RHO --trainlen $TRAIN --vallen $VAL --buffer $BUF --type_op $OP --type_input $TP --combine_input $CB  --solver $SOLVER --log_Ws $LOGWS --task $TASK --nqrc $QR --strength $gamma --virtuals $V --ntrials $N --nproc $PROC --mind $MIND --maxd $MAXD --interval $INT --savedir $SAVE
 done
 done
+

@@ -489,11 +489,14 @@ class HQRC(object):
                         input_state = np.cos(angle_val) * q0 + np.sin(angle_val) * q1
                     elif self.type_input == 4:
                         input_state = np.sqrt(1-value) * q0 + np.sqrt(value) * np.exp(1.j * 2*np.pi*value) * q1
-                    else:
+                    elif self.type_input == 5:
                         update_contrib = self.gamma * self.feed_inputs[i]
                         orig_contrib = original_input[i]
                         input_state = np.sqrt(1-orig_contrib) * q0 + np.sqrt(orig_contrib) * np.exp(1.j * 2*np.pi*update_contrib) * q1
-
+                    else:
+                        orig_contrib = original_input[i]
+                        update_contrib = self.gamma * self.feed_inputs[i] + (1.0 - self.gamma) * orig_contrib
+                        input_state = np.sqrt(1-orig_contrib) * q0 + np.sqrt(orig_contrib) * np.exp(1.j * 2*np.pi*update_contrib) * q1
                     input_state = input_state @ input_state.T.conj() 
                     rho = np.kron(input_state, par_rho)
 
