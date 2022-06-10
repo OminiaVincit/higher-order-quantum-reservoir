@@ -17,27 +17,27 @@ INPUT=../data/$BASE.txt
 T=1000000
 
 WD=50
-VAR=4
-DEG=4
-#DELAYS='0,100,50,50,20,20,10,10'
+VAR=7
+DEG=7
+DELAYS='0,100,50,50,20,20,10,10'
 #DELAYS='0,20,20,20,20,20,10,10'
-DELAYS='0,100,50,50,20'
+#DELAYS='0,100,50,50,20'
 
 #
 V='1'
 TAUS='10.0'
 NSPINS=6
 NPROC=101
-QR=1
+QR=5
 
 THRES=0.0
 DYNAMIC='phase_trans'
-CAPA=6
+CAPA=30
 WIDTH=0.05
 CB=1
-OP='X'
+OP='Z'
 TP=5
-GAMMA=0.0
+GAMMA=1.0
 
 FRS='XXX'
 for SEED in 0 1 2 3 4 5 6 7 8 9
@@ -49,9 +49,9 @@ FRS=$FRS,$LBS
 python $EXE --rho 1 --input_file $INPUT --gamma $GAMMA --combine_input $CB --type_input $TP --type_op $OP --nqrc $QR --nproc $NPROC --spins $NSPINS --seed $SEED --dynamic $DYNAMIC --deg_delays $DELAYS --thres $THRES --virtuals $V --length $T --max_deg $DEG --max_window $WD --max_num_var $VAR --savedir $SAVE
 done
 
-P=mdeg_4_mvar_4
+P=mdeg_$DEG\_mvar_$VAR
 
-for THRES in 0.0 2e-5
+for THRES in 0.0 2e-5 3e-5
 do
 python $BINPLOT --solver 'linear_pinv_' --parent $PARENT --folders $FRS --T $T --thres $THRES --nqrc $QR --dynamic $DYNAMIC --virtuals $V --taus $TAUS --nspins $NSPINS --keystr $P  --max_capa $CAPA --width $WIDTH
 done

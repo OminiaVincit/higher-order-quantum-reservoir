@@ -1,7 +1,7 @@
 #!/usr/bin/bash
-# Script to calculate IPC from hpc3
+# Script to calculate IPC from hpc1
 # Varying with disorder strength W in dynamical phase transition model
-# Version 2022-06-07
+# Version 2022-06-09
 export OMP_NUM_THREADS=1
 
 EXE=../source/runIPC_Ws.py
@@ -35,7 +35,7 @@ DYNAMIC='phase_trans'
 CAPA=6
 WIDTH=0.05
 CB=1
-OP='Z'
+OP='X'
 TP=5
 GAMMA=0.0
 
@@ -49,11 +49,11 @@ FRS=$FRS,$LBS
 #python $EXE --rho 1 --input_file $INPUT --gamma $GAMMA --combine_input $CB --type_input $TP --type_op $OP --nqrc $QR --nproc $NPROC --spins $NSPINS --seed $SEED --dynamic $DYNAMIC --deg_delays $DELAYS --thres $THRES --virtuals $V --length $T --max_deg $DEG --max_window $WD --max_num_var $VAR --savedir $SAVE
 done
 
-P=mdeg_4_mvar_4
+P=mdeg_$DEG\_mvar_$VAR
 
-for THRES in 0.0 2e-5 3e-5
+for THRES in 2.7e-5
 do
-python $BINPLOT --solver 'linear_pinv_' --parent $PARENT --folders $FRS --T $T --thres $THRES --nqrc $QR --dynamic $DYNAMIC --virtuals $V --taus $TAUS --nspins $NSPINS --keystr $P  --max_capa $CAPA --width $WIDTH
+python $BINPLOT --max_mc 2.0 --solver 'linear_pinv_' --parent $PARENT --folders $FRS --T $T --thres $THRES --nqrc $QR --dynamic $DYNAMIC --virtuals $V --taus $TAUS --nspins $NSPINS --keystr $P  --max_capa $CAPA --width $WIDTH
 done
 
 

@@ -28,7 +28,7 @@ INIT_RHO=0
 INTERVAL=0.05
 V=1
 
-def dum_eff_dim_index_job(savedir, dynamic, input_seq, nqrc, type_input, type_op, gamma,\
+def dum_rank_job(savedir, dynamic, input_seq, nqrc, type_input, type_op, gamma,\
     non_diag_const, tau, xs, idx, buffer, send_end, randseed):
     """
     Dump raw data of states
@@ -50,23 +50,14 @@ def dum_eff_dim_index_job(savedir, dynamic, input_seq, nqrc, type_input, type_op
         L, D = state_list.shape
         # L = Length of time series
         # D = Number of virtual nodes x Number of qubits
-        locls = []
-        for i in range(D):
-            ri = state_list[buffer:, i]
-            mi = np.mean(ri)
-            for j in range(D):
-                rj = state_list[buffer:, j]
-                mj = np.mean(rj)
-                locls.append(np.mean((ri-mi)*(rj-mj)))
-        locls = np.array(locls).reshape(D, D)
-        w, v = LA.eig(locls)
-        #print(w)
-        w = np.abs(w) / np.abs(w).sum()
-        effdim = 1.0 / np.power(w, 2).sum()
-        results[x] = effdim
+
+        state_list = state_list[buffer:, :]
+        X = np.dot(state_list.T, state_list)
+        rank_val = LA.matrix_rank(X)
+        results[x] = rank_val
 
     outbase = os.path.join(savedir, basename)
-    filename = '{}_eff_dim_{}.binaryfile'.format(outbase, idx)
+    filename = '{}_rank_{}.binaryfile'.format(outbase, idx)
     with open(filename, 'wb') as wrs:
         pickle.dump(results, wrs)
     send_end.send(filename)
@@ -76,7 +67,7 @@ if __name__  == '__main__':
     # Check for command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--length', type=int, default=2000)
-    parser.add_argument('--buffer', type=int, default=1000, help='start index to calculate eff dim')
+    parser.add_argument('--buffer', type=int, default=1000, help='start index to calculate rank of the states')
     
     parser.add_argument('--nqrc', type=int, default=1, help='Number of reservoirs')
     parser.add_argument('--non_diag_const', type=float, default=2.0, help='The nondiag const')
@@ -92,8 +83,8 @@ if __name__  == '__main__':
         help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
 
     parser.add_argument('--interval', type=float, default=INTERVAL, help='tau-interval')
-    parser.add_argument('--savedir', type=str, default='res_effdim')
-    parser.add_argument('--input_file', type=str, default='../data/sin_input_T_50.txt')
+    parser.add_argument('--savedir', type=str, default='res_rank')
+    parser.add_argument('--input_file', type=str, default='../data/rand_input_2001000.txt')
     
     args = parser.parse_args()
     print(args)
@@ -122,7 +113,7 @@ if __name__  == '__main__':
         for pid in range(nproc):
             xs = lst[pid]
             recv_end, send_end = multiprocessing.Pipe(False)
-            p = multiprocessing.Process(target=dum_eff_dim_index_job, args=(savedir, dynamic, input_seq, nqrc, type_input, type_op, gamma,\
+            p = multiprocessing.Process(target=dum_rank_job, args=(savedir, dynamic, input_seq, nqrc, type_input, type_op, gamma,\
                 non_diag_const, tau, xs, pid, buffer, send_end, randseed))
 
             jobs.append(p)
@@ -176,10 +167,10 @@ if __name__  == '__main__':
         xs.append(10**x)
     ax.plot(xs, ys, linewidth=2)
     ax.set_xscale('log')
-    #ax.set_yscale('log')
     ax.set_xlabel('W')
-    ax.set_ylabel('Dim')
-
+    ax.set_ylabel('r')
+    
+    #ax.set_yscale('log')
     outbase = filename.replace('.binaryfile', '')
     for ftype in ['png']:
         plt.savefig('{}_v1.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
