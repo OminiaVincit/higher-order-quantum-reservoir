@@ -13,9 +13,9 @@ ED=9200
 # ED=1000
 # BG=800
 
-BASE='const_input_0.5_101000'
 BASE='rand_input_101000'
 BASE='sin_input_T_50'
+BASE='const_input_0.5_101000'
 
 SAVE=../../../data/hqrc/$BASE
 INPUT_FILE=../data/$BASE.txt
@@ -29,9 +29,9 @@ INT=0.01
 
 for OP in 'X'
 do
-for TP in 5
+for TP in 6
 do
-for GAM in 1.0 0.0
+for GAM in 0.0 1.0
 do
 for RD in 5
 do

@@ -37,18 +37,18 @@ DYNAMIC='phase_trans'
 
 WIDTH=0.05
 CB=1
-OP='Z'
+OP='X'
 TP=6
 GAMMA=0.0
 
 FRS='XXX'
-for SEED in 0
+for SEED in 0 1 2 3 4 5 6 7 8 9
 do
 LBS=IPC_op_$OP\_tp_$TP\_cb_$CB\_gam_$GAMMA\_seed_$SEED
 SAVE=$PARENT\/$LBS
 FRS=$FRS,$LBS
 
-python $EXE --rho 1 --input_file $INPUT --gamma $GAMMA --combine_input $CB --type_input $TP --type_op $OP --nqrc $QR --nproc $NPROC --spins $NSPINS --seed $SEED --dynamic $DYNAMIC --deg_delays $DELAYS --thres $THRES --virtuals $V --length $T --max_deg $DEG --max_window $WD --max_num_var $VAR --savedir $SAVE
+#python $EXE --rho 1 --input_file $INPUT --gamma $GAMMA --combine_input $CB --type_input $TP --type_op $OP --nqrc $QR --nproc $NPROC --spins $NSPINS --seed $SEED --dynamic $DYNAMIC --deg_delays $DELAYS --thres $THRES --virtuals $V --length $T --max_deg $DEG --max_window $WD --max_num_var $VAR --savedir $SAVE
 done
 
 P=mdeg_$DEG\_mvar_$VAR
