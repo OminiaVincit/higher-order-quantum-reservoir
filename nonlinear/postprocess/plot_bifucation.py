@@ -8,25 +8,40 @@ import glob, os
 if __name__  == '__main__':
         # Check for command line arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--folder', type=str, default='../../../data/hqrc/dynamics_sinwave')
-    parser.add_argument('--prefix', type=str, default='phase_trans_nqr_5_V_1_tau_10.0_nondiag_2.0')
-    parser.add_argument('--posfix', type=str, default='states_id_99_len_10000')
-    parser.add_argument('--gamma', type=float, default=1.0)
+    parser.add_argument('--folder', type=str, default='../../../data/hqrc/dynamics_sinwave/states')
+    parser.add_argument('--prefix', type=str, default='phase_trans')
+    parser.add_argument('--posfix', type=str, default='states_id')
+    parser.add_argument('--gamma', type=float, default=-1.0)
+    parser.add_argument('--logW', type=float, default=0.0)
+    
     parser.add_argument('--bg', type=int, default=9000)
     parser.add_argument('--ed', type=int, default=10000)
     parser.add_argument('--nspins', type=int, default=6)
-    parser.add_argument('--rtd', type=int, default=0)
+    parser.add_argument('--nqrc', type=int, default=1)
+    parser.add_argument('--nproc', type=int, default=100)
+    parser.add_argument('--length', type=int, default=1000)
+    parser.add_argument('--randseed', type=int, default=0)
     parser.add_argument('--type_op', type=str, default='X')
     parser.add_argument('--type_input', type=int, default=5)
 
     args = parser.parse_args()
     print(args)
-    folder, prefix, posfix, gamma = args.folder, args.prefix, args.posfix, args.gamma
-    bg, ed, Nspins = args.bg, args.ed, args.nspins
-    rtd, type_input, type_op = args.rtd, args.type_input, args.type_op
+    folder, prefix, posfix, gamma, logW = args.folder, args.prefix, args.posfix, args.gamma, args.logW
+    bg, ed, Nspins, nqrc, nproc, length = args.bg, args.ed, args.nspins, args.nqrc, args.nproc, args.length
+    rtd, type_input, type_op = args.randseed, args.type_input, args.type_op
 
-    pattern = '{}_*gam_{}_op_{}_tp_{}_*rtd_{}_*{}'.format(prefix, gamma, type_op, type_input, rtd, posfix)
+    prefix = '{}_nqr_{}_V_1_tau_10.0_nondiag_2.0'.format(prefix, nqrc)
+    posfix = '{}_{}_len_{}'.format(posfix, nproc-1, length)
+
+    if gamma > 0:
+        label = 'Disorder strength'
+        pattern = '{}_*gam_{}_op_{}_tp_{}_*rtd_{}_*{}'.format(prefix, gamma, type_op, type_input, rtd, posfix)
+    else:
+        label = 'Feedback strength'
+        pattern = '{}_*logW_{:.3f}_op_{}_tp_{}_*rtd_{}_*{}'.format(prefix, logW, type_op, type_input, rtd, posfix)
+
     fls = glob.glob('{}/{}.binaryfile'.format(folder, pattern))
+    
     for filepath in fls:
         with open(filepath, 'rb') as rrs:
             z = pickle.load(rrs)
@@ -38,10 +53,10 @@ if __name__  == '__main__':
             axs = [plt.subplot(gs[i, 0]) for i in range(Nspins)]
             for i in range(Nspins):
                 ax = axs[i]
-                ax.set_xlabel('W')
+                ax.set_xlabel(label)
                 ax.set_ylabel('Spin {}'.format(i+1))
                 ax.set_xlim(10**(-2.02), 10**2.1)
-                ax.set_ylim(-1.1, 1.1)
+                #ax.set_ylim(-1.1, 1.1)
                 ax.grid()
                 ax.set_xscale('log')
                 #removing top and right borders

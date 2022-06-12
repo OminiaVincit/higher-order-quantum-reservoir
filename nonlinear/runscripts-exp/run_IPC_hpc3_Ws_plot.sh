@@ -36,8 +36,8 @@ CAPA=30
 WIDTH=0.05
 CB=1
 OP='X'
-TP=5
-GAMMA=0.0
+TP=7
+GAMMA=1.0
 
 FRS='XXX'
 for SEED in 0 1 2 3 4

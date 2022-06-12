@@ -36,11 +36,13 @@ CAPA=30
 WIDTH=0.05
 CB=1
 OP='X'
-TP=5
-GAMMA=0.0
+TP=7
+GAMMA=1.0
 
 FRS='XXX'
 for SEED in 0 1 2 3 4 5 6 7 8 9
+do
+for GAMMA in 1.0 0.5
 do
 LBS=IPC_op_$OP\_tp_$TP\_cb_$CB\_gam_$GAMMA\_seed_$SEED
 SAVE=$PARENT\/$LBS
@@ -48,12 +50,13 @@ FRS=$FRS,$LBS
 
 python $EXE --rho 1 --input_file $INPUT --gamma $GAMMA --combine_input $CB --type_input $TP --type_op $OP --nqrc $QR --nproc $NPROC --spins $NSPINS --seed $SEED --dynamic $DYNAMIC --deg_delays $DELAYS --thres $THRES --virtuals $V --length $T --max_deg $DEG --max_window $WD --max_num_var $VAR --savedir $SAVE
 done
+done
 
 P=mdeg_$DEG\_mvar_$VAR
 
-for THRES in 0.0 2e-5 7e-5
-do
-python $BINPLOT --max_mc 6.0 --solver 'linear_pinv_' --parent $PARENT --folders $FRS --T $T --thres $THRES --nqrc $QR --dynamic $DYNAMIC --virtuals $V --taus $TAUS --nspins $NSPINS --keystr $P  --max_capa $CAPA --width $WIDTH
-done
+# for THRES in 1.5e-4
+# do
+# python $BINPLOT --max_mc 6.0 --solver 'linear_pinv_' --parent $PARENT --folders $FRS --T $T --thres $THRES --nqrc $QR --dynamic $DYNAMIC --virtuals $V --taus $TAUS --nspins $NSPINS --keystr $P  --max_capa $CAPA --width $WIDTH
+# done
 
 

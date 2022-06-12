@@ -493,10 +493,15 @@ class HQRC(object):
                         update_contrib = self.gamma * self.feed_inputs[i]
                         orig_contrib = original_input[i]
                         input_state = np.sqrt(1-orig_contrib) * q0 + np.sqrt(orig_contrib) * np.exp(1.j * 2*np.pi*update_contrib) * q1
-                    else:
+                    elif self.type_input == 6:
                         orig_contrib = original_input[i]
                         update_contrib = self.gamma * self.feed_inputs[i] + (1.0 - self.gamma) * orig_contrib
                         input_state = np.sqrt(1-orig_contrib) * q0 + np.sqrt(orig_contrib) * np.exp(1.j * 2*np.pi*update_contrib) * q1
+                    else:
+                        orig_contrib = original_input[i]
+                        feed_contrib = 2.0*(np.pi * 0.5 + np.arctan(self.feed_inputs[i]))
+                        update_contrib = self.gamma * feed_contrib + (1.0 - self.gamma) * (2*np.pi*orig_contrib)
+                        input_state = np.sqrt(1-orig_contrib) * q0 + np.sqrt(orig_contrib) * np.exp(1.j * update_contrib) * q1
                     input_state = input_state @ input_state.T.conj() 
                     rho = np.kron(input_state, par_rho)
 

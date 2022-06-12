@@ -7,45 +7,39 @@
 import sys
 import numpy as np
 import os
-import scipy
 import argparse
 import multiprocessing
 import matplotlib
 #matplotlib.use("cairo")
 import matplotlib.pyplot as plt
 from matplotlib import ticker
-import time
-import datetime
 import hqrc as hqrc
-import utils
 from utils import *
-from loginit import get_module_logger
 import pickle
-from scipy import sparse
-from sklearn.metrics.pairwise import pairwise_distances
 from collections import defaultdict
 
 UNITS=6
 BETA=1e-14
-INIT_RHO=0
+INIT_RHO=1
 INTERVAL=0.05
 V=1
 
-def dumpstates_job(savedir, dynamic, input_seq, nqrc, type_input, type_op, gamma,\
+def dumpstates_job(savedir, dynamic, input_seq, nqrc, type_input, type_op, logW,\
     non_diag_const, tau, xs, idx, bg, ed, interval, send_end, randseed):
     """
     Dump raw data of states
     """
     print('Start pid={} with size {} (from {} to {})'.format(idx, len(xs), xs[0], xs[-1]))
     results = dict()
-    basename = '{}_nqr_{}_V_{}_tau_{}_nondiag_{}_gam_{}_op_{}_tp_{}_interval_{}_rtd_{}'.format(\
-        dynamic, nqrc, V, tau, non_diag_const, gamma, type_op, type_input, interval, randseed)
+    basename = '{}_nqr_{}_V_{}_tau_{}_nondiag_{}_logW_{:.3f}_op_{}_tp_{}_interval_{}_rtd_{}'.format(\
+        dynamic, nqrc, V, tau, non_diag_const, logW, type_op, type_input, interval, randseed)
 
     save_figdir = os.path.join(savedir, 'figs')
     os.makedirs(savedir, exist_ok=True)
     os.makedirs(save_figdir, exist_ok=True)
+    non_diag_var = 10**logW
     for x in xs:
-        non_diag_var = 10**x
+        gamma = 10**x
         qparams = QRCParams(n_units=UNITS-1, n_envs=1, max_energy=1.0, \
             non_diag_const=non_diag_const, non_diag_var=non_diag_var,
             beta=BETA, virtual_nodes=V, tau=tau, init_rho=INIT_RHO, solver=LINEAR_PINV, dynamic=dynamic)
@@ -70,7 +64,7 @@ def dumpstates_job(savedir, dynamic, input_seq, nqrc, type_input, type_op, gamma
         vmin2, vmax2 = np.amin(state_list[bg:ed, :]), np.amax(state_list[bg:ed, :])
         
         if randseed == 5:
-            outfile = 'nondiag_var_log_{:.3f}_{}'.format(x, basename)
+            outfile = 'loggam_{:.3f}_{}'.format(x, basename)
             for i in range(nqrc):
                 ax1, ax2 = axs[i, 0], axs[i, 1]
                 ax1.plot(ts, input_seq[i, bg:ed], c='k', label='Input')
@@ -106,7 +100,7 @@ if __name__  == '__main__':
     parser.add_argument('--nqrc', type=int, default=1, help='Number of reservoirs')
     parser.add_argument('--non_diag_const', type=float, default=2.0, help='The nondiag const')
     parser.add_argument('--tau', type=float, default=10.0, help='Tau')
-    parser.add_argument('--gamma', type=float, default=0.0, help='Feedback strength')
+    parser.add_argument('--logW', type=float, default=0.0, help='Log Disorder strength')
     
     parser.add_argument('--type_input', type=int, default=0)
     parser.add_argument('--type_op', type=str, default='Z')
@@ -116,7 +110,7 @@ if __name__  == '__main__':
     parser.add_argument('--dynamic', type=str, default=DYNAMIC_PHASE_TRANS,\
         help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
 
-    parser.add_argument('--interval', type=float, default=INTERVAL, help='tau-interval')
+    parser.add_argument('--interval', type=float, default=0.05, help='interval')
     parser.add_argument('--savedir', type=str, default='res_topo')
     parser.add_argument('--input_file', type=str, default='../data/random_binary_input.txt')
     
@@ -125,7 +119,7 @@ if __name__  == '__main__':
 
     length, nqrc, nproc, dynamic = args.length, args.nqrc, args.nproc, args.dynamic
     bg, ed, type_input, non_diag_const, tau = args.bg, args.ed, args.type_input, args.non_diag_const, args.tau
-    type_op, gamma = args.type_op, args.gamma
+    type_op, logW = args.type_op, args.logW
 
     randseed = args.randseed
     interval = args.interval
@@ -134,7 +128,6 @@ if __name__  == '__main__':
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
         os.mkdir(savedir)
     
-    # KEEP CONSTANT interval = 0.05
     tx = list(np.arange(-2, 2.1, interval))
     nproc = min(len(tx), nproc)
     lst = np.array_split(tx, nproc)
@@ -162,7 +155,7 @@ if __name__  == '__main__':
         for pid in range(nproc):
             xs = lst[pid]
             recv_end, send_end = multiprocessing.Pipe(False)
-            p = multiprocessing.Process(target=dumpstates_job, args=(savedir, dynamic, input_seq, nqrc, type_input, type_op, gamma,\
+            p = multiprocessing.Process(target=dumpstates_job, args=(savedir, dynamic, input_seq, nqrc, type_input, type_op, logW,\
                 non_diag_const, tau, xs, pid, bg, ed, interval, send_end, randseed))
 
             jobs.append(p)
@@ -221,7 +214,7 @@ if __name__  == '__main__':
             # Plot input vs states
             axs[i, j+1].plot(us_seq, ys)
 
-        ax.set_title('W=10^{:.2f}'.format(x))
+        ax.set_title('$\\gamma=10^{:.2f}$'.format(x))
         #ax2.set_yticklabels([])
         #ax2.set_xticklabels([])
         ax.legend()
