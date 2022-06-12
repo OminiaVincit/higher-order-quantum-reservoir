@@ -32,13 +32,12 @@ if __name__  == '__main__':
     parser.add_argument('--exp', type=int, default=0, help='Use exponent for alpha')
     parser.add_argument('--solver', type=str, default='', help='linear_pinv_,ridge_pinv_')
     parser.add_argument('--interval', type=float, default=0.05, help='logW-interval')
-    parser.add_argument('--gamma', type=float, default=0.0, help='Feedback strength')
 
     args = parser.parse_args()
     print(args)
     parent, folders, dynamic, prefix, keystr, thres, width = args.parent, args.folders, args.dynamic, args.prefix, args.keystr, args.thres, args.width
     V, tau, nspins, max_energy = args.virtuals, args.taus, args.nspins, args.max_energy
-    T, nqrc, gamma, solver = args.T, args.nqrc, args.gamma, args.solver
+    T, nqrc, solver = args.T, args.nqrc, args.solver
 
     #ipc_capa_logW_-0.300_tau_10.0_V_1_hqrc_IPC_phase_trans_linear_pinv_nqrc_2_
     #nspins_6_seed_0_mdeg_4_mvar_4_thres_0.0_delays_0,100,50,50,20_T_2000_cb_1_gam_0.0_op_X_tp_5
@@ -67,7 +66,7 @@ if __name__  == '__main__':
         local_mem = defaultdict(list)
         for logW in log_Ws:
             tarr = []
-            pattern1 = '{}/{}_logW_{:.3f}_{}*{}*T_{}*.pickle'.format(dfolder, prefix, logW, posfix, keystr, T)
+            pattern1 = '{}/{}_log*_{:.3f}_{}*{}*T_{}*.pickle'.format(dfolder, prefix, logW, posfix, keystr, T)
             filenames = glob.glob(pattern1)
             #print(pattern1)
             for filename in filenames:
@@ -188,7 +187,7 @@ if __name__  == '__main__':
     ax2.set_ylim([0, args.max_mc])
     for ax in [ax1, ax2]:
         ax.set_xscale('log')
-        ax.set_xlabel('W', fontsize=28)
+        ax.set_xlabel('Param', fontsize=28)
         ax.tick_params('both', length=12, width=1, which='major', labelsize=28)
         ax.tick_params('both', length=8, width=1, which='minor')
 

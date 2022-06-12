@@ -6,17 +6,18 @@ BIN=../source/view_states_gammas.py
 PLOTBIN=../postprocess/plot_bifucation.py
 
 # LENGTH=101000
-#LENGTH=10000
-#BG=9000
-#ED=9200
+LENGTH=10000
+BG=9000
+ED=9200
 
-LENGTH=1000
-ED=1000
-BG=800
+# LENGTH=1000
+# ED=1000
+# BG=800
 
 #BASE='const_input_0.5_101000'
 #BASE='rand_input_101000'
-BASE='sin_input_T_50'
+#BASE='sin_input_T_50'
+BASE='rand_input_2001000'
 
 SAVE=../../../data/hqrc/$BASE/states
 INPUT_FILE=../data/$BASE.txt
@@ -33,9 +34,9 @@ for OP in 'X'
 do
 for TP in 5
 do
-for logW in 1.0
+for logW in -2.0 -1.0 0.0 1.0 2.0
 do
-for RD in 1
+for RD in 0 1 2 3 4
 do
 python $BIN --logW $logW --type_op $OP --input_file $INPUT_FILE --randseed $RD --type_input $TP --interval $INT --savedir $SAVE --length $LENGTH --bg $BG --ed $ED --nqrc $QR --nproc $PROC
 python $PLOTBIN --folder $SAVE --logW $logW --type_op $OP --randseed $RD --type_input $TP --length $LENGTH --bg $BG --ed $ED --nqrc $QR --nproc $PROC
