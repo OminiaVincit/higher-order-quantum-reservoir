@@ -24,23 +24,36 @@ from collections import defaultdict
 
 UNITS=6
 BETA=1e-14
-INIT_RHO=0
+INIT_RHO=1
 INTERVAL=0.05
 V=1
 
-def dum_esp_index_job(savedir, dynamic, input_seq, nqrc, type_input, type_op, gamma,\
-    non_diag_const, tau, xs, idx, buffer, send_end, num_trials, randseed):
+def dum_esp_index_job(savedir, dynamic, input_seq, nqrc, type_input, type_op, v_gamma, v_non_diag_var,\
+    non_diag_const, tau, log_params, idx, buffer, send_end, num_trials, randseed):
     """
     Dump raw data of states
     """
     print('Start pid={} with size {} (from {} to {})'.format(idx, len(xs), xs[0], xs[-1]))
     results = dict()
-    basename = '{}_nqr_{}_V_{}_tau_{}_nondiag_{}_gam_{}_op_{}_tp_{}_trials_{}_rsd_{}'.format(\
-        dynamic, nqrc, V, tau, non_diag_const, gamma, type_op, type_input, num_trials, randseed)
+    if v_gamma >= 0:
+        label = 'gam_{}'.format(v_gamma)
+        log_label = 'loggam'
+    else:
+        label = 'W_{}'.format(v_non_diag_var)
+        log_label = 'logW'
+
+    basename = '{}_nqr_{}_V_{}_tau_{}_nondiag_{}_{}_op_{}_tp_{}_trials_{}_rsd_{}'.format(\
+        dynamic, nqrc, V, tau, non_diag_const, label, type_op, type_input, num_trials, randseed)
     os.makedirs(savedir, exist_ok=True)
     
-    for x in xs:
-        non_diag_var = 10**x
+    for log_par in log_params:
+        if v_gamma >= 0:
+            non_diag_var = 10**log_par
+            gamma = v_gamma
+        else:
+            gamma = 10**log_par
+            non_diag_var = v_non_diag_var
+
         qparams = QRCParams(n_units=UNITS-1, n_envs=1, max_energy=1.0, \
             non_diag_const=non_diag_const, non_diag_var=non_diag_var,
             beta=BETA, virtual_nodes=V, tau=tau, init_rho=INIT_RHO, solver=LINEAR_PINV, dynamic=dynamic)
@@ -69,7 +82,7 @@ def dum_esp_index_job(savedir, dynamic, input_seq, nqrc, type_input, type_op, ga
             dP.append(local_diff)
 
         esp_index = np.mean(dP)
-        results[x] = esp_index
+        results[log_par] = esp_index
 
     outbase = os.path.join(savedir, basename)
     filename = '{}_esp_id_{}.binaryfile'.format(outbase, idx)
@@ -88,7 +101,8 @@ if __name__  == '__main__':
     parser.add_argument('--nqrc', type=int, default=1, help='Number of reservoirs')
     parser.add_argument('--non_diag_const', type=float, default=2.0, help='The nondiag const')
     parser.add_argument('--tau', type=float, default=10.0, help='Tau')
-    parser.add_argument('--gamma', type=float, default=0.0, help='Feedback strength')
+    parser.add_argument('--gamma', type=float, default=-1.0, help='Feedback strength')
+    parser.add_argument('--non_diag_var', type=float, default=0.0, help='Disorder strength')
 
     parser.add_argument('--type_input', type=int, default=0)
     parser.add_argument('--type_op', type=str, default='Z')
@@ -98,7 +112,7 @@ if __name__  == '__main__':
     parser.add_argument('--dynamic', type=str, default=DYNAMIC_PHASE_TRANS,\
         help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
 
-    parser.add_argument('--interval', type=float, default=INTERVAL, help='logW-interval')
+    parser.add_argument('--interval', type=float, default=INTERVAL, help='interval')
     parser.add_argument('--savedir', type=str, default='res_esp_index')
     parser.add_argument('--input_file', type=str, default='../data/sin_input_T_50.txt')
     
@@ -107,7 +121,7 @@ if __name__  == '__main__':
 
     length, nqrc, nproc, dynamic, num_trials = args.length, args.nqrc, args.nproc, args.dynamic, args.trials
     buffer, type_input, non_diag_const, tau = args.buffer, args.type_input, args.non_diag_const, args.tau
-    gamma, type_op, randseed = args.gamma, args.type_op, args.randseed
+    gamma, non_diag_var, type_op, randseed = args.gamma, args.non_diag_var, args.type_op, args.randseed
     
     savedir = args.savedir
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
@@ -129,7 +143,7 @@ if __name__  == '__main__':
         for pid in range(nproc):
             xs = lst[pid]
             recv_end, send_end = multiprocessing.Pipe(False)
-            p = multiprocessing.Process(target=dum_esp_index_job, args=(savedir, dynamic, input_seq, nqrc, type_input, type_op, gamma,\
+            p = multiprocessing.Process(target=dum_esp_index_job, args=(savedir, dynamic, input_seq, nqrc, type_input, type_op, gamma, non_diag_var,\
                 non_diag_const, tau, xs, pid, buffer, send_end, num_trials, randseed))
 
             jobs.append(p)
@@ -185,6 +199,10 @@ if __name__  == '__main__':
     ax.plot(xs, ys, linewidth=2)
     ax.set_xscale('log')
     ax.set_yscale('log')
+    if gamma >= 0:
+        ax.set_xlabel('Disorder strength')
+    else:
+        ax.set_xlabel('Feedback strength')
     outbase = filename.replace('.binaryfile', '')
     for ftype in ['png']:
         plt.savefig('{}_v1.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
