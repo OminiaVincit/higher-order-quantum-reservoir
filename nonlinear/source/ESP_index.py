@@ -25,7 +25,6 @@ from collections import defaultdict
 UNITS=6
 BETA=1e-14
 INIT_RHO=1
-INTERVAL=0.05
 V=1
 
 def dum_esp_index_job(savedir, dynamic, input_seq, nqrc, type_input, type_op, v_gamma, v_non_diag_var,\
@@ -112,7 +111,7 @@ if __name__  == '__main__':
     parser.add_argument('--dynamic', type=str, default=DYNAMIC_PHASE_TRANS,\
         help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
 
-    parser.add_argument('--interval', type=float, default=INTERVAL, help='interval')
+    parser.add_argument('--interval', type=float, default=0.01, help='interval')
     parser.add_argument('--savedir', type=str, default='res_esp_index')
     parser.add_argument('--input_file', type=str, default='../data/sin_input_T_50.txt')
     

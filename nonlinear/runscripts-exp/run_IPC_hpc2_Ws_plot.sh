@@ -50,14 +50,14 @@ LBS=IPC_op_$OP\_tp_$TP\_cb_$CB\_gam_$GAMMA\_W_$W\_seed_$SEED
 SAVE=$PARENT\/$LBS
 FRS=$FRS,$LBS
 
-python $EXE --rho 1 --input_file $INPUT --non_diag_var $W --gamma $GAMMA --combine_input $CB --type_input $TP --type_op $OP --nqrc $QR --nproc $NPROC --spins $NSPINS --seed $SEED --dynamic $DYNAMIC --deg_delays $DELAYS --thres $THRES --virtuals $V --length $T --max_deg $DEG --max_window $WD --max_num_var $VAR --savedir $SAVE
+#python $EXE --rho 1 --input_file $INPUT --non_diag_var $W --gamma $GAMMA --combine_input $CB --type_input $TP --type_op $OP --nqrc $QR --nproc $NPROC --spins $NSPINS --seed $SEED --dynamic $DYNAMIC --deg_delays $DELAYS --thres $THRES --virtuals $V --length $T --max_deg $DEG --max_window $WD --max_num_var $VAR --savedir $SAVE
 done
 done
 done
 
 P=mdeg_$DEG\_mvar_$VAR
 
-for THRES in 0.0
+for THRES in 5e-5
 do
 python $BINPLOT --max_mc 2.0 --solver 'linear_pinv_' --parent $PARENT --folders $FRS --T $T --thres $THRES --nqrc $QR --dynamic $DYNAMIC --virtuals $V --taus $TAUS --nspins $NSPINS --keystr $P  --max_capa $CAPA --width $WIDTH
 done

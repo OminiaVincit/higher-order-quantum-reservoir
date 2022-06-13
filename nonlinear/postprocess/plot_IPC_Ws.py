@@ -31,7 +31,7 @@ if __name__  == '__main__':
     parser.add_argument('--keystr', type=str, default='mdeg_4_mvar_4')
     parser.add_argument('--exp', type=int, default=0, help='Use exponent for alpha')
     parser.add_argument('--solver', type=str, default='', help='linear_pinv_,ridge_pinv_')
-    parser.add_argument('--interval', type=float, default=0.05, help='logW-interval')
+    parser.add_argument('--interval', type=float, default=0.05, help='interval')
 
     args = parser.parse_args()
     print(args)
