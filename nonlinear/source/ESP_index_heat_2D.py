@@ -97,10 +97,14 @@ if __name__  == '__main__':
     parser.add_argument('--dynamic', type=str, default=DYNAMIC_PHASE_TRANS,\
         help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
 
-    parser.add_argument('--interval', type=float, default=0.05, help='interval')
-    parser.add_argument('--vmin', type=float, default=-2.0, help='minimum of parameter range')
-    parser.add_argument('--vmax', type=float, default=2.1, help='maximum of parameter range')
+    parser.add_argument('--interval', type=float, default=0.05, help='interval for logW')
+    parser.add_argument('--vmin', type=float, default=-2.0, help='minimum of parameter range for logW')
+    parser.add_argument('--vmax', type=float, default=2.1, help='maximum of parameter range for logW')
     
+    parser.add_argument('--ginterval', type=float, default=0.05, help='interval for gamma')
+    parser.add_argument('--gvmin', type=float, default=-2.0, help='minimum of parameter range for log_gamma')
+    parser.add_argument('--gvmax', type=float, default=2.1, help='maximum of parameter range for log_gamma')
+
     parser.add_argument('--savedir', type=str, default='res_esp_index')
     parser.add_argument('--input_file', type=str, default='../data/sin_input_T_50.txt')
     
@@ -111,14 +115,16 @@ if __name__  == '__main__':
     buffer, type_input, non_diag_const, tau = args.buffer, args.type_input, args.non_diag_const, args.tau
     type_op, randseed = args.type_op, args.randseed
     vmin, vmax, interval = args.vmin, args.vmax, args.interval
+    gvmin, gvmax, ginterval = args.gvmin, args.gvmax, args.ginterval
 
     savedir = args.savedir
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
         os.mkdir(savedir)
     
     vx = list(np.arange(vmin, vmax, interval))
-    nproc = min(len(vx), nproc)
-    lst = np.array_split(vx, nproc)
+    gvx = list(np.arange(gvmin, gvmax, ginterval))
+    nproc = min(len(gvx), nproc)
+    lst = np.array_split(gvx, nproc)
 
     if os.path.isfile(savedir) == False:
         # prepare the data
@@ -178,12 +184,12 @@ if __name__  == '__main__':
     ax.tick_params('both', length=4, width=1, which='minor', direction = "out")
     
     esp_ind_arr = []
-    vx = np.array(vx)
+    vx, gvx = np.array(vx), np.array(gvx)
 
     log_Ws   = vx[vx <= 2.0001]
-    log_gams = vx[vx <= 2.0001]
+    log_gams = gvx[gvx <= 2.0001]
 
-    #print(plot_vx)
+    print(log_gams)
     for log_W in log_Ws:
         for log_gam in log_gams:
             key_str = 'log_W_{:.3f}_gam_{:.3f}'.format(log_W, log_gam)
@@ -194,8 +200,8 @@ if __name__  == '__main__':
     
     ax.set_xlabel('(log) Feedback strength')
     ax.set_ylabel('(log) Disorder strength')
-    ax.set_yticks(np.linspace(log_Ws[0], log_Ws[-1], 21))
-    ax.set_xticks(np.linspace(log_gams[0], log_gams[-1], 21))
+    ax.set_yticks(np.linspace(log_Ws[0], log_Ws[-1], 11))
+    ax.set_xticks(np.linspace(log_gams[0], log_gams[-1], 11))
 
     dx, = np.diff([log_gams[0],log_gams[-1]])/(esp_ind_arr.shape[1]-1)
     dy, = -np.diff([log_Ws[0], log_Ws[-1]])/(esp_ind_arr.shape[0]-1)

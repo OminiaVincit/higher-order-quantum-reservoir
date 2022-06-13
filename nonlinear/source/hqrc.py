@@ -480,8 +480,10 @@ class HQRC(object):
                     # for input in [-1, 1]
                     rho = ((1+value)/2) * rho + ((1-value)/2) *self.Xop[0] @ rho @ self.Xop[0]
                 else:
+                    orig_contrib = original_input[i]
                     value = clipping(value, minval=0.0, maxval=1.0)
                     par_rho = partial_trace(rho, keep=[1], dims=[2**self.n_envs, 2**self.n_units], optimize=False)
+
                     if self.type_input == 2:
                         input_state = np.sqrt(1-value) * q0 + np.sqrt(value) * q1
                     elif self.type_input == 3:
@@ -489,19 +491,20 @@ class HQRC(object):
                         input_state = np.cos(angle_val) * q0 + np.sin(angle_val) * q1
                     elif self.type_input == 4:
                         input_state = np.sqrt(1-value) * q0 + np.sqrt(value) * np.exp(1.j * 2*np.pi*value) * q1
-                    elif self.type_input == 5:
-                        update_contrib = self.gamma * self.feed_inputs[i]
-                        orig_contrib = original_input[i]
-                        input_state = np.sqrt(1-orig_contrib) * q0 + np.sqrt(orig_contrib) * np.exp(1.j * 2*np.pi*update_contrib) * q1
-                    elif self.type_input == 6:
-                        orig_contrib = original_input[i]
-                        update_contrib = self.gamma * self.feed_inputs[i] + (1.0 - self.gamma) * orig_contrib
-                        input_state = np.sqrt(1-orig_contrib) * q0 + np.sqrt(orig_contrib) * np.exp(1.j * 2*np.pi*update_contrib) * q1
                     else:
-                        orig_contrib = original_input[i]
-                        feed_contrib = 2.0*(np.pi * 0.5 + np.arctan(self.feed_inputs[i]))
-                        update_contrib = self.gamma * feed_contrib + (1.0 - self.gamma) * (2*np.pi*orig_contrib)
-                        input_state = np.sqrt(1-orig_contrib) * q0 + np.sqrt(orig_contrib) * np.exp(1.j * update_contrib) * q1
+                        if self.type_input == 5:
+                            update_contrib = self.gamma * self.feed_inputs[i]
+                        elif self.type_input == 6:
+                            update_contrib = self.gamma * self.feed_inputs[i] + (1.0 - self.gamma) * orig_contrib
+                        elif self.type_input == 7:
+                            feed_contrib = 0.5 + np.arctan(self.feed_inputs[i]) / np.pi
+                            update_contrib = self.gamma * feed_contrib + (1.0 - self.gamma) * orig_contrib
+                        elif self.type_input == 8:
+                            update_contrib = self.gamma * orig_contrib
+                        else:
+                            update_contrib = self.gamma
+
+                        input_state = np.sqrt(1-orig_contrib) * q0 + np.sqrt(orig_contrib) * np.exp(1.j * 2*np.pi*update_contrib) * q1
                     input_state = input_state @ input_state.T.conj() 
                     rho = np.kron(input_state, par_rho)
 
