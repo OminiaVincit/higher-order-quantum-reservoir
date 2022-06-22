@@ -141,22 +141,22 @@ if __name__  == '__main__':
     putils.setPlot(fontsize=20, labelsize=24)
 
     ax0 = plt.subplot2grid((2,3), (0,0), colspan=1, rowspan=1)
-    ax0.set_title('THRES_{}_tot_capa'.format(thres), size=10)
+    ax0.set_title('THRES_{}_tot_capa'.format(thres), size=13)
 
     ax1 = plt.subplot2grid((2,3), (0,1), colspan=1, rowspan=1)
-    ax1.set_title('THRES_{}_capa_1'.format(thres), size=10)
+    ax1.set_title('THRES_{}_capa_1'.format(thres), size=13)
 
     ax2 = plt.subplot2grid((2,3), (0,2), colspan=1, rowspan=1)
-    ax2.set_title('THRES_{}_capa_2'.format(thres), size=10)
+    ax2.set_title('THRES_{}_capa_2'.format(thres), size=13)
 
     ax3 = plt.subplot2grid((2,3), (1,0), colspan=1, rowspan=1)
-    ax3.set_title('THRES_{}_capa_3'.format(thres), size=10)
+    ax3.set_title('THRES_{}_capa_3'.format(thres), size=13)
 
     ax4 = plt.subplot2grid((2,3), (1,1), colspan=1, rowspan=1)
-    ax4.set_title('THRES_{}_capa_4'.format(thres), size=10)
+    ax4.set_title('THRES_{}_capa_4'.format(thres), size=13)
 
     ax5 = plt.subplot2grid((2,3), (1,2), colspan=1, rowspan=1)
-    ax5.set_title('THRES_{}_capa_rest'.format(thres), size=10)
+    ax5.set_title('THRES_{}_capa_rest'.format(thres), size=13)
 
     log_Ws, log_Gs = np.array(log_Ws), np.array(log_Gs)
     log_Ws   = log_Ws[log_Ws <= 2.0001]

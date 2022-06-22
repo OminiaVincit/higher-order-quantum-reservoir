@@ -35,7 +35,7 @@ THRES=0.0
 DYNAMIC='phase_trans'
 CAPA=6
 CB=1
-OP='X'
+OP='Z'
 TP=5
 
 FRS='XXX'
@@ -51,7 +51,7 @@ done
 
 P=mdeg_$DEG\_mvar_$VAR
 
-for THRES in 0.0
+for THRES in 0.0 5e-5
 do
 python $BINPLOT --solver 'linear_pinv_' --parent $PARENT --folders $FRS --T $T --thres $THRES --nqrc $QR --dynamic $DYNAMIC --virtuals $V --taus $TAUS --nspins $NSPINS --keystr $P
 done
