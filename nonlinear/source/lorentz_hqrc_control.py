@@ -178,7 +178,7 @@ if __name__  == '__main__':
     parser.add_argument('--dynamic', type=str, default=utils.DYNAMIC_FULL_RANDOM,\
         help='full_random,half_random,full_const_trans,full_const_coeff,ion_trap')
     parser.add_argument('--non_diag_var', type=float, default=2.0, help='non_diag_var for phase_trans dynamic')
-    parser.add_argument('--non_diag_const', type=float, default=4.0, help='non_diag_const for phase_trans dynamic')
+    parser.add_argument('--non_diag_const', type=float, default=2.0, help='non_diag_const for phase_trans dynamic')
 
     parser.add_argument('--datname', type=str, default='lorentz')
     parser.add_argument('--dt', type=float, default=0.01)
