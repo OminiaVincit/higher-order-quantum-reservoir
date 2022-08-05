@@ -492,6 +492,7 @@ class HQRC(object):
                     elif self.type_input == 4:
                         input_state = np.sqrt(1-value) * q0 + np.sqrt(value) * np.exp(1.j * 2*np.pi*value) * q1
                     else:
+                        orig_contrib = clipping(orig_contrib, minval=0.0, maxval=1.0)
                         if self.type_input == 5:
                             update_contrib = self.gamma * self.feed_inputs[i]
                         elif self.type_input == 6:
@@ -744,13 +745,13 @@ def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, 
     return train_pred_seq, train_loss, val_pred_seq, val_loss
 
 def closed_loop(qparams, buffer, train_input_seq, train_output_seq, valsteps, ranseed, nqrc, \
-    gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, mask_input=0, combine_input=1, \
+    gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, type_op='Z', mask_input=0, combine_input=1, \
     feed_nothing=False, type_connect=0, use_corr=0, nonlinear=0, \
     pertubed_gammas=[], pertubed_inputs=[], pertubed_outputs=[], test_gammas=[]):
 
     model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, dim_input=0,\
-        sigma_input=sigma_input, type_input=type_input, mask_input=mask_input, \
-        combine_input=combine_input, feed_nothing=feed_nothing,\
+        sigma_input=sigma_input, type_input=type_input, type_op=type_op, \
+        mask_input=mask_input, combine_input=combine_input, feed_nothing=feed_nothing,\
         type_connect=type_connect, use_corr=use_corr, nonlinear=nonlinear, feed_trials=buffer//2)
     
     train_input_seq = np.array(train_input_seq)

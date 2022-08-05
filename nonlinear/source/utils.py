@@ -334,7 +334,7 @@ def plot_lorentz(target_seq, pred_seq, nrmse, buffer, train_len, val_len, outbas
     for i in range(len(pertubed_targets)):
         pertubed_preds = pertubed_targets[i]
         ax.plot3D(pertubed_preds[train_len:, 0], pertubed_preds[train_len:, 1], pertubed_preds[train_len:, 2], \
-            label='Target-{}'.format(i+1), alpha=0.9, rasterized=True, linestyle='-')
+            label='Target-{}'.format(i+1), alpha=0.6, rasterized=True, linestyle='-')
     
     #seqlen = len(target_seq)
     # s = 10
@@ -352,7 +352,7 @@ def plot_lorentz(target_seq, pred_seq, nrmse, buffer, train_len, val_len, outbas
     ax.w_yaxis.set_pane_color((0.0, 0.0, 0.0, 0.9))
     ax.w_zaxis.set_pane_color((0.0, 0.0, 0.0, 0.9))
     ax.grid(False)
-    #ax.legend()
+    ax.legend()
     ax.set_title(n_title, fontsize=12)
     ax.set_xlim([-25, 25])
     ax.set_ylim([-25, 25])

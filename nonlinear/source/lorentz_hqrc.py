@@ -23,12 +23,12 @@ from loginit import get_module_logger
 LORENTZ_LYAPUNOV = 0.9056
 
 def chaos_job(dataset, args, strength, noise_level):
-    nqrc, type_input, combine_input = args.nqrc, args.type_input, args.combine_input
+    nqrc, type_input, combine_input, type_op = args.nqrc, args.type_input, args.combine_input, args.type_op
     nonlinear, sigma_input = args.nonlinear, args.sigma_input
     n_units, max_energy, reg = args.units, args.coupling, args.reg
     tau, V, rseed = args.tau, args.virtuals, args.rseed
     init_rho, solver, load_result = args.rho, args.solver, args.load_result
-    deep, Ntrials = args.deep, args.Ntrials
+    Ntrials = args.Ntrials
     non_diag_const, non_diag_var = args.non_diag_const, args.non_diag_var
     T_buf, T_train, T_val, dt = args.T_buf, args.T_train, args.T_val, args.dt
 
@@ -44,9 +44,10 @@ def chaos_job(dataset, args, strength, noise_level):
     os.makedirs(resdir, exist_ok=True)
 
     # Evaluation
-    basename = '{}_{}_var_{}_{}_units_{}_V_{}_QRs_{}_trials_{}_tau_{}_alpha_{:.3f}_cb_{}_tp_{}_nl_{}_sig_{}_noise_{:.3f}_dt_{}_T_{}_{}_{}_seed_{}'.format(\
+    basename = '{}_{}_var_{}_{}_units_{}_V_{}_QRs_{}_trials_{}_tau_{}_alpha_{:.3f}_cb_{}_op_{}_tp_{}_nl_{}_sig_{}_noise_{:.3f}_dt_{}_T_{}_{}_{}_seed_{}'.format(\
         datname, dynamic, non_diag_var, solver, n_units, V, nqrc, Ntrials, \
-        tau, strength, combine_input, type_input, nonlinear, sigma_input, noise_level, dt, T_buf, T_train, T_val, rseed)
+        tau, strength, combine_input, type_op, type_input, nonlinear, sigma_input, \
+        noise_level, dt, T_buf, T_train, T_val, rseed)
     
     log_filename = os.path.join(logdir, '{}.log'.format(basename))
     logger = get_module_logger(__name__, log_filename)
@@ -79,8 +80,8 @@ def chaos_job(dataset, args, strength, noise_level):
         ranseed = rseed + (ntrial+1)*100
         if load_result == 0:
             train_pred_seq, val_pred_seq = hqrc.closed_loop(qparams, buffer, train_input_seq, train_output_seq, val_len, ranseed=ranseed, nqrc=nqrc,\
-                gamma=strength, sigma_input=sigma_input, type_input=type_input, combine_input=combine_input,\
-                deep=deep, nonlinear=nonlinear)
+                gamma=strength, sigma_input=sigma_input, type_input=type_input, type_op=type_op, \
+                combine_input=combine_input, nonlinear=nonlinear)
             
             pred_seq = np.concatenate([train_pred_seq, val_pred_seq])
             # descaling data
@@ -166,14 +167,14 @@ if __name__  == '__main__':
     parser.add_argument('--virtuals', type=int, default=1)
 
     parser.add_argument('--tau', type=float, default=10.0, help='Interval between the inputs')
-    parser.add_argument('--strength', type=float, default=0.0, help='Connection strengths')
+    parser.add_argument('--strengths', type=str, default='0.0', help='Connection strengths')
     parser.add_argument('--nqrc', type=int, default=3, help='Number of reservoirs')
 
-    parser.add_argument('--deep', type=int, default=0, help='0: mutual connection, 1: forward connection')
     parser.add_argument('--savedir', type=str, default='../results/test_lorentz')
     parser.add_argument('--rseed', type=int, default=0)
     parser.add_argument('--combine_input', type=int, default=1)
     parser.add_argument('--type_input', type=int, default=0)
+    parser.add_argument('--type_op', type=str, default='Z')
     
     parser.add_argument('--sigma_input', type=float, default=1.0)
     parser.add_argument('--nonlinear', type=int, default=0)
@@ -184,6 +185,7 @@ if __name__  == '__main__':
     args = parser.parse_args()
     T_buf, T_train, T_val, dt = args.T_buf, args.T_train, args.T_val, args.dt
     savedir, datname = args.savedir, args.datname
+    strengths = [float(x) for x in args.strengths.split(',')]
 
     os.makedirs(savedir, exist_ok=True)
     save_fig = os.path.join(savedir, 'figs')
@@ -212,7 +214,7 @@ if __name__  == '__main__':
         exit(1)
     
     jobs, pipels = [], []
-    for strength in np.linspace(0, 1, 21):
+    for strength in strengths:
         for noise_level in [0.0, 0.01, 0.05, 0.1]:
             p = multiprocessing.Process(target=chaos_job, args=(dataset, args, strength, noise_level))
             jobs.append(p)
