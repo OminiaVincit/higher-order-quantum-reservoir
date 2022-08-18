@@ -32,11 +32,11 @@ INT=0.01
 
 for OP in 'X'
 do
-for TP in 5
+for TP in 8
 do
-for logW in -2.0 -1.0 0.0 1.0 2.0
+for logW in -1.0 0.0 1.0 2.0
 do
-for RD in 0 1 2 3 4
+for RD in 0
 do
 python $BIN --logW $logW --type_op $OP --input_file $INPUT_FILE --randseed $RD --type_input $TP --interval $INT --savedir $SAVE --length $LENGTH --bg $BG --ed $ED --nqrc $QR --nproc $PROC
 python $PLOTBIN --folder $SAVE --logW $logW --type_op $OP --randseed $RD --type_input $TP --length $LENGTH --bg $BG --ed $ED --nqrc $QR --nproc $PROC

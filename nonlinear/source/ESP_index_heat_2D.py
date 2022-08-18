@@ -19,28 +19,26 @@ import pickle
 from collections import defaultdict
 from matplotlib.colors import LogNorm, SymLogNorm
 
-UNITS=6
 BETA=1e-14
 INIT_RHO=1
-V=1
 
-def dum_esp_index_job(savedir, dynamic, input_seq, nqrc, type_input, type_op,\
-    non_diag_const, tau, log_Ws, log_gams, idx, buffer, send_end, num_trials, randseed):
+def dum_esp_index_job(savedir, dynamic, input_seq, n_units, nqrc, type_input, type_op,\
+    non_diag_const, V, tau, log_Ws, log_gams, idx, buffer, send_end, num_trials, randseed):
     """
     Dump raw data of states
     """
     print('Start pid={} with size {} (from {} to {})'.format(idx, len(log_gams), log_gams[0], log_gams[-1]))
     results = dict()
 
-    basename = 'heat_{}_nqr_{}_V_{}_tau_{}_nondiag_{}_op_{}_tp_{}_trials_{}_rsd_{}'.format(\
-        dynamic, nqrc, V, tau, non_diag_const, type_op, type_input, num_trials, randseed)
+    basename = 'heat_{}_units_{}_nqr_{}_V_{}_tau_{}_nondiag_{}_op_{}_tp_{}_trials_{}_rsd_{}'.format(\
+        dynamic, n_units, nqrc, V, tau, non_diag_const, type_op, type_input, num_trials, randseed)
     os.makedirs(savedir, exist_ok=True)
     
     for log_gam in log_gams:
         gamma = 10**log_gam
         for log_W in log_Ws:
             non_diag_var = 10**log_W
-            qparams = QRCParams(n_units=UNITS-1, n_envs=1, max_energy=1.0, \
+            qparams = QRCParams(n_units=n_units-1, n_envs=1, max_energy=1.0, \
                 non_diag_const=non_diag_const, non_diag_var=non_diag_var,
                 beta=BETA, virtual_nodes=V, tau=tau, init_rho=INIT_RHO, solver=LINEAR_PINV, dynamic=dynamic)
             model = hqrc.HQRC(nqrc=nqrc, gamma=gamma, sparsity=1.0, sigma_input=1.0, nonlinear=0, type_input=type_input, type_op=type_op)
@@ -85,9 +83,11 @@ if __name__  == '__main__':
     parser.add_argument('--buffer', type=int, default=1000, help='start index to calculate ESP index')
     parser.add_argument('--trials', type=int, default=1, help='Number of trials')
 
+    parser.add_argument('--units', type=int, default=6, help='Number of spins')
     parser.add_argument('--nqrc', type=int, default=1, help='Number of reservoirs')
     parser.add_argument('--non_diag_const', type=float, default=2.0, help='The nondiag const')
     parser.add_argument('--tau', type=float, default=10.0, help='Tau')
+    parser.add_argument('--virtual', type=int, default=1, help='Number of virtual nodes')
 
     parser.add_argument('--type_input', type=int, default=0)
     parser.add_argument('--type_op', type=str, default='Z')
@@ -115,7 +115,7 @@ if __name__  == '__main__':
     buffer, type_input, non_diag_const, tau = args.buffer, args.type_input, args.non_diag_const, args.tau
     type_op, randseed = args.type_op, args.randseed
     vmin, vmax, interval = args.vmin, args.vmax, args.interval
-    gvmin, gvmax, ginterval = args.gvmin, args.gvmax, args.ginterval
+    gvmin, gvmax, ginterval, V, n_units = args.gvmin, args.gvmax, args.ginterval, args.virtual, args.units
 
     savedir = args.savedir
     if os.path.isfile(savedir) == False and os.path.isdir(savedir) == False:
@@ -137,8 +137,8 @@ if __name__  == '__main__':
         for pid in range(nproc):
             val_ls = lst[pid]
             recv_end, send_end = multiprocessing.Pipe(False)
-            p = multiprocessing.Process(target=dum_esp_index_job, args=(savedir, dynamic, input_seq, nqrc, type_input, type_op,\
-                non_diag_const, tau, vx, val_ls, pid, buffer, send_end, num_trials, randseed))
+            p = multiprocessing.Process(target=dum_esp_index_job, args=(savedir, dynamic, input_seq, n_units, nqrc, type_input, type_op,\
+                non_diag_const, V, tau, vx, val_ls, pid, buffer, send_end, num_trials, randseed))
 
             jobs.append(p)
             pipels.append(recv_end)
