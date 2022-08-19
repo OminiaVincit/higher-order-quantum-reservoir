@@ -199,10 +199,17 @@ if __name__  == '__main__':
     #ax.plot(ts, rs, ls="", marker=",")
 
     ids = np.array([0, 20 , 30, 40, 50, 60, 80]) * int(INTERVAL / interval)
-    fig, axs = plt.subplots(len(ids), 7, figsize=(36, 24), squeeze=False, gridspec_kw={'width_ratios': [6, 1, 1, 1, 1, 1, 1]})
+    M = len(ids)
 
-    for i in range(len(ids)):
+    #fig, axs = plt.subplots(M, 7, figsize=(36, 24), squeeze=False, \
+    #    gridspec_kw={'width_ratios': [6, 1, 1, 1, 1, 1, 1]})
+    
+    fig, axs = plt.subplots(M, 2, figsize=(36, 24), squeeze=False, \
+        gridspec_kw={'width_ratios': [1, 1]})
+    
+    for i in range(M):
         ax = axs[i, 0]
+        bx = axs[i, 1]
         x = tx[int(ids[i])]
         state_list = z[x]
         print(state_list.shape)
@@ -212,14 +219,24 @@ if __name__  == '__main__':
             # Plot time series of reservoir states
             ax.plot(bs, ys, label='spin-{}'.format(j+1), linewidth=2)
             # Plot input vs states
-            axs[i, j+1].plot(us_seq, ys)
+            # axs[i, j+1].plot(us_seq, ys)
 
-        ax.set_title('$\\gamma=10^{:.2f}$'.format(x))
+        # Plot power spectrum for average value
+        # ys = np.mean(state_list[bg:ed, :UNITS], axis=1)
+        ys = state_list[bg:ed, 0]
+        #ys = np.random.rand(ed-bg+1)
+        dt = 0.01
+        bx.psd(ys, 500, 1/dt, scale_by_freq=True, linewidth=3)
+        #bx.set_ylim([-200, 0])
+
+        ax.set_title('$\\gamma=1e{:.2f}$'.format(x))
         #ax2.set_yticklabels([])
-        #ax2.set_xticklabels([])
-        ax.legend()
+        if i < M - 1:
+            ax.set_xticklabels([])
+        if i == 0:
+            ax.legend()
 
     outbase = filename.replace('.binaryfile', '_bg_{}_ed_{}'.format(bg, ed))
     for ftype in ['png']:
-        plt.savefig('{}_v1.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
+        plt.savefig('{}_v2.{}'.format(outbase, ftype), bbox_inches='tight', dpi=600)
     plt.show()

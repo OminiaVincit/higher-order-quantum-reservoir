@@ -156,6 +156,9 @@ class HQRC(object):
                                 W_feed[bg:ed, i] = smat.copy()
             elif self.type_connect == 0:
                 W_feed = np.random.normal(loc=0, scale=self.sigma_input, size=(n_nodes, nqrc))
+                # eigv_list = np.linalg.eig(W_feed)[0]
+                # spectral_radius = np.max(np.abs(eigv_list)) # not square matrix
+                # W_feed = W_feed / spectral_radius
             elif self.type_connect == 1:
                 feed_mat = np.random.normal(loc=0, scale=self.sigma_input, size=(n_nodes, nqrc))
                 for i in range(nqrc-1):
@@ -502,10 +505,14 @@ class HQRC(object):
                             update_contrib = self.gamma * feed_contrib + (1.0 - self.gamma) * orig_contrib
                         elif self.type_input == 8:
                             update_contrib = self.gamma * orig_contrib
+                        elif self.type_input == 9:
+                            orig_contrib =  0.5 # let this part become 0.5 (should be a parameter 8/19)
+                            update_contrib = original_input[i] + self.gamma * self.feed_inputs[i]
                         else:
                             update_contrib = self.gamma
 
                         input_state = np.sqrt(1-orig_contrib) * q0 + np.sqrt(orig_contrib) * np.exp(1.j * 2*np.pi*update_contrib) * q1
+                    
                     input_state = input_state @ input_state.T.conj() 
                     rho = np.kron(input_state, par_rho)
 

@@ -8,16 +8,16 @@ PLOTBIN=../postprocess/plot_bifucation.py
 # LENGTH=101000
 LENGTH=10000
 BG=9000
-ED=9200
+ED=10000
 
 # LENGTH=1000
 # ED=1000
 # BG=800
 
 #BASE='const_input_0.5_101000'
-#BASE='rand_input_101000'
+BASE='rand_input_101000'
 #BASE='sin_input_T_50'
-BASE='rand_input_2001000'
+#BASE='rand_input_2001000'
 
 SAVE=../../../data/hqrc/$BASE/states
 INPUT_FILE=../data/$BASE.txt
@@ -32,7 +32,7 @@ INT=0.01
 
 for OP in 'X'
 do
-for TP in 8
+for TP in 9
 do
 for logW in -1.0 0.0 1.0 2.0
 do
