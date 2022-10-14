@@ -5,12 +5,12 @@ export OMP_NUM_THREADS=1
 EXE=../source/lorentz_hqrc_control.py
 SAVE=../../../data/hqrc/del_lorentz_control_v202208
 
-UNITS=5
+UNITS=6
 SOLVER=linear_pinv
 DYNAMIC=phase_trans
 TAU=10.0
 DT=0.001
-BUF=20
+BUF=0
 TRAIN=100
 VAL=100
 
@@ -23,7 +23,7 @@ NON=0
 LOAD=0
 N=1
 LORHO='24.0,25.0'
-PERTUBEDS='0.1,0.2'
+PERTUBEDS='0.01,0.02'
 MAINRHO=28.0
 STRENGTH='0.0,0.01,0.02,0.05,0.1,0.2,0.5,1.0,2.0,5.0,10.0'
 
