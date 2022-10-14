@@ -344,6 +344,9 @@ class HQRC(object):
 
     def step_forward(self, local_rhos, input_val, feedback_flag=1, scale_input=True):
         nqrc = self.nqrc
+        n_nodes = self.__get_comput_nodes()
+        n_local_nodes = self.__get_qr_nodes()
+
         original_input = input_val.copy().ravel()
         
         q0 = np.array([1, 0]).reshape((2, 1))
@@ -419,6 +422,12 @@ class HQRC(object):
                 tmp_states = min_max_norm(tmp_states, self.feed_min, self.feed_max)
             #print(tmp_states, self.feed_min, self.feed_max)
             self.feed_inputs = tmp_states.copy().ravel()
+            
+            # normalize feed_inputs by dividing to the number of computational nodes
+            if self.type_connect == 0:
+                self.feed_inputs = self.feed_inputs / n_nodes
+            elif self.type_connect == 1:
+                self.feed_inputs = self.feed_inputs / n_local_nodes
             
             tmp_states[tmp_states < 0.0] = 0.0
             tmp_states[tmp_states > 1.0] = 1.0
