@@ -155,7 +155,9 @@ class HQRC(object):
                                 ed = bg + n_local_nodes
                                 W_feed[bg:ed, i] = smat.copy()
             elif self.type_connect == 0:
-                W_feed = np.random.normal(loc=0, scale=self.sigma_input, size=(n_nodes, nqrc))
+                #W_feed = np.random.normal(loc=0, scale=self.sigma_input, size=(n_nodes, nqrc))
+                W_feed = np.random.uniform(0.0, 1.0, size=(n_nodes, nqrc))
+
                 # eigv_list = np.linalg.eig(W_feed)[0]
                 # spectral_radius = np.max(np.abs(eigv_list)) # not square matrix
                 # W_feed = W_feed / spectral_radius
