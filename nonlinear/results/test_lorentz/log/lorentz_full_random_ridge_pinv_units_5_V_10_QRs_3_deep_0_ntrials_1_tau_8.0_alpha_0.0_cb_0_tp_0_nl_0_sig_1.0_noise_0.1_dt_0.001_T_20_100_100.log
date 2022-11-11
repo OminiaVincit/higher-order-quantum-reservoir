@@ -1,0 +1,6 @@
+2021-09-14 01:53:53,773 - __main__ - INFO - ../results/test_lorentz/log/lorentz_full_random_ridge_pinv_units_5_V_10_QRs_3_deep_0_ntrials_1_tau_8.0_alpha_0.0_cb_0_tp_0_nl_0_sig_1.0_noise_0.1_dt_0.001_T_20_100_100.log
+2021-09-14 01:53:53,773 - __main__ - INFO - Namespace(T_buf=20, T_train=100, T_val=100, combine_input=0, coupling=1.0, datname='lorentz', deep=0, dt=0.001, dynamic='full_random', noise_level=0.1, nonlinear=0, nqrc=3, ntrials=1, reg=1e-14, rho=0, rseed=0, savedir='../results/test_lorentz', sigma_input=1.0, solver='ridge_pinv', strength=0.0, tau=8.0, type_input=0, units=5, virtuals=10)
+2021-09-14 01:53:55,321 - __main__ - DEBUG - Data set shape (220001, 3)
+2021-09-14 02:13:22,225 - __main__ - INFO - loss val=1.1721270506651467, train=9.895316211006521e-05
+2021-09-14 02:13:22,225 - __main__ - DEBUG - shape train_pred=(120000, 3), val_pred=(100000, 3), pred_seq=(199999, 3)
+2021-09-14 02:13:25,620 - __main__ - INFO - Output to file ../results/test_lorentz/figs/lorentz_full_random_ridge_pinv_units_5_V_10_QRs_3_deep_0_ntrials_1_tau_8.0_alpha_0.0_cb_0_tp_0_nl_0_sig_1.0_noise_0.1_dt_0.001_T_20_100_100_test.png

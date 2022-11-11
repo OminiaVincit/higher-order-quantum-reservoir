@@ -1,0 +1,25 @@
+2021-09-14 09:36:29,589 - __main__ - INFO - ../results/test_lorentz/log/lorentz_full_random_ridge_pinv_units_5_V_10_QRs_3_deep_0_ntrials_1_tau_8.0_alpha_0.0_cb_0_tp_0_nl_0_sig_1.0_noise_0.1_dt_0.01_T_20_10_10.log
+2021-09-14 09:36:29,589 - __main__ - INFO - Namespace(T_buf=20, T_train=10, T_val=10, combine_input=0, coupling=1.0, datname='lorentz', deep=0, dt=0.01, dynamic='full_random', load_result=0, noise_level=0.1, nonlinear=0, nqrc=3, ntrials=1, reg=1e-14, rho=0, rseed=0, savedir='../results/test_lorentz', sigma_input=1.0, solver='ridge_pinv', strength=0.0, tau=8.0, type_input=0, units=5, virtuals=10)
+2021-09-14 09:36:29,641 - __main__ - DEBUG - Dumped data to ../results/test_lorentz/data/lorentz_dt_0.01_20_10_10.pickle
+2021-09-14 09:36:29,641 - __main__ - DEBUG - Data set shape (4001, 3)
+2021-09-14 09:36:43,997 - __main__ - INFO - ../results/test_lorentz/log/lorentz_full_random_ridge_pinv_units_5_V_10_QRs_3_deep_0_ntrials_1_tau_8.0_alpha_0.0_cb_0_tp_0_nl_0_sig_1.0_noise_0.1_dt_0.01_T_20_10_10.log
+2021-09-14 09:36:43,997 - __main__ - INFO - Namespace(T_buf=20, T_train=10, T_val=10, combine_input=0, coupling=1.0, datname='lorentz', deep=0, dt=0.01, dynamic='full_random', load_result=0, noise_level=0.1, nonlinear=0, nqrc=3, ntrials=1, reg=1e-14, rho=0, rseed=0, savedir='../results/test_lorentz', sigma_input=1.0, solver='ridge_pinv', strength=0.0, tau=8.0, type_input=0, units=5, virtuals=10)
+2021-09-14 09:36:43,997 - __main__ - DEBUG - Loaded data from ../results/test_lorentz/data/lorentz_dt_0.01_20_10_10.pickle
+2021-09-14 09:36:43,997 - __main__ - DEBUG - Data set shape (4001, 3)
+2021-09-14 09:36:57,950 - __main__ - INFO - ../results/test_lorentz/log/lorentz_full_random_ridge_pinv_units_5_V_10_QRs_3_deep_0_ntrials_1_tau_8.0_alpha_0.0_cb_0_tp_0_nl_0_sig_1.0_noise_0.1_dt_0.01_T_20_10_10.log
+2021-09-14 09:36:57,950 - __main__ - INFO - Namespace(T_buf=20, T_train=10, T_val=10, combine_input=0, coupling=1.0, datname='lorentz', deep=0, dt=0.01, dynamic='full_random', load_result=0, noise_level=0.1, nonlinear=0, nqrc=3, ntrials=1, reg=1e-14, rho=0, rseed=0, savedir='../results/test_lorentz', sigma_input=1.0, solver='ridge_pinv', strength=0.0, tau=8.0, type_input=0, units=5, virtuals=10)
+2021-09-14 09:36:57,950 - __main__ - DEBUG - Loaded data from ../results/test_lorentz/data/lorentz_dt_0.01_20_10_10.pickle
+2021-09-14 09:36:57,950 - __main__ - DEBUG - Data set shape (4001, 3)
+2021-09-14 09:37:21,979 - __main__ - INFO - loss val=9.780818545775983, train=8.835938778459287e-05
+2021-09-14 09:37:21,979 - __main__ - DEBUG - shape train_pred=(3000, 3), val_pred=(1000, 3), pred_seq=(1999, 3)
+2021-09-14 09:37:54,155 - __main__ - INFO - ../results/test_lorentz/log/lorentz_full_random_ridge_pinv_units_5_V_10_QRs_3_deep_0_ntrials_1_tau_8.0_alpha_0.0_cb_0_tp_0_nl_0_sig_1.0_noise_0.1_dt_0.01_T_20_10_10.log
+2021-09-14 09:37:54,155 - __main__ - INFO - Namespace(T_buf=20, T_train=10, T_val=10, combine_input=0, coupling=1.0, datname='lorentz', deep=0, dt=0.01, dynamic='full_random', load_result=1, noise_level=0.1, nonlinear=0, nqrc=3, ntrials=1, reg=1e-14, rho=0, rseed=0, savedir='../results/test_lorentz', sigma_input=1.0, solver='ridge_pinv', strength=0.0, tau=8.0, type_input=0, units=5, virtuals=10)
+2021-09-14 09:37:54,155 - __main__ - DEBUG - Loaded data from ../results/test_lorentz/data/lorentz_dt_0.01_20_10_10.pickle
+2021-09-14 09:37:54,155 - __main__ - DEBUG - Data set shape (4001, 3)
+2021-09-14 09:37:54,155 - __main__ - INFO - Loaded results from ../results/test_lorentz/results/rs_lorentz_full_random_ridge_pinv_units_5_V_10_QRs_3_deep_0_ntrials_1_tau_8.0_alpha_0.0_cb_0_tp_0_nl_0_sig_1.0_noise_0.1_dt_0.01_T_20_10_10.pickle
+2021-09-14 09:38:13,300 - __main__ - INFO - ../results/test_lorentz/log/lorentz_full_random_ridge_pinv_units_5_V_10_QRs_3_deep_0_ntrials_1_tau_8.0_alpha_0.0_cb_0_tp_0_nl_0_sig_1.0_noise_0.1_dt_0.01_T_20_10_10.log
+2021-09-14 09:38:13,300 - __main__ - INFO - Namespace(T_buf=20, T_train=10, T_val=10, combine_input=0, coupling=1.0, datname='lorentz', deep=0, dt=0.01, dynamic='full_random', load_result=1, noise_level=0.1, nonlinear=0, nqrc=3, ntrials=1, reg=1e-14, rho=0, rseed=0, savedir='../results/test_lorentz', sigma_input=1.0, solver='ridge_pinv', strength=0.0, tau=8.0, type_input=0, units=5, virtuals=10)
+2021-09-14 09:38:13,301 - __main__ - DEBUG - Loaded data from ../results/test_lorentz/data/lorentz_dt_0.01_20_10_10.pickle
+2021-09-14 09:38:13,301 - __main__ - DEBUG - Data set shape (4001, 3)
+2021-09-14 09:38:13,301 - __main__ - INFO - Loaded results from ../results/test_lorentz/results/rs_lorentz_full_random_ridge_pinv_units_5_V_10_QRs_3_deep_0_ntrials_1_tau_8.0_alpha_0.0_cb_0_tp_0_nl_0_sig_1.0_noise_0.1_dt_0.01_T_20_10_10.pickle
+2021-09-14 09:38:15,997 - __main__ - INFO - Output to file ../results/test_lorentz/figs/lorentz_full_random_ridge_pinv_units_5_V_10_QRs_3_deep_0_ntrials_1_tau_8.0_alpha_0.0_cb_0_tp_0_nl_0_sig_1.0_noise_0.1_dt_0.01_T_20_10_10_test.png

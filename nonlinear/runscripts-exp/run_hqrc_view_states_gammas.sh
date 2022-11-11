@@ -14,15 +14,15 @@ ED=10000
 # ED=1000
 # BG=800
 
-#BASE='const_input_0.5_101000'
-BASE='rand_input_101000'
+BASE='const_input_0.5_101000'
+#BASE='rand_input_101000'
 #BASE='sin_input_T_50'
 #BASE='rand_input_2001000'
 
 SAVE=../../../data/hqrc/$BASE/states
 INPUT_FILE=../data/$BASE.txt
 
-QR=1
+QR=5
 PROC=100
 CONST=0
 INT=0.01
@@ -30,9 +30,9 @@ INT=0.01
 
 #RSFILE=../../data/qrc_topo/dynamics_binary_long/phase_trans_nqr_1_V_1_tp_1_states_id_81_len_101000.binaryfile
 
-for OP in 'X'
+for OP in 'X' 'Z'
 do
-for TP in 9
+for TP in 5
 do
 for logW in -1.0 0.0 1.0 2.0
 do
