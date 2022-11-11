@@ -20,7 +20,12 @@ import gendata as gdata
 import pickle
 from loginit import get_module_logger
 
-def chaos_job(data, pertubed_data, args, strength, noise_level):
+def fixed_points(lo_rho):
+    fpA = np.array([  np.sqrt(8/3*(lo_rho-1)),   np.sqrt(8/3*(lo_rho-1)), lo_rho - 1]).reshape((3, 1))
+    fpB = np.array([ -np.sqrt(8/3*(lo_rho-1)),  -np.sqrt(8/3*(lo_rho-1)), lo_rho - 1]).reshape((3, 1))
+    return fpA, fpB
+
+def chaos_job(data, pertubed_data, pertubed_strengths, args, strength, noise_level):
     nqrc, type_input, combine_input = args.nqrc, args.type_input, args.combine_input
     nonlinear, sigma_input = args.nonlinear, args.sigma_input
     n_units, max_energy, reg = args.units, args.coupling, args.reg
@@ -41,14 +46,9 @@ def chaos_job(data, pertubed_data, args, strength, noise_level):
     resdir = os.path.join(savedir, 'results')
     os.makedirs(resdir, exist_ok=True)
 
-    if args.pertubed_strengths != ',':
-        pertubed_strengths = [float(x) for x in args.pertubed_strengths.split(',')]
-    else:
-        pertubed_strengths = []
-
     # Evaluation
     basename = '{}_{}_{}_{}_{}_var_{}_{}_units_{}_V_{}_QRs_{}_trials_{}_tau_{}_alpha_{:.3f}_cb_{}_tp_{}_nl_{}_sig_{}_noise_{:.3f}_dt_{}_T_{}_{}_{}_seed_{}'.format(\
-        datname, args.main_rho, args.lo_rhos.replace(',','_'), args.pertubed_strengths.replace(',','_'), \
+        datname, args.main_rho, args.lo_rhos.replace(',','_'), args.controls.replace(',','_'), \
         dynamic, non_diag_var, solver, n_units, V, nqrc, Ntrials, \
         tau, strength, combine_input, type_input, nonlinear, sigma_input, noise_level, dt, T_buf, T_train, T_val, rseed)
     
@@ -62,14 +62,20 @@ def chaos_job(data, pertubed_data, args, strength, noise_level):
     val_len  = int(T_val / dt)
     length = buffer + train_len + val_len
 
-    #test_strengths = np.linspace(0.0, 0.8, val_len)
-    test_strengths = []
+    if strength < 0.0:
+        test_strengths = np.linspace(pertubed_strengths[-1], 0.8, val_len)
+    else:
+        test_strengths = []
 
     pertubed_inputs, pertubed_outputs, pertubed_targets = [], [], []
-    # vmin, vmax = np.min(data), np.max(data)
-    # for pdata in pertubed_data:
-    #     vmin = min(np.min(pdata), vmin)
-    #     vmax = max(np.max(pdata), vmax)
+    vmin, vmax = np.min(data), np.max(data)
+    logger.debug('main data vmin={}, vmax={}'.format(vmin, vmax))
+    for pdata in pertubed_data:
+        pvmin, pvmax = np.min(pdata), np.max(pdata)
+        logger.debug('pertubed data pvmin={}, pvmax={}'.format(pvmin, pvmax))
+        vmin = min(pvmin, vmin)
+        vmax = max(pvmax, vmax)
+    logger.debug('all data vmin={}, vmax={}'.format(vmin, vmax))
 
     train_input_seq = np.array(data[: buffer + train_len]).T
     ndup = int(nqrc/train_input_seq.shape[0])
@@ -77,7 +83,7 @@ def chaos_job(data, pertubed_data, args, strength, noise_level):
     if len(pertubed_data) == 0:
         train_input_seq = utils.add_noise(train_input_seq, noise_level)
 
-    vmin, vmax = np.min(train_input_seq), np.max(train_input_seq)
+    #vmin, vmax = np.min(train_input_seq), np.max(train_input_seq)
     train_input_seq = utils.min_max_norm(train_input_seq, vmin, vmax)
     train_output_seq = utils.min_max_norm(np.array(data[1 : buffer + train_len + 1]), vmin, vmax)
     target_seq = data[(buffer+1):length]
@@ -88,9 +94,9 @@ def chaos_job(data, pertubed_data, args, strength, noise_level):
         ptrain_input_seq = np.tile(ptrain_input_seq, (ndup, 1))
         ptrain_input_seq = utils.add_noise(ptrain_input_seq, noise_level)
 
-        pvmin, pvmax = np.min(ptrain_input_seq), np.max(ptrain_input_seq)
-        ptrain_input_seq = utils.min_max_norm(ptrain_input_seq, pvmin, pvmax)
-        ptrain_output_seq = utils.min_max_norm(np.array(pdata[1 : buffer + train_len + 1]), pvmin, pvmax)
+        #pvmin, pvmax = np.min(ptrain_input_seq), np.max(ptrain_input_seq)
+        ptrain_input_seq = utils.min_max_norm(ptrain_input_seq, vmin, vmax)
+        ptrain_output_seq = utils.min_max_norm(np.array(pdata[1 : buffer + train_len + 1]), vmin, vmax)
 
         pertubed_inputs.append(ptrain_input_seq)
         pertubed_outputs.append(ptrain_output_seq)
@@ -135,7 +141,7 @@ def chaos_job(data, pertubed_data, args, strength, noise_level):
                     'nrmse': nrmse,
                     'train_loss': train_loss,
                     'val_loss': val_loss,
-                    'ntrial': ntrial
+                    'ntrial': ntrial,
                 }
                 with open(res_path, "wb") as wfile:
                     pickle.dump(results, wfile, pickle.HIGHEST_PROTOCOL)
@@ -195,17 +201,24 @@ if __name__  == '__main__':
     parser.add_argument('--noise_level', type=float, default=0.1)
     parser.add_argument('--lo_rhos', type=str, default='23.0,24.0')
     parser.add_argument('--main_rho', type=float, default=28.0)
-    parser.add_argument('--pertubed_strengths', type=str, default='0.0,0.2')
+    parser.add_argument('--controls', type=str, default='0.0,0.2')
     parser.add_argument('--load_result', type=int, default=0)
 
     args = parser.parse_args()
     T_buf, T_train, T_val, dt = args.T_buf, args.T_train, args.T_val, args.dt
     savedir, datname = args.savedir, args.datname
     main_rho, strength = args.main_rho, args.strength
+
     if args.lo_rhos != ',':
         lo_rhos = [float(x) for x in args.lo_rhos.split(',')]
     else:
         lo_rhos = []
+    
+    if args.controls != ',':
+        controls = [float(x) for x in args.controls.split(',')]
+    else:
+        controls = []
+
     os.makedirs(savedir, exist_ok=True)
     save_fig = os.path.join(savedir, 'figs')
     os.makedirs(save_fig, exist_ok=True)
@@ -238,18 +251,33 @@ if __name__  == '__main__':
     val_len  = int(T_val / dt)
     length = buffer + train_len + val_len
 
-    
-    dataset = gdata.Lorenz3D(rho=main_rho, T1 = 0, T2 = T_val + T_train + T_buf, dt = dt, random=False)
+    # Lorenz initial conditions near eac hfixed point
+    xsh = np.array([0.6, 1.1, 0]).reshape((3, 1))
+    dataset = gdata.Lorenz3D(rho=main_rho, T1 = 0, T2 = T_val + T_train + T_buf, dt = dt, uinit=None)
     data = dataset['u'][:(length)]
     
     pdata = []
-    for lo_rho in lo_rhos:
-        dataset2 = gdata.Lorenz3D(rho=lo_rho, T1 = 0, T2 = T_val + T_train + T_buf, dt = dt, random=False)
+    coeffs = [4.0, 2.8, 4.0, 2.8]
+    pertubed_strengths = []
+    for j in range(len(lo_rhos)):
+        coef = coeffs[j]
+        lo_rho = lo_rhos[j]
+        fpA, fpB = fixed_points(lo_rho)
+        dataset2 = gdata.Lorenz3D(rho=lo_rho, T1 = 0, T2 = T_val + T_train + T_buf, dt = dt, uinit=fpA + coef*xsh)
         pdata.append(dataset2['u'][:(length)])
+        pertubed_strengths.append(controls[j])
+
+    for j in range(len(lo_rhos)):
+        coef = coeffs[j]
+        lo_rho = lo_rhos[j]
+        fpA, fpB = fixed_points(lo_rho)
+        dataset2 = gdata.Lorenz3D(rho=lo_rho, T1 = 0, T2 = T_val + T_train + T_buf, dt = dt, uinit=fpB - coef*xsh)
+        pdata.append(dataset2['u'][:(length)])
+        pertubed_strengths.append(controls[j])
 
     jobs, pipels = [], []
     for noise_level in [0.0, 0.01, 0.05, 0.1]:
-        p = multiprocessing.Process(target=chaos_job, args=(data, pdata, args, strength, noise_level))
+        p = multiprocessing.Process(target=chaos_job, args=(data, pdata, pertubed_strengths, args, strength, noise_level))
         jobs.append(p)
     
     # Start the process

@@ -19,11 +19,12 @@ def RK4(dudt, u0, t0, dt, sigma, rho, beta):
     u = u0 + 1./6*(k1+2*k2+2*k3+k4)*dt
     return u
 
-def Lorenz3D(sigma=10.0, rho=28, beta=8.0/3.0, dimensions=3, T1=1000, T2=2000, dt=0.01, random=False):
+def Lorenz3D(sigma=10.0, rho=28, beta=8.0/3.0, dimensions=3, T1=1000, T2=2000, dt=0.01, uinit=None):
     # INTEGRATION
-    u0 = np.ones((dimensions,1))
-    if random == True:
-        u0 = np.random.randn(dimensions, 1)
+    if uinit is not None:
+        u0 = uinit
+    else:
+        u0 = np.ones((dimensions,1))
     t0 = 0
 
     r = ode(lorenz)

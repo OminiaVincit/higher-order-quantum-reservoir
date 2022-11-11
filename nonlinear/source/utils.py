@@ -329,12 +329,14 @@ def plot_lorentz(target_seq, pred_seq, nrmse, buffer, train_len, val_len, outbas
 
     ax = plt.subplot2grid((4, 1), (0,0), projection='3d', colspan=1, rowspan=3)
     
-    ax.plot3D(target_seq[train_len:, 0], target_seq[train_len:, 1], target_seq[train_len:, 2], label='Target', alpha=0.9, rasterized=True, linestyle='-')
-    ax.plot3D(pred_seq[train_len:, 0], pred_seq[train_len:, 1], pred_seq[train_len:, 2], '.', label='Predict',alpha=0.8, rasterized=True, linestyle='None')
+    ax.plot3D(target_seq[:, 0], target_seq[:, 1], target_seq[:, 2], label='Target', alpha=0.9, rasterized=True, linestyle='-')
+    ax.plot3D(pred_seq[:train_len, 0], pred_seq[:train_len, 1], pred_seq[:train_len, 2], '.', label='Forcing',alpha=0.8, rasterized=True, linestyle='None')
+    ax.plot3D(pred_seq[train_len:, 0], pred_seq[train_len:, 1], pred_seq[train_len:, 2], '.', label='Closed',alpha=0.8, rasterized=True, linestyle='None')
+    
     for i in range(len(pertubed_targets)):
         pertubed_preds = pertubed_targets[i]
-        ax.plot3D(pertubed_preds[train_len:, 0], pertubed_preds[train_len:, 1], pertubed_preds[train_len:, 2], \
-            label='Target-{}'.format(i+1), alpha=0.9, rasterized=True, linestyle='-')
+        ax.plot3D(pertubed_preds[:train_len, 0], pertubed_preds[:train_len, 1], pertubed_preds[:train_len, 2], \
+            label='Training-{}'.format(i+1), alpha=0.9, rasterized=True, linestyle='-')
     
     #seqlen = len(target_seq)
     # s = 10
@@ -352,7 +354,7 @@ def plot_lorentz(target_seq, pred_seq, nrmse, buffer, train_len, val_len, outbas
     ax.w_yaxis.set_pane_color((0.0, 0.0, 0.0, 0.9))
     ax.w_zaxis.set_pane_color((0.0, 0.0, 0.0, 0.9))
     ax.grid(False)
-    #ax.legend()
+    ax.legend()
     ax.set_title(n_title, fontsize=12)
     ax.set_xlim([-25, 25])
     ax.set_ylim([-25, 25])

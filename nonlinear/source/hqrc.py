@@ -43,6 +43,7 @@ class HQRC(object):
         self.feed_min = None
         self.feed_max2 = None
         self.feed_min2 = None
+        self.positive_feedback = True
 
     def __init_reservoir(self, qparams, ranseed, loading_path):
         I = [[1,0],[0,1]]
@@ -315,7 +316,10 @@ class HQRC(object):
                 update_input = original_input
         else:
             tmp_states = np.array(self.cur_states.copy(), dtype=np.float64).reshape(1, -1)
-            tmp_states = (tmp_states + 1.0) / 2.0
+            if self.positive_feedback == True:
+                tmp_states = (tmp_states + 1.0) / 2.0
+            else:
+                tmp_states = np.hstack( [tmp_states.reshape((1, -1)), np.ones([1, 1])])
             #tmp_states = np.hstack( [tmp_states, np.ones([1, 1])])
             #print(tmp_states.shape, self.W_feed.shape)
             #tmp_states = expit(tmp_states)
@@ -534,7 +538,7 @@ class HQRC(object):
         return predict_seq, state_list, feed_list
 
 
-    def __train(self, input_seq, output_seq, buffer, beta, \
+    def train(self, input_seq, output_seq, buffer, beta, \
         pertubed_gammas=[], pertubed_inputs=[], pertubed_outputs=[]):
         assert(input_seq.shape[1] == output_seq.shape[0])
         self.start_time = time.time()
@@ -593,7 +597,7 @@ class HQRC(object):
     def train_to_predict(self, input_seq, output_seq, buffer, qparams, ranseed, \
         saving_path=None, loading_path=None, pertubed_gammas=[], pertubed_inputs=[], pertubed_outputs=[]):
         self.__init_reservoir(qparams, ranseed, loading_path)
-        self.__train(input_seq, output_seq, buffer, qparams.beta, \
+        self.train(input_seq, output_seq, buffer, qparams.beta, \
             pertubed_gammas=pertubed_gammas, pertubed_inputs=pertubed_inputs, pertubed_outputs=pertubed_outputs)
         if saving_path != None:
             self.save_model(saving_path=saving_path)
@@ -701,28 +705,37 @@ def closed_loop(qparams, buffer, train_input_seq, train_output_seq, valsteps, ra
     model.train_to_predict(train_input_seq, train_output_seq, buffer, qparams, ranseed, \
         pertubed_gammas=pertubed_gammas, pertubed_inputs=pertubed_inputs, pertubed_outputs=pertubed_outputs)
     
-    # train_pred_seq = [0.0] * len(train_input_seq)
-    # if len(pertubed_inputs) == 0:
-    #     model.reset_states()
-    #     train_pred_seq, _ = model.predict(train_input_seq, train_output_seq, \
-    #         buffer=buffer, use_lastrho=False)
-    #     current_input = train_pred_seq[-1].copy().ravel()
-    # else:
-    #     state = np.array(model.cur_states, dtype=np.float64)
-    #     stacked_state = np.hstack( [state.reshape((1, -1)), np.ones([1, 1])])
-    #     pred_vec = stacked_state @ model.W_out
-    #     current_input = pred_vec.ravel()
-
-    model.reset_states()
-    train_pred_seq, _ = model.predict(train_input_seq, train_output_seq, \
-        buffer=buffer, use_lastrho=False)
-    current_input = train_pred_seq[-1].copy().ravel()
+    if len(test_gammas) >= valsteps:
+        train_pred_seq = train_output_seq  # Just keep pred_seq in case of dumpy input
+        if len(pertubed_inputs) == 0:
+            model.reset_states()
+            train_pred_seq, _ = model.predict(train_input_seq, train_output_seq, \
+                buffer=buffer, use_lastrho=False)
+            current_input = train_pred_seq[-1].copy().ravel()
+        else:
+            state = np.array(model.cur_states, dtype=np.float64)
+            stacked_state = np.hstack( [state.reshape((1, -1)), np.ones([1, 1])])
+            pred_vec = stacked_state @ model.W_out
+            current_input = pred_vec.ravel()
+    else:
+        # if len(pertubed_inputs) > 0:
+        #     # Training with different dataset        
+        #     model.W_feed = model.W_out.copy()
+        #     #model.W_feed = np.tile(train_input_seq, (ndup, 1))
+        #     model.positive_feedback = False
+        #     model.train(train_input_seq, train_output_seq, buffer, qparams.beta, \
+        #         pertubed_gammas=[], pertubed_inputs=[], pertubed_outputs=[])
+            
+        model.reset_states()
+        train_pred_seq, _ = model.predict(train_input_seq, train_output_seq, \
+            buffer=buffer, use_lastrho=False)
+        current_input = train_pred_seq[-1].copy().ravel()
 
     val_pred_seq = []
     ndup = int(nqrc/len(current_input))
     for n in range(valsteps):
         #if n < 10:
-        #    print(n, current_input, model.cur_states)
+        #    print(n, model.gamma, current_input, model.cur_states)
         if len(test_gammas) >= valsteps:
             model.gamma = test_gammas[n]
         current_input = np.tile(current_input, (ndup, 1)).ravel()
