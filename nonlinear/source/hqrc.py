@@ -104,7 +104,6 @@ class HQRC(object):
         
         # generate feedback matrix
         n_nodes = self.__get_comput_nodes()
-        # skip self loop
         n_local_nodes = self.__get_qr_nodes()
         
         # Create W_feed or load from saved Wout
