@@ -23,7 +23,7 @@ import psutil
 
 class HQRC(object):
     def __init__(self, nqrc, gamma, sparsity, sigma_input, dim_input=1,\
-        type_input=0, use_corr=0, deep=0, nonlinear=0, mask_input=0, combine_input=1, feed_trials=-1, feed_nothing=True):
+        type_input=0, use_corr=0, type_op='Z', type_connect=0, nonlinear=0, mask_input=0, combine_input=1, feed_trials=-1, feed_nothing=True):
         self.nqrc = nqrc
         self.gamma = gamma
         self.sparsity = sparsity
@@ -31,7 +31,10 @@ class HQRC(object):
         self.type_input = type_input
         self.dim_input  = dim_input
         self.use_corr = use_corr
-        self.deep = deep
+        self.type_op = type_op
+        self.type_connect = type_connect # type of connection: 0 (full higher-order), 
+        # 1 (higher-order but only input at several qrs), 
+        # 2 (deep, only input in first qr, feedback for only previous qr)
         self.nonlinear = nonlinear
         self.mask_input = mask_input # feedback between inputs
         self.combine_input = combine_input # combine input and feedback
@@ -47,8 +50,10 @@ class HQRC(object):
 
     def __init_reservoir(self, qparams, ranseed, loading_path):
         I = [[1,0],[0,1]]
-        Z = [[1,0],[0,-1]]
         X = [[0,1],[1,0]]
+        Y = [[0,-1.j],[1.j,0]]
+        Z = [[1,0],[0,-1]]
+
         P0 = [[1,0],[0,0]]
         P1 = [[0,0],[0,1]]
         self.init_ranseed = ranseed
@@ -100,7 +105,6 @@ class HQRC(object):
         
         # generate feedback matrix
         n_nodes = self.__get_comput_nodes()
-        # skip self loop
         n_local_nodes = self.__get_qr_nodes()
         
         # Create W_feed or load from saved Wout
@@ -114,7 +118,7 @@ class HQRC(object):
             if False:
                 if nqrc > 1:
                     for i in range(0, nqrc):
-                        if self.deep == 0:
+                        if self.type_connect == 0:
                             smat = np.random.rand(n_nodes)
                             smat = np.ravel(smat)
                             bg = i * n_local_nodes
@@ -150,7 +154,20 @@ class HQRC(object):
                                 bg = (i-1) * n_local_nodes
                                 ed = bg + n_local_nodes
                                 W_feed[bg:ed, i] = smat.copy()
-            elif self.gamma > 0 and nqrc > self.dim_input:
+            elif self.type_connect == 0:
+                #W_feed = np.random.normal(loc=0, scale=self.sigma_input, size=(n_nodes, nqrc))
+                W_feed = np.random.uniform(0.0, 1.0, size=(n_nodes, nqrc))
+
+                # eigv_list = np.linalg.eig(W_feed)[0]
+                # spectral_radius = np.max(np.abs(eigv_list)) # not square matrix
+                # W_feed = W_feed / spectral_radius
+            elif self.type_connect == 1:
+                feed_mat = np.random.normal(loc=0, scale=self.sigma_input, size=(n_nodes, nqrc))
+                for i in range(nqrc-1):
+                    bg = (i+1) * n_local_nodes
+                    ed = (i+2) * n_local_nodes
+                    W_feed[bg:ed, i] = feed_mat[bg:ed, i]
+            elif self.type_connect == 2 and nqrc > self.dim_input:
                 feed_dim = nqrc - self.dim_input
                 if self.nonlinear == 0 and self.feed_nothing == False:
                     feed_mat = scipy.sparse.random(n_nodes, feed_dim, density = self.sparsity).todense()
@@ -169,27 +186,39 @@ class HQRC(object):
                 #     eigenvalues = np.abs(eigenvalues)
                 #     W_feed = (W_feed/np.max(eigenvalues))*self.radius
                 #W_feed[self.__get_comput_nodes():, :] = 0
+            
             self.W_feed = W_feed
 
         
-        # create operators from tensor product
-        self.Zop = [1]*self.n_qubits
-        self.Zop_corr = dict()
-        for q1 in range(self.n_qubits):
-            for q2 in range(q1+1, self.n_qubits):
-                self.Zop_corr[(q1, q2)] = [1]
+        #  create operators from tensor product
         
         self.Xop = [1]*self.n_qubits
+        self.Xop_corr = dict()
+
+        self.Yop = [1]*self.n_qubits
+        self.Yop_corr = dict()
+
+        self.Zop = [1]*self.n_qubits
+        self.Zop_corr = dict()
+        
         self.P0op = [1]
         self.P1op = [1]
+
+        for q1 in range(self.n_qubits):
+            for q2 in range(q1+1, self.n_qubits):
+                self.Xop_corr[(q1, q2)] = [1]
+                self.Yop_corr[(q1, q2)] = [1]
+                self.Zop_corr[(q1, q2)] = [1]
 
         for cindex in range(self.n_qubits):
             for qindex in range(self.n_qubits):
                 if cindex == qindex:
                     self.Xop[qindex] = np.kron(self.Xop[qindex],X)
+                    self.Yop[qindex] = np.kron(self.Yop[qindex],Y)
                     self.Zop[qindex] = np.kron(self.Zop[qindex],Z)
                 else:
                     self.Xop[qindex] = np.kron(self.Xop[qindex],I)
+                    self.Yop[qindex] = np.kron(self.Yop[qindex],I)
                     self.Zop[qindex] = np.kron(self.Zop[qindex],I)
 
             if cindex == 0:
@@ -206,9 +235,23 @@ class HQRC(object):
                     cindex = (q1, q2)
                     for qindex in range(self.n_qubits):
                         if qindex == q1 or qindex == q2:
+                            self.Xop_corr[cindex] = np.kron(self.Xop_corr[cindex], X)
+                            self.Yop_corr[cindex] = np.kron(self.Yop_corr[cindex], Y)
                             self.Zop_corr[cindex] = np.kron(self.Zop_corr[cindex], Z)
                         else:
+                            self.Xop_corr[cindex] = np.kron(self.Xop_corr[cindex], I)
+                            self.Yop_corr[cindex] = np.kron(self.Yop_corr[cindex], I)
                             self.Zop_corr[cindex] = np.kron(self.Zop_corr[cindex], I)
+                            
+        if self.type_op == 'X':
+            self.Pauli_op = self.Xop
+            self.Pauli_op_corr = self.Xop_corr
+        elif self.type_op == 'Y':
+            self.Pauli_op = self.Yop
+            self.Pauli_op_corr = self.Yop_corr
+        else:
+            self.Pauli_op = self.Zop
+            self.Pauli_op_corr = self.Zop_corr
         
         # initialize current states
         self.cur_states = [None] * nqrc
@@ -303,6 +346,9 @@ class HQRC(object):
 
     def step_forward(self, local_rhos, input_val, feedback_flag=1, scale_input=True):
         nqrc = self.nqrc
+        n_nodes = self.__get_comput_nodes()
+        n_local_nodes = self.__get_qr_nodes()
+
         original_input = input_val.copy().ravel()
         
         q0 = np.array([1, 0]).reshape((2, 1))
@@ -310,10 +356,11 @@ class HQRC(object):
 
         if self.cur_states[0] is None:
             if scale_input == True:
-                    update_input = (1.0-self.gamma) * original_input
+                update_input = (1.0-self.gamma) * original_input
             else:
                 # Use in masking input (keep the original input)
                 update_input = original_input
+            self.feed_inputs = original_input * 0.0
         else:
             tmp_states = np.array(self.cur_states.copy(), dtype=np.float64).reshape(1, -1)
             if self.positive_feedback == True:
@@ -381,6 +428,12 @@ class HQRC(object):
             #print(tmp_states, self.feed_min, self.feed_max)
             self.feed_inputs = tmp_states.copy().ravel()
             
+            # normalize feed_inputs by dividing to the number of computational nodes
+            if self.type_connect == 0:
+                self.feed_inputs = self.feed_inputs / n_nodes
+            elif self.type_connect == 1:
+                self.feed_inputs = self.feed_inputs / n_local_nodes
+            
             tmp_states[tmp_states < 0.0] = 0.0
             tmp_states[tmp_states > 1.0] = 1.0
         #print('Original input',  original_input) 
@@ -444,13 +497,36 @@ class HQRC(object):
                     # for input in [-1, 1]
                     rho = ((1+value)/2) * rho + ((1-value)/2) *self.Xop[0] @ rho @ self.Xop[0]
                 else:
+                    orig_contrib = original_input[i]
                     value = clipping(value, minval=0.0, maxval=1.0)
                     par_rho = partial_trace(rho, keep=[1], dims=[2**self.n_envs, 2**self.n_units], optimize=False)
+
                     if self.type_input == 2:
                         input_state = np.sqrt(1-value) * q0 + np.sqrt(value) * q1
                     elif self.type_input == 3:
                         angle_val = 2*np.pi*value
                         input_state = np.cos(angle_val) * q0 + np.sin(angle_val) * q1
+                    elif self.type_input == 4:
+                        input_state = np.sqrt(1-value) * q0 + np.sqrt(value) * np.exp(1.j * 2*np.pi*value) * q1
+                    else:
+                        orig_contrib = clipping(orig_contrib, minval=0.0, maxval=1.0)
+                        if self.type_input == 5:
+                            update_contrib = self.gamma * self.feed_inputs[i]
+                        elif self.type_input == 6:
+                            update_contrib = self.gamma * self.feed_inputs[i] + (1.0 - self.gamma) * orig_contrib
+                        elif self.type_input == 7:
+                            feed_contrib = 0.5 + np.arctan(self.feed_inputs[i]) / np.pi
+                            update_contrib = self.gamma * feed_contrib + (1.0 - self.gamma) * orig_contrib
+                        elif self.type_input == 8:
+                            update_contrib = self.gamma * orig_contrib
+                        elif self.type_input == 9:
+                            orig_contrib =  0.5 # let this part become 0.5 (should be a parameter 8/19)
+                            update_contrib = original_input[i] + self.gamma * self.feed_inputs[i]
+                        else:
+                            update_contrib = self.gamma
+
+                        input_state = np.sqrt(1-orig_contrib) * q0 + np.sqrt(orig_contrib) * np.exp(1.j * 2*np.pi*update_contrib) * q1
+                    
                     input_state = input_state @ input_state.T.conj() 
                     rho = np.kron(input_state, par_rho)
 
@@ -460,7 +536,7 @@ class HQRC(object):
                     # Time evolution of density matrix
                     rho = Uop @ rho @ Uop.T.conj()
                     for qindex in range(0, self.n_qubits):
-                        rvstate = np.real(np.trace(self.Zop[qindex] @ rho))
+                        rvstate = np.real(np.trace(self.Pauli_op[qindex] @ rho))
                         # if self.type_input != 1:
                         #     rvstate = (1.0 + expectation_value) / 2.0
                         #     #rvstate = expectation_value
@@ -472,7 +548,7 @@ class HQRC(object):
                         for q1 in range(0, self.n_qubits):
                             for q2 in range(q1+1, self.n_qubits):
                                 cindex = (q1, q2)
-                                rvstate = np.real(np.trace(self.Zop_corr[cindex] @ rho))
+                                rvstate = np.real(np.trace(self.Pauli_op_corr[cindex] @ rho))
                                 # if self.type_input != 1:
                                 #     rvstate = (1.0 + expectation_value) / 2.0
                                 # else:
@@ -630,7 +706,7 @@ class HQRC(object):
             "nqrc": self.nqrc,
             "n_nodes": self.__get_comput_nodes(),
             "n_local_nodes": self.__get_qr_nodes(),
-            "deep": self.deep,
+            "type_connect": self.type_connect,
             "nonlinear": self.nonlinear,
             "sigma_input": self.sigma_input,
             "use_corr": self.use_corr,
@@ -665,12 +741,12 @@ class HQRC(object):
         return state_list, feed_list
 
 def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, val_output_seq, \
-        ranseed, nqrc, gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, mask_input=0, combine_input=1,feed_nothing=False,\
-        deep=0, use_corr=0, nonlinear=0, saving_path=None, loading_path=None, dim_input=0):
+        ranseed, nqrc, gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, type_op='Z', mask_input=0, combine_input=1,feed_nothing=False,\
+        type_connect=0, use_corr=0, nonlinear=0, saving_path=None, loading_path=None, dim_input=0):
 
     model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, dim_input=dim_input,\
-        sigma_input=sigma_input, type_input=type_input, mask_input=mask_input, combine_input=combine_input,feed_nothing=feed_nothing,\
-        deep=deep, use_corr=use_corr, nonlinear=nonlinear, feed_trials=buffer//2)
+        sigma_input=sigma_input, type_input=type_input, type_op=type_op, mask_input=mask_input, combine_input=combine_input,feed_nothing=feed_nothing,\
+        type_connect=type_connect, use_corr=use_corr, nonlinear=nonlinear, feed_trials=buffer//2)
 
     train_input_seq = np.array(train_input_seq)
     train_output_seq = np.array(train_output_seq)
@@ -690,14 +766,14 @@ def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, 
     return train_pred_seq, train_loss, val_pred_seq, val_loss
 
 def closed_loop(qparams, buffer, train_input_seq, train_output_seq, valsteps, ranseed, nqrc, \
-    gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, mask_input=0, combine_input=1, \
-    feed_nothing=False, deep=0, use_corr=0, nonlinear=0, \
+    gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, type_op='Z', mask_input=0, combine_input=1, \
+    feed_nothing=False, type_connect=0, use_corr=0, nonlinear=0, \
     pertubed_gammas=[], pertubed_inputs=[], pertubed_outputs=[], test_gammas=[]):
 
     model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, dim_input=0,\
-        sigma_input=sigma_input, type_input=type_input, mask_input=mask_input, \
-        combine_input=combine_input, feed_nothing=feed_nothing,\
-        deep=deep, use_corr=use_corr, nonlinear=nonlinear, feed_trials=buffer//2)
+        sigma_input=sigma_input, type_input=type_input, type_op=type_op, \
+        mask_input=mask_input, combine_input=combine_input, feed_nothing=feed_nothing,\
+        type_connect=type_connect, use_corr=use_corr, nonlinear=nonlinear, feed_trials=buffer//2)
     
     train_input_seq = np.array(train_input_seq)
     train_output_seq = np.array(train_output_seq)
@@ -754,21 +830,21 @@ def closed_loop(qparams, buffer, train_input_seq, train_output_seq, valsteps, ra
 
 def view_dynamic(qparams, input_seq, ranseed, nqrc, \
     gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, mask_input=0, combine_input=1,\
-    deep=0, use_corr=0, nonlinear=0, loading_path=None):
+    type_connect=0, use_corr=0, nonlinear=0, loading_path=None):
 
     input_seq = np.array(input_seq)
     
     model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, \
         sigma_input=sigma_input, type_input=type_input, mask_input=mask_input, combine_input=combine_input,\
-        deep=deep, use_corr=use_corr, nonlinear=nonlinear, feed_trials=input_seq.shape[1]//2)
+        type_connect=type_connect, use_corr=use_corr, nonlinear=nonlinear, feed_trials=input_seq.shape[1]//2)
 
     state_list, feed_list = model.init_forward(qparams, input_seq, init_rs=True, \
         ranseed=ranseed, loading_path=loading_path)
     return state_list, feed_list
 
 def get_IPC(qparams, ipcparams, length, logger, nqrc=1, gamma=0.0, ranseed=-1, Ntrials=1, savedir=None, \
-    posfix='capa', feed_nothing=False, sparsity=1.0, nonlinear = 0,\
-    sigma_input=1.0, type_input=1, mask_input=0, combine_input=1, label='', dim_input=1):
+    posfix='capa', feed_nothing=False, sparsity=1.0, nonlinear = 0, type_op='Z',\
+    sigma_input=1.0, type_input=1, mask_input=0, combine_input=1, label='', dim_input=1, input_file=''):
     start_time = time.monotonic()
     fname = '{}_{}'.format(label, sys._getframe().f_code.co_name)
     transient = length // 2
@@ -776,47 +852,57 @@ def get_IPC(qparams, ipcparams, length, logger, nqrc=1, gamma=0.0, ranseed=-1, N
     if ranseed >= 0:
         np.random.seed(seed=ranseed)
     for n in range(Ntrials):
-        if type_input != 1:
-            input_signals = np.random.uniform(0, 1, length) 
+        if os.path.isfile(input_file):
+            print('Data from input file {}'.format(input_file))
+            # Read from file: 
+            input_signals = np.loadtxt(input_file)[:length, 1]
         else:
-            input_signals = np.random.uniform(-1, 1, length)
+            input_signals = np.random.uniform(0, 1, length) 
+        
+        rescale_input_signals = input_signals * 2.0 - 1.0
         input_signals = np.array(input_signals)
         input_signals = np.tile(input_signals, (nqrc, 1))
 
         ipc = IPC(ipcparams, log=logger, savedir=savedir, label=label)
         model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, feed_nothing=feed_nothing, nonlinear = nonlinear, sigma_input=sigma_input, dim_input=dim_input,\
-            type_input=type_input, mask_input=mask_input, combine_input=combine_input, feed_trials=transient//2)
+            type_input=type_input, type_op=type_op, mask_input=mask_input, combine_input=combine_input, feed_trials=transient//2)
         output_signals, _ = model.init_forward(qparams, input_signals, init_rs=True, ranseed = n + ranseed)
         logger.debug('{}: n={} per {} trials, input shape = {}, output shape={}'.format(fname, n+1, Ntrials, input_signals.shape, output_signals.shape))
         
-        ipc.run(input_signals[0, transient:], output_signals[transient:])
+        ipc.run(rescale_input_signals[transient:], output_signals[transient:])
         ipc.write_results(posfix=posfix)
     end_time = time.monotonic()
     logger.info('{}: Executed time {}'.format(fname, timedelta(seconds=end_time - start_time)))
 
 def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
         nqrc, gamma, sparsity, sigma_input, mask_input=0, combine_input=1, feed_nothing=False,\
-        ranseed=-1, Ntrials=1, type_input=0, nonlinear=0, dim_input=1):    
+        ranseed=-1, Ntrials=1, type_input=0, type_op='Z', nonlinear=0, dim_input=1):    
     MFlist = []
     MFstds = []
     train_list, val_list = [], []
     length = buffer + train_len + val_len
-    # generate data
-    if '_stm' not in taskname and '_pc' not in taskname:
-        raise ValueError('Not found taskname ={} to generate data'.format(taskname))
-
+    
     if ranseed >= 0:
         np.random.seed(seed=ranseed)
     
-    if '_pc' in taskname:
-        print('Generate parity check data')
-        data = np.random.randint(0, 2, length)
+    if os.path.isfile(taskname):
+        print('Data from input file {}'.format(taskname))
+        # Read from file: 
+        data = np.loadtxt(taskname)[:length,1]
     else:
-        print('Generate STM task data')
-        if type_input != 1:
-            data = np.random.rand(length)
+        # generate data
+        if '_stm' not in taskname and '_pc' not in taskname:
+            raise ValueError('Not found taskname ={} to generate data'.format(taskname))
+
+        if '_pc' in taskname:
+            print('Generate parity check data')
+            data = np.random.randint(0, 2, length)
         else:
-            data = 2.0*np.random.rand(length) - 1.0
+            print('Generate STM task data')
+            if type_input != 1:
+                data = np.random.rand(length)
+            else:
+                data = 2.0*np.random.rand(length) - 1.0
 
     for d in dlist:
         train_input_seq = np.array(data[  : buffer + train_len])
@@ -826,7 +912,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
         val_input_seq = np.tile(val_input_seq, (nqrc, 1))
             
         train_out, val_out = [], []
-        if '_pc' in taskname:
+        if '_pc' in taskname or 'binary' in taskname:
             for k in range(length):
                 yk = 0
                 if k >= d:
@@ -857,7 +943,7 @@ def memory_function(taskname, qparams, train_len, val_len, buffer, dlist, \
             train_pred_seq, train_loss, val_pred_seq, val_loss = \
             get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, val_output_seq, \
                 nqrc=nqrc, gamma=gamma, sparsity=sparsity, sigma_input=sigma_input, ranseed=ranseed_net, feed_nothing=feed_nothing,\
-                type_input=type_input, mask_input=mask_input, combine_input=combine_input, nonlinear=nonlinear, dim_input=dim_input)
+                type_input=type_input, type_op=type_op, mask_input=mask_input, combine_input=combine_input, nonlinear=nonlinear, dim_input=dim_input)
 
             # Compute memory function
             val_out_seq, val_pred_seq = val_output_seq.flatten(), val_pred_seq.flatten()

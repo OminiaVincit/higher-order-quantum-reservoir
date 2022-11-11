@@ -15,7 +15,6 @@ BUF=20
 TRAIN=100
 VAL=100
 
-CB=1
 TYIN=0
 SIG=1.0
 NON=0
@@ -24,5 +23,8 @@ N=10
 
 for V in 5 10 15
 do
+for CB in 1 0
+do
 python $EXE --tau $TAU --Ntrials $N --load_result $LOAD --savedir $SAVE --units $UNITS --virtuals $V --nqrc $NQRC --nonlinear $NON --combine_input $CB --type_input $TYIN --solver $SOLVER --dynamic $DYNAMIC --dt $DT --T_buf $BUF --T_train $TRAIN --T_val $VAL
+done
 done

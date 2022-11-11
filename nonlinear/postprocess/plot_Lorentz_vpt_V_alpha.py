@@ -20,7 +20,6 @@ if __name__  == '__main__':
     parser.add_argument('--tau', type=float, default='10.0')
     parser.add_argument('--noise', type=float, default='0.1')
     parser.add_argument('--virtuals', type=str, default='5,10,15')
-    parser.add_argument('--cb_input', type=int, default=1)
     parser.add_argument('--Ntrials', type=int, default=10)
 
     args = parser.parse_args()
@@ -28,7 +27,7 @@ if __name__  == '__main__':
 
     folder, prefix, posfix = args.folder, args.prefix, args.posfix
     ymin, ymax = args.ymin, args.ymax
-    tau, noise, cb_input, Ntrials = args.tau, args.noise, args.cb_input, args.Ntrials
+    tau, noise, Ntrials = args.tau, args.noise, args.Ntrials
     
     Vs = [int(x) for x in args.virtuals.split(',')]
     cmap = plt.get_cmap("viridis")
@@ -39,47 +38,51 @@ if __name__  == '__main__':
     colors = putils.cycle
 
     ntitle = ''
-    alpha_ls = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    #alpha_ls = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    alpha_ls = np.linspace(0.0, 1.0, 21)
 
     ax = axs[0]
     dcl = 0
 
     for V in Vs:
-        avg_rs, std_rs = [], []
-        for alpha in alpha_ls:
-            local_vpt = []
-            for rfile in glob.glob('{}/log/{}*V_{}*_tau_{}*_alpha_{:.3f}_cb_{}*noise_{:.3f}*{}.log'.format(\
-                folder, prefix, V, tau, alpha, cb_input, noise, posfix)):
-                print(rfile)
-                ntitle = os.path.basename(rfile)
-                nidx = ntitle.find('cb_')
-                ntitle = ntitle[nidx:]
-                ntitle = ntitle.replace('.log', '')
-                with open(rfile, 'r') as rf:
-                    lines = rf.readlines()
-                    for line in lines:
-                        if 'INFO' in line and 'pred_time_05' in line:
-                            pred_time_05 = (float)(re.search('pred_time_05=([0-9.]*)', line).group(1))
-                            local_vpt.append(pred_time_05)
-            if len(local_vpt) > 0:
-                avg_vpt, std_vpt = np.mean(local_vpt), np.std(local_vpt)
-                avg_rs.append(avg_vpt)
-                std_rs.append(std_vpt)
-        avg_rs, std_rs = np.array(avg_rs), np.array(std_rs)
-        color = colors[dcl]
-        if len(avg_rs) > 0:
-            #ax.errorbar(xs, avg_tests, yerr=std_tests, alpha = 0.8, color=color, elinewidth=2, linewidth=2, markersize=12)
-            ax.plot(alpha_ls, avg_rs, 's-', alpha = 0.8, linewidth=3, markersize=8, mec='k', mew=0.5, \
-                        color=color, label='$V=${}, cb={}, $\\tau=${}'.format(V, cb_input, tau))
-            ax.fill_between(alpha_ls, avg_rs - std_rs, avg_rs + std_rs, facecolor=color, alpha=0.2)
-            dcl += 1
+        for cb_input in [1, 0]:
+            avg_rs, std_rs, xs = [], [], []
+            for alpha in alpha_ls:
+                local_vpt = []
+                for rfile in glob.glob('{}/log/{}*V_{}*_tau_{}*_alpha_{:.3f}_cb_{}*noise_{:.3f}*{}.log'.format(\
+                    folder, prefix, V, tau, alpha, cb_input, noise, posfix)):
+                    print(rfile)
+                    ntitle = os.path.basename(rfile)
+                    nidx = ntitle.find('cb_')
+                    ntitle = ntitle[nidx:]
+                    ntitle = ntitle.replace('.log', '')
+                    with open(rfile, 'r') as rf:
+                        lines = rf.readlines()
+                        for line in lines:
+                            if 'INFO' in line and 'pred_time_05' in line:
+                                pred_time_05 = (float)(re.search('pred_time_05=([0-9.]*)', line).group(1))
+                                local_vpt.append(pred_time_05)
+                if len(local_vpt) > 0:
+                    avg_vpt, std_vpt = np.mean(local_vpt), np.std(local_vpt)
+                    avg_rs.append(avg_vpt)
+                    std_rs.append(std_vpt)
+                    xs.append(alpha)
+
+            avg_rs, std_rs = np.array(avg_rs), np.array(std_rs)
+            color = colors[dcl]
+            if len(avg_rs) > 0:
+                #ax.errorbar(xs, avg_tests, yerr=std_tests, alpha = 0.8, color=color, elinewidth=2, linewidth=2, markersize=12)
+                ax.plot(xs, avg_rs, 's-', alpha = 0.8, linewidth=3, markersize=8, mec='k', mew=0.5, \
+                            color=color, label='$V=${}, cb={}, $\\tau=${}'.format(V, cb_input, tau))
+                ax.fill_between(xs, avg_rs - std_rs, avg_rs + std_rs, facecolor=color, alpha=0.2)
+                dcl += 1
 
     ax.set_xlabel('$\\alpha$', fontsize=24)
     ax.set_xticks(np.linspace(0.0, 1.0, 11))
     ax.set_xlim([0.0, 1.01])
 
     #ax.set_xscale('log',base=10)
-    ax.set_ylabel('VPT', fontsize=24)
+    ax.set_ylabel('VPT($\\varepsilon=0.05$)', fontsize=24)
     ax.set_ylim([ymin, ymax])
     #ax.set_xticklabels(labels='')
     #ax.set_yticklabels(labels='')
