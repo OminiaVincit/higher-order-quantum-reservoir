@@ -21,25 +21,53 @@ from scipy.linalg import pinv2 as scipypinv2
 # from scipy.linalg import lstsq as scipylstsq
 # from numpy.linalg import lstsq as numpylstsq
 import os
-import sys
-#sys.path.insert(1, '../Utils/')
-
 from plotting_utils import *
 from global_utils import *
-from qrc_utils import *
-
 import pickle
 import time
 from functools import partial
 print = partial(print, flush=True)
 
 from sklearn.linear_model import Ridge
-from scipy.special import expit
-from sklearn.utils import shuffle
 
 # MEMORY TRACKING
 import psutil
 
+class QRCParams():
+    def __init__(self, n_units, max_energy, beta, virtual_nodes, tau):
+        self.n_units = n_units
+        self.max_energy = max_energy
+        self.beta = beta
+        self.virtual_nodes = virtual_nodes
+        self.tau = tau
+    
+    def info(self):
+        print('units={},Jdelta={},V={},taudelta={}'.format(\
+            self.n_units, self.max_energy,
+            self.virtual_nodes, self.tau))
+
+def generate_list_rho(dim, n):
+    rho = np.zeros( [dim, dim], dtype=np.float64 )
+    rho[0, 0] = 1.0
+    rhos = [rho] * n
+    return rhos
+
+def linear_combine(u, states, coeffs):
+    #print('coeffs: ', coeffs.shape, states.shape)
+    assert(len(coeffs) == len(states))
+    v = 1.0 - np.sum(coeffs)
+    assert(v <= 1.00001 and v >= -0.00001)
+    v = max(v, 0.0)
+    v = min(v, 1.0)
+    total = v * u
+    total += np.dot(np.array(states, dtype=np.float64).flatten(), np.array(coeffs, dtype=np.float64).flatten())
+    return total
+
+def scale_linear_combine(u, states, coeffs, bias):
+    states = (states + bias) / (2.0 * bias)
+    value = linear_combine(u, states, coeffs)
+    #print(u.shape, 'scale linear combine', value)
+    return value
 
 class hqrc(object):
     def delete(self):
@@ -56,30 +84,19 @@ class hqrc(object):
         
         # Parameters for high-order model
         self.nqrc = params["nqrc"]
-        self.gamma = params["gamma"]
         self.alpha = params["alpha"]
         self.max_energy = params["max_energy"]
-        self.dynamic = params["dynamic"]
-        self.non_diag_var = params["non_diag_var"]
-        self.non_diag_const = params["non_diag_const"]
-        self.nonlinear = params["nonlinear"]
-
+        self.fix_coupling = params["fix_coupling"]
         self.virtual_nodes = params["virtual_nodes"]
         self.tau = params["tau"]
-        self.type_input = params["type_input"]
+        self.one_input = params["one_input"]
         self.scale_input = params["scale_input"]
         self.trans_input = params["trans_input"]
         self.bias = params["bias"]
-        self.use_corr = params["use_corr"]
-        self.type_op = params["type_op"]
-        self.type_connect = params["type_connect"] # type of connection: 0 (full higher-order), 
-        # 1 (deep, only input in first qr, feedback for only previous qr)
-        
-
+        self.deep = params["deep"]
         self.n_units = params["n_units"]
-        self.n_envs = params["n_envs"]
-        self.n_qubits = self.n_units + self.n_envs
-        self.dim = 2**self.n_qubits
+        self.qubit_count = self.n_units
+        self.dim = 2**self.qubit_count
         # Finish
 
         self.dynamics_length = params["dynamics_length"]
@@ -121,158 +138,94 @@ class hqrc(object):
 
     def __init_reservoir(self):
         I = [[1,0],[0,1]]
-        X = [[0,1],[1,0]]
-        Y = [[0,-1.j],[1.j,0]]
         Z = [[1,0],[0,-1]]
+        X = [[0,1],[1,0]]
         P0 = [[1,0],[0,0]]
         P1 = [[0,0],[0,1]]
 
-        # Create W_feed
-        n_nodes = self.__get_comput_nodes()
-        n_local_nodes = self.__get_qr_nodes()
-        W_feed = np.zeros((n_nodes, self.nqrc))
-        if self.type_connect == 0:
-            W_feed = np.random.uniform(0.0, 1.0, size=(n_nodes, self.nqrc))
-        elif self.type_connect == 1:
-            feed_mat = np.random.uniform(0.0, 1.0, size=(n_nodes, self.nqrc))
-            for i in range(self.nqrc-1):
-                bg = (i+1) * n_local_nodes
-                ed = (i+2) * n_local_nodes
-                W_feed[bg:ed, i] = feed_mat[bg:ed, i]
-        self.W_feed = W_feed
-
-        # Create operators from tensor product
-        self.Xop = [1]*self.n_qubits
-        self.Xop_corr = dict()
-
-        self.Yop = [1]*self.n_qubits
-        self.Yop_corr = dict()
-
-        self.Zop = [1]*self.n_qubits
-        self.Zop_corr = dict()
-        
+        self.Zop = [1]*self.qubit_count
+        self.Xop = [1]*self.qubit_count
         self.P0op = [1]
         self.P1op = [1]
+        self.alpha = self.alpha
 
-        for q1 in range(self.n_qubits):
-            for q2 in range(q1+1, self.n_qubits):
-                self.Xop_corr[(q1, q2)] = [1]
-                self.Yop_corr[(q1, q2)] = [1]
-                self.Zop_corr[(q1, q2)] = [1]
-
-        for cindex in range(self.n_qubits):
-            for qindex in range(self.n_qubits):
-                if cindex == qindex:
-                    self.Xop[qindex] = np.kron(self.Xop[qindex],X)
-                    self.Yop[qindex] = np.kron(self.Yop[qindex],Y)
-                    self.Zop[qindex] = np.kron(self.Zop[qindex],Z)
+        for cursor_index in range(self.qubit_count):
+            for qubit_index in range(self.qubit_count):
+                if cursor_index == qubit_index:
+                    self.Xop[qubit_index] = np.kron(self.Xop[qubit_index],X)
+                    self.Zop[qubit_index] = np.kron(self.Zop[qubit_index],Z)
                 else:
-                    self.Xop[qindex] = np.kron(self.Xop[qindex],I)
-                    self.Yop[qindex] = np.kron(self.Yop[qindex],I)
-                    self.Zop[qindex] = np.kron(self.Zop[qindex],I)
+                    self.Xop[qubit_index] = np.kron(self.Xop[qubit_index],I)
+                    self.Zop[qubit_index] = np.kron(self.Zop[qubit_index],I)
 
-            if cindex == 0:
+            if cursor_index == 0:
                 self.P0op = np.kron(self.P0op, P0)
                 self.P1op = np.kron(self.P1op, P1)
             else:
                 self.P0op = np.kron(self.P0op, I)
                 self.P1op = np.kron(self.P1op, I)
+        self.Zop = np.array(self.Zop, dtype=np.float64)
+        self.Xop = np.array(self.Xop, dtype=np.float64)
+        self.P0op = np.array(self.P0op, dtype=np.float64)
+        self.P1op = np.array(self.P1op, dtype=np.float64)
+        # initialize density matrix
+        self.last_rhos = generate_list_rho(self.dim, self.nqrc)
 
-        # generate correlatior operators
-        if self.use_corr > 0:
-            for q1 in range(self.n_qubits):
-                for q2 in range(q1+1, self.n_qubits):
-                    cindex = (q1, q2)
-                    for qindex in range(self.n_qubits):
-                        if qindex == q1 or qindex == q2:
-                            self.Xop_corr[cindex] = np.kron(self.Xop_corr[cindex], X)
-                            self.Yop_corr[cindex] = np.kron(self.Yop_corr[cindex], Y)
-                            self.Zop_corr[cindex] = np.kron(self.Zop_corr[cindex], Z)
-                        else:
-                            self.Xop_corr[cindex] = np.kron(self.Xop_corr[cindex], I)
-                            self.Yop_corr[cindex] = np.kron(self.Yop_corr[cindex], I)
-                            self.Zop_corr[cindex] = np.kron(self.Zop_corr[cindex], I)
-                            
-        if self.type_op == 'X':
-            self.Pauli_op = self.Xop
-            self.Pauli_op_corr = self.Xop_corr
-        elif self.type_op == 'Y':
-            self.Pauli_op = self.Yop
-            self.Pauli_op_corr = self.Yop_corr
-        else:
-            self.Pauli_op = self.Zop
-            self.Pauli_op_corr = self.Zop_corr
-
+        # initialize connection to layer i
+        connections = []
+        N_local_states = self.n_units * self.virtual_nodes
+        nqrc = self.nqrc
+        if nqrc > 1:
+            for i in range(nqrc):
+                local_cs = []
+                for j in range(nqrc):
+                    cs = [0] * N_local_states
+                    if self.deep <= 0:
+                        if j != i:
+                            cs = np.random.rand(N_local_states)
+                    else:
+                        if j == i-1:
+                            cs = np.random.rand(N_local_states)
+                    local_cs.append(cs)
+                
+                local_cs = np.array(local_cs, dtype=np.float64).flatten()
+                total = np.sum(local_cs)
+                if total > 0:
+                    local_cs = local_cs / total
+                connections.append(local_cs)
+        self.coeffs = connections
 
         # initialize current states
-        self.cur_states = [None] * self.nqrc
-        # initialize feedback input
-        self.feed_inputs = [0]  * self.nqrc
-
-        # create coupling strength for ion trap
-        a = self.alpha
-        bc = self.non_diag_const
-        Nalpha = 0
-        for qindex1 in range(self.n_qubits):
-            for qindex2 in range(qindex1+1, self.n_qubits):
-                Jij = np.abs(qindex2 - qindex1)**(-a)
-                Nalpha += Jij / (self.n_qubits-1)
-        if bc > 0:
-            B = self.max_energy / bc # Magnetic field
-        else:
-            B = self.max_energy
+        self.previous_states = [None] * nqrc
+        self.current_states  = [None] * nqrc
 
         # Intialize evolution operators
         tmp_uops = []
-        # generate hamiltonian
-        for i in range(self.nqrc):
-            hamiltonian = np.zeros( (self.dim, self.dim) )
+        for i in range(nqrc):
+            # generate hamiltonian
+            hamiltonian = np.zeros( (self.dim,self.dim), dtype=np.float64 )
 
-            for qindex in range(self.n_qubits):
-                if self.dynamic == DYNAMIC_FULL_RANDOM:
-                    coef = (np.random.rand()-0.5) * 2 * self.max_energy
-                elif self.dynamic == DYNAMIC_PHASE_TRANS:
-                    coef = (np.random.rand()-0.5) * self.non_diag_var + self.non_diag_const
+            # include input qubit for computation
+            for qubit_index in range(self.qubit_count):
+                if self.fix_coupling > 0:
+                    coef = 2 * self.max_energy
                 else:
-                    coef = B
-                hamiltonian -= coef * self.Zop[qindex]
-
-            for qindex1 in range(self.n_qubits):
-                for qindex2 in range(qindex1+1, self.n_qubits):
-                    if self.dynamic == DYNAMIC_FULL_CONST_COEFF:
-                        coef =  self.max_energy
-                    elif self.dynamic == DYNAMIC_ION_TRAP:
-                        coef = np.abs(qindex2 - qindex1)**(-a) / Nalpha
-                        coef = self.max_energy * coef
-                    elif self.dynamic == DYNAMIC_PHASE_TRANS:
-                        coef = (np.random.rand()-0.5) * self.max_energy
-                    else:
-                        coef = (np.random.rand()-0.5) * 2 * self.max_energy
-                    hamiltonian -= coef * self.Xop[qindex1] @ self.Xop[qindex2]
+                    coef = (np.random.rand()-0.5) * 2 * self.max_energy
+                hamiltonian += coef * self.Zop[qubit_index]
+            for qubit_index1 in range(self.qubit_count):
+                for qubit_index2 in range(qubit_index1+1, self.qubit_count):
+                    coef = (np.random.rand()-0.5) * 2 * self.max_energy
+                    hamiltonian += coef * self.Xop[qubit_index1] @ self.Xop[qubit_index2]
                     
             ratio = float(self.tau) / float(self.virtual_nodes)        
             Uop = sp.linalg.expm(-1.j * hamiltonian * ratio)
             tmp_uops.append(Uop)
+        
         self.Uops = tmp_uops.copy()
 
-        # initialize density matrix
-        tmp_rhos = generate_list_rho(self.dim, self.nqrc, rand_rho=True)
-        self.init_rhos = tmp_rhos.copy()
-        self.last_rhos = tmp_rhos.copy()
-
-    def __get_qr_nodes(self):
-        if self.use_corr > 0:
-            qrnodes = int((self.n_qubits * (self.n_qubits + 1)) / 2)
-        else:
-            qrnodes = self.n_qubits
-        qrnodes = qrnodes * self.virtual_nodes
-        return qrnodes
-
-    def __get_comput_nodes(self):
-        return self.__get_qr_nodes() * self.nqrc
-    
     def __reset_states(self):
-        self.cur_states = [None] * self.nqrc
+        self.previous_states = [None] * self.nqrc
+        self.current_states  = [None] * self.nqrc
 
     def getKeysInModelName(self):
         keys = {
@@ -280,11 +233,12 @@ class hqrc(object):
         'N_used':'N_used', 
         'dynamics_length':'DL',
         'nqrc':'Nqr',
-        'gamma':'G',
+        'alpha':'A',
         #'trans':'sT',
         #'ratio':'sR',
         #'scale_input':'sI',
         'max_energy':'J',
+        'fix_coupling':'fJ',
         'virtual_nodes':'V',
         #'tau':'TAU',
         #'n_units':'UNIT',
@@ -310,154 +264,71 @@ class hqrc(object):
 
     def __step_forward(self, local_rhos, input_val):
         nqrc = self.nqrc
-        n_nodes = self.__get_comput_nodes()
-        n_local_nodes = self.__get_qr_nodes()
-
-        original_input = input_val.copy().ravel()
+        local_prev_states = []
+        for i in range(nqrc):
+            Uop = self.Uops[i]
+            rho = local_rhos[i]
+            # Obtain value from the input
+            value = 0
+            if self.one_input <= 0 or i == 0:
+                value = input_val[i] * self.scale_input
+            # Obtain values from previous layer
+            prev_states = self.previous_states
+            #print('Size of prev states', len(prev_states))
+            if nqrc > 1 and prev_states[0] is not None:
+                #value = softmax_linear_combine(value, previous_states, self.coeffs[i])
+                scaled_coeffs = self.coeffs[i] * self.alpha
+                value = scale_linear_combine(value, prev_states, scaled_coeffs, self.bias)
+            
+            # Replace the density matrix
+            rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
+            # (1 + u Z)/2 = (1+u)/2 |0><0| + (1-u)/2 |1><1|
         
-        q0 = np.array([1, 0]).reshape((2, 1))
-        q1 = np.array([0, 1]).reshape((2, 1))
-
-        if self.cur_states[0] is None:
-            update_input = original_input
-            self.feed_inputs = original_input * 0.0
-        else:
-            tmp_states = np.array(self.cur_states.copy(), dtype=np.float64).reshape(1, -1)
-            tmp_states = (tmp_states + 1.0) / 2.0
-            tmp_states = tmp_states @ self.W_feed
-            tmp_states = np.ravel(tmp_states)
+            # for input in [-1, 1]
+            # rho = (1+value)/2 * rho + (1-value)/2 *self.Xop[0] @ rho @ self.Xop[0]
             
-            if self.nonlinear == 1:
-                tmp_states = expit(tmp_states)
-            elif self.nonlinear == 2:
-                # Min-max norm
-                tmp_states = (tmp_states - np.min(tmp_states)) / (np.max(tmp_states) - np.min(tmp_states))
-            elif self.nonlinear == 3:
-                tmp_states = shuffle(tmp_states)
-            elif self.nonlinear == 4:
-                tmp_states = expit(tmp_states)
-                tmp_states = shuffle(tmp_states)
-            elif self.nonlinear == 5:
-                # Min-max norm
-                tmp_states = (tmp_states - np.min(tmp_states)) / (np.max(tmp_states) - np.min(tmp_states))
-                tmp_states = shuffle(tmp_states)
-            elif self.nonlinear == 6:
-                tmp_states = [np.modf(x / (2*np.pi))[0] for x in tmp_states]
-                # to make sure the nonegative number
-                tmp_states = np.array([np.modf(x + 1.0)[0] for x in tmp_states])
-            elif self.nonlinear == 7:
-                tmp_states = [np.modf(x)[0] for x in tmp_states]
-                tmp_states = np.array([np.modf(x + 1.0)[0] for x in tmp_states])
-            #print(tmp_states, self.feed_min, self.feed_max)
-            self.feed_inputs = tmp_states.copy().ravel()
-            
-            # normalize feed_inputs by dividing to the number of computational nodes
-            if self.type_connect == 0:
-                self.feed_inputs = self.feed_inputs / n_nodes
-            elif self.type_connect == 1:
-                self.feed_inputs = self.feed_inputs / n_local_nodes
-            
-            tmp_states[tmp_states < 0.0] = 0.0
-            tmp_states[tmp_states > 1.0] = 1.0
-           
-        if True:
-            for i in range(nqrc):
-                Uop = self.Uops[i]
-                rho = local_rhos[i]
-                value = original_input[i]
-
-                # Replace the density matrix
-                # rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
-                # (1 + u Z)/2 = (1+u)/2 |0><0| + (1-u)/2 |1><1|
-                # inv1 = (self.affine[1] + self.value) / self.affine[0]
-                # inv2 = (self.affine[1] - self.value) / self.affine[0]
-
-                if self.type_input == 0:
-                    rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
-                    # for input in [0, 1]
-                    value = clipping(value, minval=0.0, maxval=1.0)
-                    rho = (1 - value) * rho + value * self.Xop[0] @ rho @ self.Xop[0]
-                elif self.type_input == 1:
-                    value = clipping(value, minval=-1.0, maxval=1.0)
-                    rho = self.P0op @ rho @ self.P0op + self.Xop[0] @ self.P1op @ rho @ self.P1op @ self.Xop[0]
-                    # for input in [-1, 1]
-                    rho = ((1+value)/2) * rho + ((1-value)/2) *self.Xop[0] @ rho @ self.Xop[0]
-                else:
-                    value = clipping(value, minval=0.0, maxval=1.0)
-                    par_rho = partial_trace(rho, keep=[1], dims=[2**self.n_envs, 2**self.n_units], optimize=False)
-
-                    if self.type_input == 2:
-                        input_state = np.sqrt(1-value) * q0 + np.sqrt(value) * q1
-                    elif self.type_input == 3:
-                        angle_val = 2*np.pi*value
-                        input_state = np.cos(angle_val) * q0 + np.sin(angle_val) * q1
-                    elif self.type_input == 4:
-                        input_state = np.sqrt(1-value) * q0 + np.sqrt(value) * np.exp(1.j * 2*np.pi*value) * q1
-                    else:
-                        orig_contrib = clipping(original_input[i], minval=0.0, maxval=1.0)
-                        if self.type_input == 5:
-                            update_contrib = self.gamma * self.feed_inputs[i]
-                        elif self.type_input == 6:
-                            update_contrib = self.gamma * self.feed_inputs[i] + (1.0 - self.gamma) * orig_contrib
-                        elif self.type_input == 7:
-                            feed_contrib = 0.5 + np.arctan(self.feed_inputs[i]) / np.pi
-                            update_contrib = self.gamma * feed_contrib + (1.0 - self.gamma) * orig_contrib
-                        elif self.type_input == 8:
-                            update_contrib = self.gamma * orig_contrib
-                        elif self.type_input == 9:
-                            orig_contrib =  0.5 # let this part become 0.5 (should be a parameter 8/19)
-                            update_contrib = original_input[i] + self.gamma * self.feed_inputs[i]
-                        else:
-                            update_contrib = self.gamma
-
-                        input_state = np.sqrt(1-orig_contrib) * q0 + np.sqrt(orig_contrib) * np.exp(1.j * 2*np.pi*update_contrib) * q1
-                    
-                    input_state = input_state @ input_state.T.conj() 
-                    rho = np.kron(input_state, par_rho)
-
-
-                current_state = []
-                for v in range(self.virtual_nodes):
-                    # Time evolution of density matrix
-                    rho = Uop @ rho @ Uop.T.conj()
-                    for qindex in range(0, self.n_qubits):
-                        rvstate = np.real(np.trace(self.Pauli_op[qindex] @ rho))
-                        current_state.append(rvstate)
-                    
-                    if self.use_corr > 0:
-                        for q1 in range(0, self.n_qubits):
-                            for q2 in range(q1+1, self.n_qubits):
-                                cindex = (q1, q2)
-                                rvstate = np.real(np.trace(self.Pauli_op_corr[cindex] @ rho))
-                                current_state.append(rvstate)
-
-                # Size of current_state is Nqubits x Nvirtuals)
-                self.cur_states[i] = np.array(current_state, dtype=np.float64)
-                local_rhos[i] = rho
+            # for input in [0, 1]
+            rho = (1 - value) * rho + value * self.Xop[0] @ rho @ self.Xop[0]
+            current_state = []
+            for v in range(self.virtual_nodes):
+                # Time evolution of density matrix
+                rho = Uop @ rho @ Uop.T.conj()
+                for qubit_index in range(0, self.qubit_count):
+                    expectation_value = np.real(np.trace(self.Zop[qubit_index] @ rho))
+                    current_state.append(expectation_value)
+            # Size of current_state is Nqubits x Nvirtuals
+            tmp = np.array(current_state, dtype=np.float64)
+            local_prev_states.append(tmp)
+            self.current_states[i] = tmp.copy()
+            local_rhos[i] = rho
+        # update previous states
+        if any(x is None for x in local_prev_states) == False:
+            self.previous_states = np.array(local_prev_states, dtype=np.float64).flatten()
         return local_rhos
 
-    def __feed_forward(self, input_seq, predict, use_lastrho):
-        input_length, input_dim = input_seq.shape
+    def __feed_forward(self, input_sequence, predict, use_lastrho):
+        input_length, input_dim = input_sequence.shape
         print('Input length={}, dim={}'.format(input_length, input_dim))
         
         assert(input_dim == self.nqrc)
         
-        predict_seq = None
-        local_rhos = self.init_rhos.copy()
+        predict_sequence = None
+        local_rhos = None
         if use_lastrho == True :
+            #print('Use last density matrix')
             local_rhos = self.last_rhos.copy()
+        else:
+            local_rhos = generate_list_rho(self.dim, self.nqrc)
         
-        state_list, feed_list = [], []
+        state_list = []
         for time_step in range(0, input_length):
-            input_val = np.ravel(input_seq[time_step])
+            input_val = input_sequence[time_step]
             local_rhos = self.__step_forward(local_rhos, input_val)
 
-            state = np.array(self.cur_states.copy(), dtype=np.float64)
+            state = np.array(self.current_states.copy(), dtype=np.float64)
             state_list.append(state.flatten())
-            feed_list.append(self.feed_inputs)
 
         state_list = np.array(state_list, dtype=np.float64)
-        feed_list  = np.array(feed_list)
         self.last_rhos = local_rhos.copy()
 
         if predict:
@@ -469,9 +340,9 @@ class hqrc(object):
             
             stacked_state = np.hstack( [aug_state_list, np.ones([input_length, 1])])
             #print('stacked state {}; Wout {}'.format(stacked_state.shape, self.W_out.shape))
-            predict_seq = stacked_state @ self.W_out
+            predict_sequence = stacked_state @ self.W_out
         
-        return predict_seq, state_list, feed_list
+        return predict_sequence, state_list
 
     def __train(self, input_sequence, output_sequence):
         print('Training input, output shape', input_sequence.shape, output_sequence.shape)
@@ -480,7 +351,7 @@ class hqrc(object):
         self.W_out = np.random.rand(self.getReservoirSize() + 1, Nout)
 
         # After washing out, use last density matrix to update
-        _, state_list, _ = self.__feed_forward(input_sequence, predict=False, use_lastrho=True)
+        _, state_list = self.__feed_forward(input_sequence, predict=False, use_lastrho=True)
 
         state_list = np.array(state_list, dtype=np.float64)
         print('State list shape', state_list.shape)
@@ -488,7 +359,7 @@ class hqrc(object):
         print("\nSOLVER used to find W_out: {:}. \n\n".format(self.solver))
         if self.solver == "pinv_naive":
             """
-            Learn mapping to S with Penrose Pseudo-Inverse
+            Learn mapping  to S with Penrose Pseudo-Inverse
             No augment data
             """
             X = np.reshape(state_list, [-1, self.getReservoirSize()])
@@ -517,7 +388,7 @@ class hqrc(object):
                     X, Y = [], []
             
             if len(X) != 0:
-                # add the reaming batch
+                # ADDING THE REMAINING BATCH
                 X = np.array(X)
                 X = np.hstack( [X, np.ones([X.shape[0], 1])] )
                 Y = np.array(Y)
@@ -600,8 +471,6 @@ class hqrc(object):
             target = np.reshape(train_input_sequence[t + dynamics_length + 1], (-1,1))
             Y.append(target[:, 0])
         train_output_sequence = np.array(Y, dtype=np.float64)
-        print('train_output_sequence shape', train_output_sequence.shape)
-        
         out_length, out_dim = train_output_sequence.shape
         print("TRAINING: Output shape", train_output_sequence.shape)
         print("TEACHER FORCING ENDED.")
@@ -628,7 +497,7 @@ class hqrc(object):
         return hs_aug
 
     def getReservoirSize(self): 
-        return self.__get_comput_nodes()
+        return self.n_units * self.virtual_nodes * self.nqrc
     
     def predictSequence(self, input_sequence):
         dynamics_length = self.dynamics_length
@@ -680,7 +549,13 @@ class hqrc(object):
                     input_val = np.tile(out, (1, K))[0]
                 local_rhos = self.__step_forward(local_rhos, input_val)
             self.last_rhos = local_rhos.copy()
-
+        else:
+            # Because restart_alpha is set to 1.0
+            # It means that, not need input signals
+            print('Restart layer strength from {} to 1.0'.format(self.alpha))
+            self.alpha = 1.0
+            prediction, _ = \
+                self.__feed_forward(rep_train_input_seq[dynamics_length:], predict=True, use_lastrho=True)
         print("\n")
         prediction = np.array(prediction, dtype=np.float64).reshape((it_pred_length,-1))
         print('Prediction shape', prediction.shape)
@@ -809,12 +684,9 @@ class hqrc(object):
                 self.Xop = data["Xop"]
                 self.P0op = data["P0op"]
                 self.P1op = data["P1op"]
-                self.W_feed = data["W_feed"]
+                self.coeffs = data["coeffs"]
                 self.Uops = data["Uops"]
                 self.scaler = data["scaler"]
-                self.init_rhos = data["init_rhos"]
-                self.Pauli_op = data["Pauli_op"]
-                self.Pauli_op_corr = data["Pauli_op_corr"]
                 del data
             return 0
         except:
@@ -843,13 +715,12 @@ class hqrc(object):
             "n_model_parameters":self.n_model_parameters,
             "total_training_time":self.total_training_time,
             "W_out":self.W_out,
-            "Pauli_op":self.Pauli_op,
-            "Pauli_op_corr":self.Pauli_op_corr,
+            "Zop":self.Zop,
+            "Xop":self.Xop,
             "P0op":self.P0op,
             "P1op":self.P1op,
-            "W_feed":self.W_feed,
+            "coeffs":self.coeffs,
             "Uops":self.Uops,
-            "init_rhos":self.init_rhos,
             "scaler":self.scaler,
         }
         data_path = self.saving_path + self.model_dir + self.model_name + "/data.pickle"

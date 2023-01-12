@@ -25,6 +25,28 @@ DYNAMIC_FULL_CONST_COEFF = 'full_const_coeff'
 DYNAMIC_ION_TRAP = 'ion_trap'
 DYNAMIC_PHASE_TRANS = 'phase_trans'
 
+class Optimizer:
+    def __init__(self, label='SPSA', schedule='decay', lr=0.1, decay=0.0, gdecay=0.0, A=1.0):
+        self.label = label
+        self.schedule = schedule
+
+        self.lr_initial = lr
+        self.lr = lr
+        self.decay = decay
+        self.gdecay = gdecay
+        self.A = A
+
+    def update_term(self, delta):
+        update_term = self.lr * delta
+        return update_term
+
+    def schedule_lr(self, n_iter):
+        self.lr  = self.lr_initial / math.pow((n_iter + self.A), self.decay)
+
+def bernoulli_pert(dim):
+    """Generate a Bernoulli random pertubation"""
+    return 1.0 - 2.0 * np.random.binomial(1, 0.5, size=dim)
+
 class QRCParams():
     def __init__(self, n_units, n_envs, max_energy, virtual_nodes, tau, init_rho, \
         beta, solver, dynamic, non_diag_var, non_diag_const=4.0, alpha=1.0):

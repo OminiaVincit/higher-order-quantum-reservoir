@@ -13,6 +13,7 @@
         doi: https://doi.org/10.1016/j.neunet.2020.02.016.
 """
 #!/usr/bin/env python
+from email.policy import default
 import numpy as np
 import pickle
 import io
@@ -340,17 +341,30 @@ def getHQRCParser(parser):
 	parser.add_argument("--RDIM", help="RDIM", type=int, required=True)
 
 	parser.add_argument("--nqrc", help="number of reservoirs", type=int, required=True)
-	parser.add_argument("--alpha", help="alpha", type=float, required=True)
-	parser.add_argument("--max_energy", help="max_energy", type=float, required=True)
-	parser.add_argument("--fix_coupling", help="fix_coupling", type=int, default=0)
+	parser.add_argument("--alpha", help="alpha", type=float, default=1.0)
+	parser.add_argument("--gamma", help="gamma", type=float, required=True)
+	parser.add_argument("--max_energy", help="max_energy", type=float, default=1.0)
+	parser.add_argument("--dynamic", help="type of dynamic: phase_trans, full_random, half_random, full_const_trans, full_const_coeff, ion_trap", \
+		type=str, default='phase_trans')
+	parser.add_argument("--non_diag_var", help="non_diag_var", type=float, required=True)
+	parser.add_argument("--non_diag_const", help="non_diag_const", type=float, default=2.0)
+
 	parser.add_argument("--virtual_nodes", help="virtual_nodes", type=int, required=True)
 	parser.add_argument("--tau", help="tau", type=float, required=True)
-	parser.add_argument("--one_input", help="one_input", type=int, default=0)
+	parser.add_argument("--nonlinear", help="type of nonlinear", type=int, default=0)
+	parser.add_argument("--use_corr", help="use correlation observables or not", type=int, default=0)
+	
+	parser.add_argument("--type_input", help="type_input", type=int, default=0)
 	parser.add_argument("--scale_input", help="scale_input", type=float, default=1.0)
 	parser.add_argument("--trans_input", help="trans_input", type=float, default=0.0)
 	parser.add_argument("--bias", help="bias", type=float, default=1.0)
-	parser.add_argument("--deep", help="use deep connection", type=int, default=0)
-	parser.add_argument("--n_units", help="hidden unit count", type=int, required=True)
+
+	parser.add_argument("--type_op", help="type of operator: X, Y, Z", type=str, default='X')
+	parser.add_argument("--type_connect", help="type of connection: 0 (full higher-order), 1 (deep, only input in first qr, feedback for only previous qr)", \
+		type=int, default=0)
+
+	parser.add_argument("--n_units", help="number of hidden unit nodes", type=int, required=True)
+	parser.add_argument("--n_envs", help="number of env nodes", type=int, default=1)
 
 	parser.add_argument("--reg", help="reg", type=float, required=True)
 	parser.add_argument("--dynamics_length", help="dynamics_length", type=int, required=True)

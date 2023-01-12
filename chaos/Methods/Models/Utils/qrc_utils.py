@@ -10,19 +10,45 @@
 import numpy as np
 import os
 
+LINEAR_PINV = 'linear_pinv'
+RIDGE_PINV  = 'ridge_pinv'
+RIDGE_AUTO  = 'auto'
+RIDGE_SVD   = 'svd'
+RIDGE_CHOLESKY = 'cholesky'
+RIDGE_LSQR = 'lsqr'
+RIDGE_SPARSE = 'sparse_cg'
+RIDGE_SAG = 'sag'
+
+DYNAMIC_FULL_RANDOM = 'full_random'
+DYNAMIC_HALF_RANDOM = 'half_random'
+DYNAMIC_FULL_CONST_TRANS = 'full_const_trans'
+DYNAMIC_FULL_CONST_COEFF = 'full_const_coeff'
+DYNAMIC_ION_TRAP = 'ion_trap'
+DYNAMIC_PHASE_TRANS = 'phase_trans'
+
+
 ##---------------------- QRC utils -----------------------
 class QRCParams():
-    def __init__(self, n_units, max_energy, beta, virtual_nodes, tau):
+    def __init__(self, n_units, n_envs, max_energy, virtual_nodes, tau, init_rho, \
+        beta, solver, dynamic, non_diag_var, non_diag_const=2.0, alpha=1.0):
         self.n_units = n_units
+        self.n_envs = n_envs
         self.max_energy = max_energy
+        self.non_diag_var = non_diag_var
+        self.non_diag_const = non_diag_const
+        
+        self.alpha = alpha
         self.beta = beta
         self.virtual_nodes = virtual_nodes
         self.tau = tau
-    
+        self.init_rho = init_rho
+        self.solver = solver
+        self.dynamic = dynamic
+
     def info(self):
-        print('units={},Jdelta={},V={},taudelta={}'.format(\
-            self.n_units, self.max_energy,
-            self.virtual_nodes, self.tau))
+        print('units={},n_envs={},J={},non_diag_var={},alpha={},V={},t={},init_rho={}'.format(\
+            self.n_units, self.n_envs, self.max_energy, self.non_diag_var, self.alpha,
+            self.virtual_nodes, self.tau, self.init_rho))
 
 def generate_list_rho(dim, n, ranseed=0, rand_rho=False):
     rhos = []
@@ -42,6 +68,16 @@ def generate_list_rho(dim, n, ranseed=0, rand_rho=False):
         rhos = [rho] * n
     return rhos
 
+def min_max_norm(tmp_arr, min_arr, max_arr):
+    if min_arr is None or max_arr is None:
+        return tmp_arr
+    tmp_arr = tmp_arr - min_arr
+    tmp_arr = np.divide(tmp_arr, max_arr - min_arr)
+    return tmp_arr
+
+def clipping(val, minval, maxval):
+    return max(min(val, maxval), minval)
+
 def linear_combine(u, states, coeffs):
     #print('coeffs: ', coeffs.shape, states.shape)
     assert(len(coeffs) == len(states))
@@ -58,6 +94,34 @@ def scale_linear_combine(u, states, coeffs, bias):
     value = linear_combine(u, states, coeffs)
     #print(u.shape, 'scale linear combine', value)
     return value
+
+def partial_trace(rho, keep, dims, optimize=False):
+    """
+    Calculate the partial trace.
+    Consider a joint state ρ on the Hilbert space :math:`H_a \otimes H_b`. We wish to trace out
+    :math:`H_b`
+    .. math::
+        ρ_a = Tr_b(ρ)
+    :param rho: 2D array, the matrix to trace.
+    :param keep: An array of indices of the spaces to keep after being traced. For instance,
+                 if the space is A x B x C x D and we want to trace out B and D, keep = [0, 2].
+    :param dims: An array of the dimensions of each space. For example, if the space is
+                 A x B x C x D, dims = [dim_A, dim_B, dim_C, dim_D].
+    :param optimize: optimize argument in einsum
+    :return:  ρ_a, a 2D array i.e. the traced matrix
+    """
+    # Code from
+    # https://scicomp.stackexchange.com/questions/30052/calculate-partial-trace-of-an-outer-product-in-python
+    keep = np.asarray(keep)
+    dims = np.asarray(dims)
+    Ndim = dims.size
+    Nkeep = np.prod(dims[keep])
+
+    idx1 = [i for i in range(Ndim)]
+    idx2 = [Ndim + i if i in keep else i for i in range(Ndim)]
+    rho_a = rho.reshape(np.tile(dims, 2))
+    rho_a = np.einsum(rho_a, idx1 + idx2, optimize=optimize)
+    return rho_a.reshape(Nkeep, Nkeep)
 
 # Reference from
 # https://qiskit.org/documentation/_modules/qiskit/quantum_info/random/utils.html

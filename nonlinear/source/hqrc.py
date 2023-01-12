@@ -23,7 +23,8 @@ import psutil
 
 class HQRC(object):
     def __init__(self, nqrc, gamma, sparsity, sigma_input, dim_input=1,\
-        type_input=0, use_corr=0, type_op='Z', type_connect=0, nonlinear=0, mask_input=0, combine_input=1, feed_trials=-1, feed_nothing=True):
+        type_input=0, use_corr=0, type_op='Z', type_connect=0, nonlinear=0, \
+        mask_input=0, combine_input=1, feed_trials=-1, feed_nothing=True, W_feed=None):
         self.nqrc = nqrc
         self.gamma = gamma
         self.sparsity = sparsity
@@ -47,6 +48,7 @@ class HQRC(object):
         self.feed_max2 = None
         self.feed_min2 = None
         self.positive_feedback = True
+        self.W_feed = W_feed
 
     def __init_reservoir(self, qparams, ranseed, loading_path):
         I = [[1,0],[0,1]]
@@ -69,7 +71,6 @@ class HQRC(object):
         self.non_diag_const = qparams.non_diag_const
         
         # Overwrite parameter data
-        self.W_feed = np.array(None)
         self.Uops = []
 
         if loading_path != None and os.path.isdir(loading_path):
@@ -108,7 +109,7 @@ class HQRC(object):
         n_local_nodes = self.__get_qr_nodes()
         
         # Create W_feed or load from saved Wout
-        if self.W_feed.shape == ():
+        if self.W_feed is None or self.W_feed.shape == ():
             W_feed = np.zeros((n_nodes, nqrc))
             # if self.nonlinear == 6:
             #     for k in range(0, n_nodes, n_local_nodes):
@@ -742,11 +743,11 @@ class HQRC(object):
 
 def get_loss(qparams, buffer, train_input_seq, train_output_seq, val_input_seq, val_output_seq, \
         ranseed, nqrc, gamma=0.0, sparsity=1.0, sigma_input=1.0, type_input=0, type_op='Z', mask_input=0, combine_input=1,feed_nothing=False,\
-        type_connect=0, use_corr=0, nonlinear=0, saving_path=None, loading_path=None, dim_input=0):
+        type_connect=0, use_corr=0, nonlinear=0, saving_path=None, loading_path=None, dim_input=0, W_feed=None):
 
     model = HQRC(nqrc=nqrc, gamma=gamma, sparsity=sparsity, dim_input=dim_input,\
         sigma_input=sigma_input, type_input=type_input, type_op=type_op, mask_input=mask_input, combine_input=combine_input,feed_nothing=feed_nothing,\
-        type_connect=type_connect, use_corr=use_corr, nonlinear=nonlinear, feed_trials=buffer//2)
+        type_connect=type_connect, use_corr=use_corr, nonlinear=nonlinear, feed_trials=buffer//2, W_feed=W_feed)
 
     train_input_seq = np.array(train_input_seq)
     train_output_seq = np.array(train_output_seq)
